@@ -50,8 +50,9 @@ function renderApp() {
         <div class="brand">
           <a href="dashboard.html" class="logo">
             <img src="../assets/img/buksupply-sidebar-logo.png" alt="BukSUPPLY" class="logo-img" />
-          </a>          
-          <span class="brand-text">Buk<strong>SUPPLY</strong></span>
+          </a>  
+          <img src="../assets/img/brand-text-img.png" alt="BukSUPPLY Brand" class="brand-img" />
+          <!-- <span class="brand-text">Buk<strong>SUPPLY</strong></span> -->
         </div>
         <nav class="nav">${renderNav()}</nav>
       </aside>
