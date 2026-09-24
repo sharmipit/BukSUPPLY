@@ -33,6 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const termsCheckbox = document.getElementById('termsAgreement');
     const googleSsoBtn = document.getElementById('googleSsoBtn');
 
+    // Navigation Back / Sign In Links
+    const backLink = document.querySelector('.back-link');
+    const signinFooterLink = document.querySelector('.signup-footer .create-account-link');
+
     // Modal Elements
     const approvalModal = document.getElementById('approvalModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -40,6 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Active Role State ('user' or 'staff')
     let currentRole = 'user';
+
+    // Helper: Update back link and Sign In link with current role
+    function updateSigninLinks(role) {
+        [backLink, signinFooterLink].forEach(link => {
+            if (link) {
+                const baseUrl = link.getAttribute('href').split('?')[0];
+                link.setAttribute('href', `${baseUrl}?role=${role}`);
+            }
+        });
+    }
 
     // =========================================================================
     // 2. ROLE SWITCHER (Targeting .role-selector .role-tab)
@@ -54,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.add('active');
 
             currentRole = targetRole;
+
+            // Update navigation links for Go Back & Sign In
+            updateSigninLinks(currentRole);
 
             // Switch section visibility
             if (currentRole === 'user') {
@@ -73,6 +90,20 @@ document.addEventListener('DOMContentLoaded', () => {
             clearValidationErrors();
         });
     });
+
+    // Check URL query parameters on load (e.g., signup.html?role=staff)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+
+    if (roleParam && (roleParam === 'user' || roleParam === 'staff')) {
+        const targetTab = document.querySelector(`.role-tab[data-role="${roleParam}"]`);
+        if (targetTab) {
+            targetTab.click();
+        }
+    } else {
+        // Initial sync for default role
+        updateSigninLinks(currentRole);
+    }
 
     // =========================================================================
     // 3. REGULAR USER DYNAMIC FIELD LOGIC
@@ -277,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal Redirect
     if (modalCloseBtn) {
         modalCloseBtn.addEventListener('click', () => {
-            window.location.href = 'signin.html';
+            window.location.href = `signin.html?role=${currentRole}`;
         });
     }
 
