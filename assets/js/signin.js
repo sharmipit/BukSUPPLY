@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         signupFooter.style.display = 'block';
         hideAlert();
       } else {
-        emailInput.placeholder = 'e.g. user@buksu.edu.ph/student.buksu.edu.ph';
+        emailInput.placeholder = 'e.g. user@buksu.edu.ph';
         signupFooter.style.display = 'block';
         hideAlert();
       }
