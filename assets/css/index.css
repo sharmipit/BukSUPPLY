@@ -121,6 +121,40 @@ a {
   transform: scaleX(1);
 }
 
+/* Navbar Actions Container & Button */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--btn-dark);
+  color: #FFFFFF;
+  padding: 10px 22px;
+  border-radius: 50px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.btn-nav:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(44, 26, 20, 0.15);
+}
+
+.btn-nav i {
+  font-size: 1rem;
+  transition: transform 0.25s ease;
+}
+
+.btn-nav:hover i {
+  transform: translateX(4px);
+}
+
 .mobile-toggle {
   display: none;
   background: none;
@@ -408,6 +442,11 @@ a {
 @media (max-width: 600px) {
   .mobile-toggle {
     display: block;
+  }
+
+  .btn-nav {
+    padding: 8px 16px;
+    font-size: 0.85rem;
   }
 
   .nav-menu {
