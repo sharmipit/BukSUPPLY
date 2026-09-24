@@ -1,0 +1,444 @@
+/* ==========================================================================
+   BukSUPPLY - Landing Page Styles
+   ========================================================================== */
+
+/* --- 1. Reset & Global Variables --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --bg-color: #FAF7F2;          
+  --text-dark: #2C1A14;         
+  --text-light-brown: #8C5839; 
+  --text-body: #594D46;         
+  --card-bg: #FFFFFF;         
+  --card-border: #DFD8CC;       
+  --card-hover-border: #8C5839; 
+  --divider-color: #CFC7BA;    
+  --nav-border: rgba(140, 88, 57, 0.18); 
+  --btn-dark: #2C1A14;          
+  --btn-light: #FFFFFF;        
+  --icon-badge: #8A5538;       
+  --icon-badge-hover: #6E3F27;  
+  --footer-bg: #22120B;       
+  --font-main: 'Poppins', sans-serif;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  line-height: 1.65;
+}
+
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.text-accent {
+  color: var(--text-light-brown);
+}
+
+/* --- 2. Sticky Header / Navigation --- */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding: 18px 0;
+  background-color: rgba(250, 247, 242, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--nav-border);
+  transition: all 0.3s ease;
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+}
+
+.logo-img {
+  height: 42px;
+  width: auto;
+  display: block;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 40px;
+}
+
+.nav-link {
+  position: relative;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  padding: 6px 0;
+  transition: color 0.25s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text-light-brown);
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--text-light-brown);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transition: transform 0.25s ease;
+  transform-origin: center;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+  transform: scaleX(1);
+}
+
+.mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+
+/* --- 3. Hero Section --- */
+.hero-section {
+  padding: 125px 0 115px 0;
+  text-align: center;
+}
+
+.hero-container {
+  max-width: 980px; 
+}
+
+.hero-title {
+  font-size: 3.35rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-dark);
+  margin-bottom: 28px;
+  letter-spacing: -0.3px;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-body);
+  max-width: 780px;
+  margin: 0 auto 48px auto;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 15px 42px;
+  border-radius: 50px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(44, 26, 20, 0.1);
+}
+
+.btn-dark {
+  background-color: var(--btn-dark);
+  color: #FFFFFF;
+}
+
+.btn-light {
+  background-color: var(--btn-light);
+  color: var(--text-dark);
+  border: 1px solid #E5E0D8;
+}
+
+/* --- 4. What is BukSUPPLY? --- */
+.about-section {
+  padding: 40px 0 100px 0;
+  scroll-margin-top: 100px;
+}
+
+.info-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  padding: 64px 56px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
+  transition: transform 0.35s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              box-shadow 0.35s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              border-color 0.35s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 36px rgba(44, 26, 20, 0.08);
+  border-color: rgba(140, 88, 57, 0.4);
+}
+
+.card-title {
+  font-size: 2.35rem;
+  font-weight: 700;
+  margin-bottom: 28px;
+  color: var(--text-dark);
+}
+
+.card-text {
+  font-size: 1.1rem;
+  color: var(--text-body);
+  line-height: 1.75;
+  max-width: 880px;
+  margin: 0 auto 20px auto;
+}
+
+.card-text strong {
+  color: var(--text-dark);
+}
+
+.card-text:last-child {
+  margin-bottom: 0;
+}
+
+/* --- 5. Services Section --- */
+.services-section {
+  padding: 40px 0 120px 0;
+  scroll-margin-top: 100px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.section-title {
+  font-size: 2.35rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-dark);
+}
+
+.section-subtitle {
+  font-size: 1.15rem;
+  color: var(--text-body);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.service-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              box-shadow 0.35s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              border-color 0.35s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px rgba(44, 26, 20, 0.09);
+  border-color: var(--card-hover-border);
+}
+
+.icon-circle {
+  width: 104px;
+  height: 104px;
+  background-color: var(--icon-badge);
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  transition: transform 0.35s ease, background-color 0.35s ease;
+}
+
+.service-card:hover .icon-circle {
+  transform: scale(1.08);
+  background-color: var(--icon-badge-hover);
+}
+
+.icon-circle svg {
+  width: 44px;
+  height: 44px;
+}
+
+.service-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.service-category {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text-light-brown);
+  margin-bottom: 28px;
+  line-height: 1.4;
+  min-height: 50px;
+  max-width: 260px;
+}
+
+.card-divider {
+  width: 80%;
+  height: 1px;
+  background-color: var(--divider-color);
+  border: none;
+  margin: 0 auto 32px auto;
+  transition: background-color 0.35s ease;
+}
+
+.service-card:hover .card-divider {
+  background-color: var(--text-light-brown);
+}
+
+.service-description {
+  font-size: 0.98rem;
+  color: var(--text-body);
+  line-height: 1.7;
+}
+
+/* --- 6. Footer --- */
+.footer {
+  background-color: var(--footer-bg);
+  color: #FFFFFF;
+  padding: 48px 0;
+  text-align: center;
+}
+
+.footer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-logo-img {
+  height: 38px;
+  width: auto;
+  display: block;
+}
+
+.copyright {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+/* --- 7. Responsive Media Queries --- */
+@media (max-width: 900px) {
+  .hero-section {
+    padding: 80px 0 70px 0;
+  }
+
+  .hero-title {
+    font-size: 2.6rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .service-category {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .mobile-toggle {
+    display: block;
+  }
+
+  .nav-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: rgba(250, 247, 242, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--nav-border);
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  .nav-menu.active {
+    display: flex;
+  }
+
+  .hero-section {
+    padding: 60px 0 60px 0;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .info-card {
+    padding: 36px 24px;
+  }
+}
