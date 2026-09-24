@@ -62,3 +62,106 @@ document.addEventListener('DOMContentLoaded', () => {
     alertBanner.className = 'alert-banner hidden';
   }
 });
+
+
+// ==========================================
+  // Forgot / Reset Password Modal Logic
+  // ==========================================
+  const forgotModal = document.getElementById('forgotPasswordModal');
+  const openForgotModalBtn = document.getElementById('openForgotModal');
+  const closeForgotModalBtn = document.getElementById('closeForgotModal');
+
+  const forgotStep1 = document.getElementById('forgotStep1');
+  const forgotStep2 = document.getElementById('forgotStep2');
+
+  const forgotForm = document.getElementById('forgotForm');
+  const resetForm = document.getElementById('resetForm');
+
+  const modalAlert1 = document.getElementById('modalAlert1');
+  const modalAlert2 = document.getElementById('modalAlert2');
+
+  // Open Modal
+  if (openForgotModalBtn) {
+    openForgotModalBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      forgotModal.classList.remove('hidden');
+      resetModalState();
+    });
+  }
+
+  // Close Modal
+  if (closeForgotModalBtn) {
+    closeForgotModalBtn.addEventListener('click', () => {
+      forgotModal.classList.add('hidden');
+    });
+  }
+
+  // Close Modal when clicking outside the card
+  forgotModal.addEventListener('click', (e) => {
+    if (e.target === forgotModal) {
+      forgotModal.classList.add('hidden');
+    }
+  });
+
+  // Close Modal on Escape key press
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
+      forgotModal.classList.add('hidden');
+    }
+  });
+
+  // Step 1 Submission: Request Reset Code
+  forgotForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const resetEmail = document.getElementById('resetEmail').value;
+
+    showModalAlert(modalAlert1, 'Sending code...', 'info');
+
+    setTimeout(() => {
+      // Transition to Step 2 (Reset Password Form)
+      forgotStep1.classList.add('hidden');
+      forgotStep2.classList.remove('hidden');
+      showModalAlert(modalAlert2, `Code sent to ${resetEmail}! Please check your inbox.`, 'info');
+    }, 1000);
+  });
+
+  // Step 2 Submission: Update Password
+  resetForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const newPass = document.getElementById('newPassword').value;
+    const confirmPass = document.getElementById('confirmNewPassword').value;
+
+    if (newPass !== confirmPass) {
+      showModalAlert(modalAlert2, 'Passwords do not match. Please try again.', 'info');
+      return;
+    }
+
+    showModalAlert(modalAlert2, 'Updating password...', 'info');
+
+    setTimeout(() => {
+      showModalAlert(modalAlert2, 'Password successfully reset! You can now log in.', 'info');
+      setTimeout(() => {
+        forgotModal.classList.add('hidden');
+      }, 1500);
+    }, 1000);
+  });
+
+  // Helper Functions for Modal
+  function resetModalState() {
+    forgotStep1.classList.remove('hidden');
+    forgotStep2.classList.add('hidden');
+    forgotForm.reset();
+    resetForm.reset();
+    hideModalAlert(modalAlert1);
+    hideModalAlert(modalAlert2);
+  }
+
+  function showModalAlert(element, message, type) {
+    element.textContent = message;
+    element.className = `alert-banner ${type}`;
+  }
+
+  function hideModalAlert(element) {
+    element.textContent = '';
+    element.className = 'alert-banner hidden';
+  }

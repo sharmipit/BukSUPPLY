@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BukSUPPLY | Sign In</title>
 
+  <!-- Google Fonts: Poppins -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+  <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+  <!-- Favicon & Page Styles -->
   <link rel="icon" type="image/png" href="../assets/img/favicon.ico">
   <link rel="stylesheet" href="../assets/css/signin.css">
 </head>
@@ -19,6 +22,7 @@
   <main class="login-wrapper">
     <div class="login-card">
       
+      <!-- Go Back Link -->
       <a href="../index.html" class="back-link">
         <i class="bi bi-arrow-left"></i> Go Back
       </a>
@@ -67,8 +71,9 @@
             placeholder="Enter your password" 
             required
           >
+          <!-- FIXED LINK TRIGGER HERE -->
           <div class="forgot-wrapper">
-            <a href="#" class="forgot-link">Forgot Password</a>
+            <a href="#" class="forgot-link" id="openForgotModal">Forgot Password?</a>
           </div>
         </div>
 
@@ -101,6 +106,105 @@
 
     </div>
   </main>
+
+  <!-- ==========================================
+       FORGOT / RESET PASSWORD MODAL
+       ========================================== -->
+  <div id="forgotPasswordModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      
+      <!-- Close Button -->
+      <button type="button" class="modal-close-btn" id="closeForgotModal" title="Close Modal">
+        <i class="bi bi-x-lg"></i>
+      </button>
+      
+      <!-- STEP 1: Request Reset Link -->
+      <div id="forgotStep1" class="modal-step">
+        <header class="modal-header">
+          <h2 class="modal-title">Reset your <span>Password</span></h2>
+          <p class="modal-subtitle">Enter your institutional email and we'll send you a verification code to reset your password.</p>
+        </header>
+
+        <form id="forgotForm" class="login-form">
+          <div class="form-group">
+            <label for="resetEmail" class="form-label">
+              <i class="bi bi-envelope-fill"></i> Institutional Email
+            </label>
+            <input 
+              type="email" 
+              id="resetEmail" 
+              class="form-input" 
+              placeholder="e.g. user@buksu.edu.ph" 
+              required
+            >
+          </div>
+
+          <div id="modalAlert1" class="alert-banner hidden"></div>
+
+          <div class="btn-wrapper">
+            <button type="submit" class="btn-submit">Send Reset Code</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- STEP 2: Enter Code & Set New Password -->
+      <div id="forgotStep2" class="modal-step hidden">
+        <header class="modal-header">
+          <h2 class="modal-title">Set New <span>Password</span></h2>
+          <p class="modal-subtitle">Enter the 6-digit code sent to your email along with your new password.</p>
+        </header>
+
+        <form id="resetForm" class="login-form">
+          <div class="form-group">
+            <label for="resetCode" class="form-label">
+              <i class="bi bi-shield-lock-fill"></i> 6-Digit Reset Code
+            </label>
+            <input 
+              type="text" 
+              id="resetCode" 
+              class="form-input" 
+              placeholder="e.g. 123456" 
+              maxlength="6"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="newPassword" class="form-label">
+              <i class="bi bi-lock-fill"></i> New Password
+            </label>
+            <input 
+              type="password" 
+              id="newPassword" 
+              class="form-input" 
+              placeholder="Enter new password" 
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="confirmNewPassword" class="form-label">
+              <i class="bi bi-lock-fill"></i> Confirm New Password
+            </label>
+            <input 
+              type="password" 
+              id="confirmNewPassword" 
+              class="form-input" 
+              placeholder="Confirm new password" 
+              required
+            >
+          </div>
+
+          <div id="modalAlert2" class="alert-banner hidden"></div>
+
+          <div class="btn-wrapper">
+            <button type="submit" class="btn-submit">Update Password</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
 
   <!-- Interactive Script -->
   <script src="../assets/js/signin.js"></script>
