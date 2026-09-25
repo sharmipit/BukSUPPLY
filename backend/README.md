@@ -50,6 +50,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ### 4. Verify Database Connection
 
 ```bash
+cd backend
 npm run db:test
 
 ```
@@ -57,11 +58,12 @@ npm run db:test
 ### 5. Start the Development Server
 
 ```bash
+cd backend
 npm run dev
 
 ```
 
-The backend server will run at `http://localhost:5000`.
+The backend server will run at `http://localhost:5001`.
 
 ---
 
@@ -69,7 +71,7 @@ The backend server will run at `http://localhost:5000`.
 
 | Variable | Description |
 | --- | --- |
-| `PORT` | Local port number (default: `5000`) |
+| `PORT` | Local port number (default: `5001`) |
 | `MONGODB_URI` | MongoDB Atlas SRV connection string |
 | `JWT_SECRET` | Secret key for signing authentication tokens |
 | `JWT_EXPIRES_IN` | Token expiration period (e.g., `1d`) |

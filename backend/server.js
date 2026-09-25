@@ -1,16 +1,33 @@
-require('dotenv').config();
-const app = require('./src/app');
-const connectDB = require('./src/database/connection');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const connectDB = require("./config/db");
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  throw new Error('Set JWT_SECRET in .env (at least 32 random characters)');
-}
+const app = express();
 
-const PORT = process.env.PORT || 5000;
+// --- Core middleware ---
+app.use(express.json());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true,
+  })
+);
 
-connectDB()
-  .then(() => app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`)))
-  .catch((err) => {
-    console.error('Failed to start:', err.message);
-    process.exit(1);
+// --- Routes ---
+app.use("/api/auth", require("./routes/authRoutes"));
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", service: "buksupply-backend" });
+});
+
+// --- Start server after DB connects ---
+const PORT = process.env.PORT || 5001;
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`BukSUPPLY server running on port ${PORT}`);
   });
+});
