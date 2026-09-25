@@ -19,7 +19,7 @@
     <div class="signup-wrapper">
         <div class="signup-card">
             
-            <a href="../auth/signin.html" class="back-link">
+            <a href="signin.html" class="back-link">
                 <i class="bi bi-arrow-left"></i> Go Back
             </a>
 
@@ -29,257 +29,39 @@
                 <p class="signup-subtitle">Register to submit requisitions and reservations</p>
             </div>
 
-            <!-- Role Selection Segmented Control -->
-            <div class="role-selector" role="tablist">
-                <button type="button" class="role-tab active" id="tabUser" data-role="user" role="tab">
-                    Users
-                </button>
-                <button type="button" class="role-tab" id="tabStaff" data-role="staff" role="tab">
-                    Staff
-                </button>
-            </div>
-
-            <!-- Sign-Up Form -->
+            <!-- Sign-Up Form (Regular Users Only) -->
             <form id="signupForm" class="signup-form" novalidate>
 
-                <!-- ========================================== -->
-                <!-- SECTION A: REGULAR USER FIELDS            -->
-                <!-- ========================================== -->
-                <div id="userSection" class="form-section active-section">
-                    <div class="form-grid">
-                        
-                        <!-- First Name -->
-                        <div class="input-group">
-                            <label for="userFirstName" class="form-label">First Name <span class="required">*</span></label>
-                            <input type="text" id="userFirstName" name="firstName" class="form-input" placeholder="e.g. Juan" required>
-                            <span class="error-msg">First name is required</span>
-                        </div>
-
-                        <!-- Last Name -->
-                        <div class="input-group">
-                            <label for="userLastName" class="form-label">Last Name <span class="required">*</span></label>
-                            <input type="text" id="userLastName" name="lastName" class="form-input" placeholder="e.g. Dela Cruz" required>
-                            <span class="error-msg">Last name is required</span>
-                        </div>
-
-                        <!-- Institutional Email -->
-                        <div class="input-group">
-                            <label for="userEmail" class="form-label">Institutional Email <span class="required">*</span></label>
-                            <input type="email" id="userEmail" name="email" class="form-input" placeholder="username@buksu.edu.ph" required>
-                            <span class="error-msg" id="userEmailError">Must be a valid @buksu.edu.ph email</span>
-                        </div>
-
-                        <!-- ID Number -->
-                        <div class="input-group">
-                            <label for="userID" class="form-label">ID Number <span class="required">*</span></label>
-                            <input type="text" id="userID" name="idNumber" class="form-input" placeholder="e.g. 2400000000" required>
-                            <span class="error-msg">ID Number is required</span>
-                        </div>
-
-                        <!-- Contact Number -->
-                        <div class="input-group">
-                            <label for="userContact" class="form-label">Contact Number <span class="required">*</span></label>
-                            <input type="tel" id="userContact" name="contact" class="form-input" placeholder="e.g. 09123456789" required>
-                            <span class="error-msg">Valid phone number required</span>
-                        </div>
-
-                        <!-- User Type Dropdown -->
-                        <div class="input-group">
-                            <label for="userType" class="form-label">User Type <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="userType" name="userType" class="form-input select-input" required>
-                                    <option value="" disabled selected>Select User Type</option>
-                                    <option value="Student">Student</option>
-                                    <option value="Faculty">Faculty</option>
-                                    <option value="Non-Teaching Staff">Non-Teaching Staff</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                            <span class="error-msg">Please select a user type</span>
-                        </div>
-
-                        <!-- Dynamic Field: College (For Student & Faculty) -->
-                        <div class="input-group full-width dynamic-field" id="userCollegeGroup">
-                            <label for="userCollege" class="form-label">College <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="userCollege" name="college" class="form-input select-input">
-                                    <option value="" disabled selected>Select College</option>
-                                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
-                                    <option value="College of Business">College of Business</option>
-                                    <option value="College of Education">College of Education</option>
-                                    <option value="College of Nursing">College of Nursing</option>
-                                    <option value="College of Law">College of Law</option>
-                                    <option value="College of Technologies">College of Technologies</option>
-                                    <option value="College of Public Administration and Governance">College of Public Administration and Governance</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                            <span class="error-msg">Please select your college</span>
-                        </div>
-
-                        <!-- Dynamic Field: Office (For Non-Teaching Staff) -->
-                        <div class="input-group full-width dynamic-field d-none" id="userOfficeGroup">
-                            <label for="userOffice" class="form-label">Office <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="userOffice" name="office" class="form-input select-input">
-                                    <option value="" disabled selected>Select Office</option>
-                                    <option value="Office of the University President">Office of the University President</option>
-                                    <option value="Office of the Vice President for Academic Affairs">Office of the Vice President for Academic Affairs</option>
-                                    <option value="Office of the Vice President for Administration">Office of the Vice President for Administration</option>
-                                    <option value="Office of Student Services">Office of Student Services</option>
-                                    <option value="University Registrar">University Registrar</option>
-                                    <option value="University Library">University Library</option>
-                                    <option value="Human Resource Management Office">Human Resource Management Office</option>
-                                    <option value="Information and Communication Technology Office">Information and Communication Technology Office</option>
-                                    <option value="Accounting Office">Accounting Office</option>
-                                    <option value="Supply and Property Management Office">Supply and Property Management Office</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                            <span class="error-msg">Please select your office</span>
-                        </div>
-
-                        <!-- Dynamic Field: Organization Name (For Student Only) -->
-                        <div class="input-group dynamic-field" id="userOrgNameGroup">
-                            <label for="userOrgName" class="form-label">Organization Name <span class="optional">(Optional)</span></label>
-                            <input type="text" id="userOrgName" name="orgName" class="form-input" placeholder="e.g. Supreme Student Council">
-                        </div>
-
-                        <!-- Dynamic Field: Organization Position (For Student Only) -->
-                        <div class="input-group dynamic-field" id="userOrgPositionGroup">
-                            <label for="userOrgPosition" class="form-label">Organization Position <span class="optional">(Optional)</span></label>
-                            <div class="select-wrapper">
-                                <select id="userOrgPosition" name="orgPosition" class="form-input select-input">
-                                    <option value="" disabled selected>Select Position</option>
-                                    <option value="President">President</option>
-                                    <option value="Vice President">Vice President</option>
-                                    <option value="Secretary">Secretary</option>
-                                    <option value="Treasurer">Treasurer</option>
-                                    <option value="Auditor">Auditor</option>
-                                    <option value="Representative">Representative</option>
-                                    <option value="Member">Member</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- SECTION B: STAFF / MODERATOR FIELDS        -->
-                <!-- ========================================== -->
-                <div id="staffSection" class="form-section d-none">
-                    <div class="form-grid">
-                        
-                        <!-- First Name -->
-                        <div class="input-group">
-                            <label for="staffFirstName" class="form-label">First Name <span class="required">*</span></label>
-                            <input type="text" id="staffFirstName" name="firstName" class="form-input" placeholder="e.g. Maria" required>
-                            <span class="error-msg">First name is required</span>
-                        </div>
-
-                        <!-- Last Name -->
-                        <div class="input-group">
-                            <label for="staffLastName" class="form-label">Last Name <span class="required">*</span></label>
-                            <input type="text" id="staffLastName" name="lastName" class="form-input" placeholder="e.g. Santos" required>
-                            <span class="error-msg">Last name is required</span>
-                        </div>
-
-                        <!-- Institutional Email -->
-                        <div class="input-group">
-                            <label for="staffEmail" class="form-label">Institutional Email <span class="required">*</span></label>
-                            <input type="email" id="staffEmail" name="email" class="form-input" placeholder="staff.username@buksu.edu.ph" required>
-                            <span class="error-msg" id="staffEmailError">Must be a valid @buksu.edu.ph email</span>
-                        </div>
-
-                        <!-- Personnel ID -->
-                        <div class="input-group">
-                            <label for="staffID" class="form-label">Personnel ID <span class="required">*</span></label>
-                            <input type="text" id="staffID" name="idNumber" class="form-input" placeholder="e.g. 2400000000" required>
-                            <span class="error-msg">Personnel ID is required</span>
-                        </div>
-
-                        <!-- Contact Number -->
-                        <div class="input-group">
-                            <label for="staffContact" class="form-label">Contact Number <span class="required">*</span></label>
-                            <input type="tel" id="staffContact" name="contact" class="form-input" placeholder="e.g. 09123456789" required>
-                            <span class="error-msg">Valid phone number required</span>
-                        </div>
-
-                        <!-- Designation / Position -->
-                        <div class="input-group">
-                            <label for="staffPosition" class="form-label">Position / Designation <span class="required">*</span></label>
-                            <input type="text" id="staffPosition" name="position" class="form-input" placeholder="e.g. Supply Assistant" required>
-                            <span class="error-msg">Position/Designation is required</span>
-                        </div>
-
-                        <!-- Staff Affiliation Type -->
-                        <div class="input-group full-width">
-                            <label for="staffAffiliationType" class="form-label">Staff Affiliation Category <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="staffAffiliationType" class="form-input select-input" required>
-                                    <option value="College Staff" selected>College Staff</option>
-                                    <option value="Office Staff">Administrative Office Staff</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic Staff College Selector -->
-                        <div class="input-group full-width dynamic-field" id="staffCollegeGroup">
-                            <label for="staffCollege" class="form-label">Assigned College <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="staffCollege" name="college" class="form-input select-input">
-                                    <option value="" disabled selected>Select College</option>
-                                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
-                                    <option value="College of Business">College of Business</option>
-                                    <option value="College of Education">College of Education</option>
-                                    <option value="College of Nursing">College of Nursing</option>
-                                    <option value="College of Law">College of Law</option>
-                                    <option value="College of Technologies">College of Technologies</option>
-                                    <option value="College of Public Administration and Governance">College of Public Administration and Governance</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                            <span class="error-msg">Please select an assigned college</span>
-                        </div>
-
-                        <!-- Dynamic Staff Office Selector -->
-                        <div class="input-group full-width dynamic-field d-none" id="staffOfficeGroup">
-                            <label for="staffOffice" class="form-label">Assigned Office <span class="required">*</span></label>
-                            <div class="select-wrapper">
-                                <select id="staffOffice" name="office" class="form-input select-input">
-                                    <option value="" disabled selected>Select Administrative Office</option>
-                                    <option value="Office of the University President">Office of the University President</option>
-                                    <option value="Office of the Vice President for Academic Affairs">Office of the Vice President for Academic Affairs</option>
-                                    <option value="Office of the Vice President for Administration">Office of the Vice President for Administration</option>
-                                    <option value="Office of Student Services">Office of Student Services</option>
-                                    <option value="University Registrar">University Registrar</option>
-                                    <option value="University Library">University Library</option>
-                                    <option value="Human Resource Management Office">Human Resource Management Office</option>
-                                    <option value="Information and Communication Technology Office">Information and Communication Technology Office</option>
-                                    <option value="Accounting Office">Accounting Office</option>
-                                    <option value="Supply and Property Management Office">Supply and Property Management Office</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <i class="bi bi-chevron-down select-icon"></i>
-                            </div>
-                            <span class="error-msg">Please select an assigned office</span>
-                        </div>
-
-                    </div>
-                </div>
-
-                <!-- ========================================== -->
-                <!-- SHARED SECURITY & AGREEMENT FIELDS         -->
-                <!-- ========================================== -->
-                <div class="shared-fields-grid">
+                <div class="form-grid">
                     
+                    <!-- First Name -->
+                    <div class="input-group">
+                        <label for="firstName" class="form-label">First Name <span class="required">*</span></label>
+                        <input type="text" id="firstName" name="firstName" class="form-input" placeholder="e.g. Juan" required>
+                        <span class="error-msg">First name is required</span>
+                    </div>
+
+                    <!-- Last Name -->
+                    <div class="input-group">
+                        <label for="lastName" class="form-label">Last Name <span class="required">*</span></label>
+                        <input type="text" id="lastName" name="lastName" class="form-input" placeholder="e.g. Dela Cruz" required>
+                        <span class="error-msg">Last name is required</span>
+                    </div>
+
+                    <!-- Institutional Email -->
+                    <div class="input-group full-width">
+                        <label for="email" class="form-label">Institutional Email <span class="required">*</span></label>
+                        <input type="email" id="email" name="email" class="form-input" placeholder="username@student.buksu.edu.ph or @buksu.edu.ph" required>
+                        <span class="error-msg" id="emailError">Please use a valid BukSU institutional email address.</span>
+                    </div>
+
+                    <!-- ID Number (Dynamic Placeholder/Label) -->
+                    <div class="input-group full-width">
+                        <label for="idNumber" class="form-label" id="idLabel">ID Number <span class="required">*</span></label>
+                        <input type="text" id="idNumber" name="idNumber" class="form-input" placeholder="Student ID or Personnel ID Number" required>
+                        <span class="error-msg">ID Number is required</span>
+                    </div>
+
                     <!-- Password -->
                     <div class="input-group">
                         <label for="password" class="form-label"><i class="bi bi-lock"></i> Password <span class="required">*</span></label>
@@ -306,7 +88,7 @@
 
                 </div>
 
-                <!-- Terms & Conditions Checkbox -->
+                <!-- Terms & Privacy Agreements -->
                 <div class="terms-group">
                     <label class="custom-checkbox-container">
                         <input type="checkbox" id="termsAgreement" required>
@@ -315,13 +97,13 @@
                             I agree to the <a href="#" class="inline-link">Terms & Conditions</a> and <a href="#" class="inline-link">Privacy Policy</a> of BukSU PSMO.
                         </span>
                     </label>
-                    <span class="error-msg" id="termsError">You must agree to the terms to proceed</span>
+                    <span class="error-msg" id="termsError">You must agree to the terms and privacy policy to proceed</span>
                 </div>
 
-                <!-- Submit Button Container -->
+                <!-- Submit Button -->
                 <div class="btn-wrapper">
                     <button type="submit" class="btn-submit" id="btnSubmit">
-                        Create My Account
+                        Create Account
                     </button>
                 </div>
 
@@ -347,24 +129,18 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- POST-REGISTRATION PENDING APPROVAL MODAL  -->
-    <!-- ========================================== -->
-    <div class="modal-overlay" id="approvalModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <!-- POST-REGISTRATION SUCCESS MODAL (INSTANT CREATION) -->
+    <div class="modal-overlay" id="successModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-card">
-            <div class="modal-icon-wrapper">
-                <i class="bi bi-clock-history"></i>
+            <div class="modal-icon-wrapper success-icon">
+                <i class="bi bi-check-circle-fill"></i>
             </div>
-            <h2 class="modal-title" id="modalTitle">Account Registration Received</h2>
-            <p class="modal-badge"><i class="bi bi-shield-lock-fill"></i> Account Status: <strong>Pending Approval</strong></p>
+            <h2 class="modal-title" id="modalTitle">Account Created Successfully!</h2>
             <p class="modal-description">
-                Thank you for registering with <strong>BukSUPPLY</strong>! To ensure security within Bukidnon State University, your account requires verification by the Property and Supply Management Office (PSMO) Administrator.
+                Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and activated instantly. You can now log in to manage requisitions and reservations.
             </p>
-            <div class="modal-info-box">
-                <p><i class="bi bi-info-circle-fill"></i> You will receive an email notification at <strong id="registeredEmailDisplay">user@buksu.edu.ph</strong> once your registration has been approved.</p>
-            </div>
             <button type="button" class="btn-submit modal-btn" id="modalCloseBtn">
-                Return to Sign In
+                Proceed to Sign In
             </button>
         </div>
     </div>
