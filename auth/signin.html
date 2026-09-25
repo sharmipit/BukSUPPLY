@@ -27,31 +27,22 @@
       <!-- Header Section -->
       <header class="login-header">
         <h1 class="login-title">Log in to your <span>account</span></h1>
-        <p class="login-subtitle">Welcome! Enter your credentials to access <strong>BukSUPPLY</strong></p>
+        <p class="login-subtitle">Welcome! Enter your institutional credentials to access <strong>BukSUPPLY</strong></p>
       </header>
 
-      <!-- Role Selection Segmented Control -->
-      <div class="role-selector" role="tablist" aria-label="Account Role Selection">
-        <button type="button" class="role-tab active" data-role="user" id="tab-user">Users</button>
-        <button type="button" class="role-tab" data-role="staff" id="tab-staff">Staff</button>
-        <button type="button" class="role-tab" data-role="admin" id="tab-admin">Administrator</button>
-      </div>
-
-      <!-- Login Form -->
+      <!-- Universal Login Form -->
       <form id="loginForm" class="login-form">
-        <!-- Hidden input to store current selected role -->
-        <input type="hidden" id="selectedRole" name="role" value="user">
 
         <!-- Email Address -->
         <div class="form-group">
           <label for="email" class="form-label">
-            <i class="bi bi-envelope-fill"></i> Email Address
+            <i class="bi bi-envelope-fill"></i> Institutional Email
           </label>
           <input 
             type="email" 
             id="email" 
             class="form-input" 
-            placeholder="e.g. user@buksu.edu.ph" 
+            placeholder="username@student.buksu.edu.ph or @buksu.edu.ph" 
             required
           >
         </div>
@@ -68,7 +59,7 @@
             placeholder="Enter your password" 
             required
           >
-          <!-- Forgot Password Link -->
+          <!-- Forgot Password Modal Link -->
           <div class="forgot-wrapper">
             <a href="#" class="forgot-link" id="openForgotModal">Forgot Password?</a>
           </div>
@@ -89,7 +80,6 @@
           <span>or Log In with</span>
         </div>
         
-        <!-- Brown-themed Full Google Button -->
         <button type="button" class="sso-google-btn" id="googleSsoBtn">
           <i class="bi bi-google"></i>
           <span>Continue with Google</span>
@@ -104,13 +94,10 @@
     </div>
   </main>
 
-  <!-- ==========================================
-       FORGOT / RESET PASSWORD MODAL
-       ========================================== -->
+  <!-- FORGOT / RESET PASSWORD MODAL -->
   <div id="forgotPasswordModal" class="modal-overlay hidden">
     <div class="modal-card">
       
-      <!-- Close Button -->
       <button type="button" class="modal-close-btn" id="closeForgotModal" title="Close Modal">
         <i class="bi bi-x-lg"></i>
       </button>
@@ -203,7 +190,6 @@
     </div>
   </div>
 
-  <!-- Interactive Script -->
   <script src="../assets/js/signin.js"></script>
 </body>
 </html>

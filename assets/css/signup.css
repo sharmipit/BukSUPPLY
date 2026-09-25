@@ -18,6 +18,7 @@
   
   --error-color: #C93B2B;
   --error-bg: #FDF2F0;
+  --success-color: #2e7d32;
 }
 
 * {
@@ -97,64 +98,16 @@ body {
   font-weight: 400;
 }
 
-/* Role Selection Segmented Control */
-.role-selector {
-  background-color: #F3ECE2;
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 5px;
-  display: flex;
-  gap: 5px;
-  margin-bottom: 30px;
-}
-
-.role-tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  padding: 12px 10px;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-dark);
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.role-tab.active {
-  background-color: var(--btn-dark);
-  color: #FFFFFF;
-  box-shadow: 0px 4px 10px rgba(44, 26, 20, 0.15);
-}
-
 /* Form Styles & Grid */
 .signup-form {
   display: flex;
   flex-direction: column;
 }
 
-.form-section {
-  display: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.form-section.active-section {
-  display: block;
-  opacity: 1;
-}
-
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 18px 20px;
-}
-
-.shared-fields-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px 20px;
-  margin-top: 18px;
 }
 
 .input-group {
@@ -185,11 +138,6 @@ body {
   color: var(--error-color);
 }
 
-.form-label .optional {
-  color: #998B82;
-  font-weight: 400;
-}
-
 /* Input Fields */
 .form-input {
   background-color: var(--input-bg);
@@ -210,29 +158,6 @@ body {
 
 .form-input::placeholder {
   color: #A3968C;
-}
-
-/* Dropdown Custom Styling */
-.select-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.select-input {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  cursor: pointer;
-  padding-right: 40px;
-}
-
-.select-icon {
-  position: absolute;
-  right: 18px;
-  pointer-events: none;
-  color: var(--text-dark);
-  font-size: 0.85rem;
 }
 
 /* Password Input & Icon Suffixed Inputs */
@@ -447,7 +372,7 @@ body {
   transform: translateY(0);
 }
 
-/* Footer Link (Matched with Sign In) */
+/* Footer Link */
 .signup-footer {
   text-align: center;
   margin-top: 30px;
@@ -466,12 +391,7 @@ body {
   color: var(--text-light-brown);
 }
 
-/* Utility Class */
-.d-none {
-  display: none !important;
-}
-
-/* Modal Overlay & Approval Screen */
+/* Modal Overlay & Instant Success Screen */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -514,14 +434,14 @@ body {
 .modal-icon-wrapper {
   width: 64px;
   height: 64px;
-  background-color: #FDF4EB;
-  color: var(--text-light-brown);
+  background-color: #E8F5E9;
+  color: var(--success-color);
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  margin-bottom: 20px;
+  font-size: 2.2rem;
+  margin-bottom: 18px;
 }
 
 .modal-title {
@@ -531,45 +451,11 @@ body {
   margin-bottom: 8px;
 }
 
-.modal-badge {
-  display: inline-block;
-  background-color: #FFF3E0;
-  color: #E65100;
-  padding: 4px 14px;
-  border-radius: 50px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
 .modal-description {
   font-size: 0.88rem;
   color: var(--text-body);
-  margin-bottom: 18px;
+  margin-bottom: 24px;
   line-height: 1.6;
-}
-
-.modal-info-box {
-  background-color: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 0.82rem;
-  color: var(--text-dark);
-  margin-bottom: 22px;
-  text-align: left;
-}
-
-.modal-info-box p {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.modal-info-box i {
-  color: var(--text-light-brown);
-  font-size: 0.95rem;
-  margin-top: 1px;
 }
 
 .modal-btn {
@@ -591,12 +477,7 @@ body {
     width: 100%;
   }
 
-  .role-tab {
-    font-size: 0.85rem;
-    padding: 10px 5px;
-  }
-
-  .form-grid, .shared-fields-grid {
+  .form-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
