@@ -47,20 +47,14 @@ const UserSchema = new mongoose.Schema(
       enum: ["Active", "Deactivated"],
       default: "Active",
     },
-    termsAndConditions: {
+    // Single checkbox on the frontend covers both Terms & Conditions and
+    // Privacy Policy, so this is stored as one combined agreement flag.
+    agreedToTerms: {
       type: Boolean,
-      required: [true, "You must accept the Terms and Conditions"],
+      required: [true, "You must agree to the Terms and Conditions and Privacy Policy"],
       validate: {
         validator: (v) => v === true,
-        message: "Terms and Conditions must be accepted",
-      },
-    },
-    privacyPolicy: {
-      type: Boolean,
-      required: [true, "You must accept the Privacy Policy"],
-      validate: {
-        validator: (v) => v === true,
-        message: "Privacy Policy must be accepted",
+        message: "You must agree to the Terms and Conditions and Privacy Policy",
       },
     },
 
