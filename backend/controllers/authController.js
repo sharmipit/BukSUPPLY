@@ -50,8 +50,7 @@ exports.signUp = async (req, res) => {
       idNumber,
       password,
       confirmPassword,
-      termsAndConditions,
-      privacyPolicy,
+      termsAgreement,
     } = req.body;
 
     if (
@@ -61,8 +60,7 @@ exports.signUp = async (req, res) => {
       !idNumber ||
       !password ||
       !confirmPassword ||
-      termsAndConditions === undefined ||
-      privacyPolicy === undefined
+      termsAgreement === undefined
     ) {
       return res.status(400).json({ message: "All fields are required." });
     }
@@ -73,9 +71,9 @@ exports.signUp = async (req, res) => {
       });
     }
 
-    if (termsAndConditions !== true || privacyPolicy !== true) {
+    if (termsAgreement !== true) {
       return res.status(400).json({
-        message: "You must accept the Terms and Conditions and Privacy Policy.",
+        message: "You must agree to the Terms and Conditions and Privacy Policy.",
       });
     }
 
@@ -99,8 +97,7 @@ exports.signUp = async (req, res) => {
       password,
       role,
       accountStatus: "Active",
-      termsAndConditions,
-      privacyPolicy,
+      agreedToTerms: termsAgreement,
     });
 
     await user.save();
