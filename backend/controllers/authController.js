@@ -1,11 +1,14 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
 const { sendOtpEmail } = require("../utils/sendEmail");
 
 const STUDENT_DOMAIN = "@student.buksu.edu.ph";
 const STAFF_DOMAIN = "@buksu.edu.ph";
 const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // --- Helpers -----------------------------------------------------------
 
@@ -96,6 +99,7 @@ exports.signUp = async (req, res) => {
       idNumber,
       password,
       role,
+      authProvider: "local",
       accountStatus: "Active",
       agreedToTerms: termsAgreement,
     });
@@ -124,6 +128,12 @@ exports.signIn = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: "This account uses Google Sign-In. Please use \"Continue with Google\" instead.",
+      });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -157,6 +167,99 @@ exports.signIn = async (req, res) => {
 };
 
 /**
+ * POST /api/auth/google
+ * Verifies a Google ID token, enforces the BukSU domain restriction,
+ * and creates/logs in the user.
+ */
+exports.googleSignIn = async (req, res) => {
+  try {
+    const { credential, agreedToTerms } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ message: "Missing Google credential." });
+    }
+
+    // Step 1: verify the token is real and meant for YOUR app (not forged)
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid Google credential." });
+    }
+
+    if (!payload.email_verified) {
+      return res.status(403).json({ message: "Google account email is not verified." });
+    }
+
+    const email = payload.email.toLowerCase();
+
+    // Step 2: server-side domain check — never trust the client for this
+    const role = resolveRoleFromEmail(email);
+    if (!role) {
+      return res.status(403).json({
+        message: "Please use a valid BukSU institutional Google account.",
+      });
+    }
+
+    let user = await User.findOne({ email }).select("+googleId");
+
+    if (!user) {
+      // First time this email has ever signed in — create the account.
+      if (agreedToTerms !== true) {
+        return res.status(428).json({
+          requiresTerms: true,
+          message: "Please agree to the Terms and Conditions and Privacy Policy to continue.",
+        });
+      }
+
+      user = new User({
+        firstName: payload.given_name || payload.name || "Unknown",
+        lastName: payload.family_name || "",
+        email,
+        role,
+        authProvider: "google",
+        googleId: payload.sub,
+        agreedToTerms: true,
+      });
+      await user.save();
+    } else if (!user.googleId) {
+      // Existing account (e.g. created the old way) signing in with Google
+      // for the first time — link the Google identity to it.
+      user.googleId = payload.sub;
+      await user.save();
+    }
+
+    if (user.accountStatus === "Deactivated") {
+      return res.status(403).json({ message: "Your account has been deactivated." });
+    }
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      message: "Signed in successfully.",
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        idNumber: user.idNumber || null,
+        role: user.role,
+        accountStatus: user.accountStatus,
+        profileComplete: Boolean(user.idNumber),
+      },
+    });
+  } catch (err) {
+    console.error("googleSignIn error:", err);
+    return res.status(500).json({ message: "Something went wrong. Please try again." });
+  }
+};
+
+/**
  * POST /api/auth/forgot-password/request-code
  * Step 1: generate and email a 6-digit OTP.
  */
@@ -171,6 +274,12 @@ exports.requestOtp = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(404).json({ message: "Email address not found." });
+    }
+
+    if (user.authProvider === "google") {
+      return res.status(400).json({
+        message: "This account uses Google Sign-In. Please use \"Continue with Google\" instead.",
+      });
     }
 
     const otp = generateOtp();
