@@ -1,6 +1,6 @@
 // BukSUPPLY - Sign In Page
 
-const GOOGLE_CLIENT_ID = "119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com"; // TODO: fill in
+const GOOGLE_CLIENT_ID = "119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com";
 
 document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
@@ -76,6 +76,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Google Sign-In ---
+  loadGoogleSignIn();
+
+  function loadGoogleSignIn(retries = 20) {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      initGoogleSignIn();
+      return;
+    }
+    if (retries <= 0) {
+      console.error('Google Identity Services script failed to load.');
+      return;
+    }
+    setTimeout(() => loadGoogleSignIn(retries - 1), 250);
+  }
+
   initGoogleSignIn();
 
   async function handleGoogleCredential(response, agreedToTerms = false) {
