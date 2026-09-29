@@ -1,5 +1,7 @@
 // BukSUPPLY - Sign Up Page
 
+const GOOGLE_CLIENT_ID = "883686994401-g3u7ag01hf2bjnn8kr1gdepri8ogeuta.apps.googleusercontent.com";
+
 document.addEventListener('DOMContentLoaded', () => {
 
     const signupForm = document.getElementById('signupForm');
@@ -183,11 +185,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // SSO Handler
-    if (googleSsoBtn) {
-        googleSsoBtn.addEventListener('click', () => {
-            alert('Connecting to BukSU Institutional Google OAuth...');
+    // --- Google Sign-In ---
+    loadGoogleSignIn();
+
+    function loadGoogleSignIn(retries = 20) {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            initGoogleSignIn();
+            return;
+        }
+        if (retries <= 0) {
+            console.error('Google Identity Services script failed to load.');
+            return;
+        }
+        setTimeout(() => loadGoogleSignIn(retries - 1), 250);
+    }
+
+    function initGoogleSignIn() {
+        if (!googleSsoBtn) return;
+
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
         });
+
+        google.accounts.id.renderButton(googleSsoBtn, {
+            theme: 'outline',
+            size: 'large',
+            width: 320,
+            text: 'signup_with',
+        });
+    }
+
+    async function handleGoogleCredential(response, agreedToTerms = false) {
+        try {
+            const data = await apiPost('/google', {
+                credential: response.credential,
+                agreedToTerms,
+            });
+
+            // Backend returns 428 when this is a brand-new account and
+            // terms haven't been confirmed yet.
+            window.location.href = 'signin.html';
+        } catch (err) {
+            if (err.status === 428) {
+                const confirmed = confirm(
+                    'By continuing you agree to the Terms and Conditions and Privacy Policy. Continue?'
+                );
+                if (confirmed) return handleGoogleCredential(response, true);
+                return;
+            }
+            formError.textContent = err.message || 'Google sign-up failed. Please try again.';
+        }
     }
 
     // Modal Redirect
