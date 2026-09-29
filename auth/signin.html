@@ -43,7 +43,7 @@
             type="email" 
             id="email" 
             class="form-input" 
-            placeholder="username@student.buksu.edu.ph or @buksu.edu.ph" 
+            placeholder="Enter your institutional email" 
             required
           >
         </div>
@@ -81,7 +81,12 @@
           <span>or Log In with</span>
         </div>
         
-        <div id="googleSsoBtn"></div>
+        <div class="google-sso-wrapper">
+          <button type="button" class="sso-google-btn">
+            <i class="bi bi-google"></i> Continue with Google
+          </button>
+          <div id="googleSsoBtn" class="google-overlay"></div>
+        </div>
       </div>
 
       <!-- Footer Account Link -->
@@ -116,7 +121,7 @@
               type="email" 
               id="resetEmail" 
               class="form-input" 
-              placeholder="e.g. user@buksu.edu.ph" 
+              placeholder="Enter your institutional email" 
               required
             >
           </div>

@@ -335,6 +335,14 @@ body {
   font-weight: 500;
 }
 
+/* Google SSO Wrapper & Brown Button */
+.google-sso-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .sso-google-btn {
   width: 100%;
   display: inline-flex;
@@ -358,12 +366,34 @@ body {
   transition: color 0.2s ease;
 }
 
+.google-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.0001;
+  z-index: 10;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.google-overlay iframe {
+  width: 100% !important;
+  height: 100% !important;
+  transform: scale(2);
+  transform-origin: top left;
+  cursor: pointer !important;
+}
+
+.google-sso-wrapper:hover .sso-google-btn,
 .sso-google-btn:hover {
   background-color: #F5EFE6;
   border-color: var(--text-dark);
   transform: translateY(-1px);
 }
 
+.google-sso-wrapper:hover .sso-google-btn i,
 .sso-google-btn:hover i {
   color: var(--text-dark);
 }
