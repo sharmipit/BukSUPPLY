@@ -6,64 +6,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailInput = document.getElementById('email');
     const idLabel = document.getElementById('idLabel');
     const idInput = document.getElementById('idNumber');
-    
+
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const togglePasswordBtns = document.querySelectorAll('.toggle-password-btn');
     const termsCheckbox = document.getElementById('termsAgreement');
     const googleSsoBtn = document.getElementById('googleSsoBtn');
 
+    const submitBtn = document.getElementById('btnSubmit');
+    const formError = document.getElementById('formError');
+
     const successModal = document.getElementById('successModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
 
-    // Email Domain Validation Helper
+    // Email Domain Validation Helper (mirrors the backend rule)
+    const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+
     const validateEmailDomain = (email) => {
         const clean = email.trim().toLowerCase();
-        if (clean.endsWith('@student.buksu.edu.ph')) {
-            return { valid: true, type: 'Student' };
-        } else if (clean.endsWith('@buksu.edu.ph')) {
-            return { valid: true, type: 'Regular Staff' };
+        if (!EMAIL_PATTERN.test(clean)) {
+            return { valid: false, type: null };
         }
-        return { valid: false, type: null };
+        return {
+            valid: true,
+            type: clean.endsWith('@student.buksu.edu.ph') ? 'Student' : 'Regular Staff',
+        };
     };
-
-    // Dynamic ID Label & Placeholder Detection
-    if (emailInput) {
-        emailInput.addEventListener('input', () => {
-            const emailVal = emailInput.value.trim();
-            const result = validateEmailDomain(emailVal);
-
-            if (result.valid && result.type === 'Student') {
-                if (idLabel) idLabel.innerHTML = 'Student ID Number <span class="required">*</span>';
-                if (idInput) idInput.placeholder = 'e.g. 2400000000 (Student ID)';
-                clearError(emailInput);
-            } else if (result.valid && result.type === 'Regular Staff') {
-                if (idLabel) idLabel.innerHTML = 'Employee / Personnel ID <span class="required">*</span>';
-                if (idInput) idInput.placeholder = 'e.g. 2024-1234 (Employee ID)';
-                clearError(emailInput);
-            } else {
-                if (idLabel) idLabel.innerHTML = 'ID Number <span class="required">*</span>';
-                if (idInput) idInput.placeholder = 'Student ID or Personnel ID Number';
-            }
-        });
-    }
-
-    // Password Toggle Button Handler
-    togglePasswordBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.getAttribute('data-target');
-            const targetInput = document.getElementById(targetId);
-            const icon = btn.querySelector('i');
-
-            if (targetInput.type === 'password') {
-                targetInput.type = 'text';
-                icon.classList.replace('bi-eye', 'bi-eye-slash');
-            } else {
-                targetInput.type = 'password';
-                icon.classList.replace('bi-eye-slash', 'bi-eye');
-            }
-        });
-    });
 
     // Form Error Handlers
     function setError(inputElement, message) {
@@ -82,15 +50,57 @@ document.addEventListener('DOMContentLoaded', () => {
         group.classList.remove('has-error');
     }
 
+    // Dynamic ID Label & Placeholder Detection
+    if (emailInput) {
+        emailInput.addEventListener('input', () => {
+            const result = validateEmailDomain(emailInput.value);
+
+            if (result.valid && result.type === 'Student') {
+                idLabel.innerHTML = 'Student ID Number <span class="required">*</span>';
+                idInput.placeholder = 'e.g. 2400000000 (Student ID)';
+                clearError(emailInput);
+            } else if (result.valid && result.type === 'Regular Staff') {
+                idLabel.innerHTML = 'Employee / Personnel ID <span class="required">*</span>';
+                idInput.placeholder = 'e.g. 2024-1234 (Employee ID)';
+                clearError(emailInput);
+            } else {
+                idLabel.innerHTML = 'ID Number <span class="required">*</span>';
+                idInput.placeholder = 'Student ID or Personnel ID Number';
+            }
+        });
+    }
+
+    // Password Toggle Button Handler
+    togglePasswordBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetInput = document.getElementById(btn.getAttribute('data-target'));
+            const icon = btn.querySelector('i');
+
+            if (targetInput.type === 'password') {
+                targetInput.type = 'text';
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
+            } else {
+                targetInput.type = 'password';
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
+            }
+        });
+    });
+
+    // Clear errors as the user edits
     document.querySelectorAll('.form-input, #termsAgreement').forEach(element => {
-        element.addEventListener('input', () => clearError(element));
-        element.addEventListener('change', () => clearError(element));
+        const clear = () => {
+            clearError(element);
+            formError.textContent = '';
+        };
+        element.addEventListener('input', clear);
+        element.addEventListener('change', clear);
     });
 
     // Form Submission Workflow
     if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            formError.textContent = '';
             let isValid = true;
 
             const firstName = document.getElementById('firstName');
@@ -98,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 1. Text Inputs Check
             [firstName, lastName, idInput].forEach(input => {
-                if (!input || !input.value.trim()) {
+                if (!input.value.trim()) {
                     setError(input, 'This field is required');
                     isValid = false;
                 } else {
@@ -110,14 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!emailInput.value.trim()) {
                 setError(emailInput, 'Institutional email is required');
                 isValid = false;
+            } else if (!validateEmailDomain(emailInput.value).valid) {
+                setError(emailInput, 'Please use a valid BukSU institutional email address.');
+                isValid = false;
             } else {
-                const domainResult = validateEmailDomain(emailInput.value);
-                if (!domainResult.valid) {
-                    setError(emailInput, 'Please use a valid BukSU institutional email address.');
-                    isValid = false;
-                } else {
-                    clearError(emailInput);
-                }
+                clearError(emailInput);
             }
 
             // 3. Password Check
@@ -143,11 +150,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 isValid = false;
             }
 
-            // Execute Success Action (Instant Account Creation)
-            if (isValid) {
-                if (successModal) {
-                    successModal.classList.add('active');
+            if (!isValid) return;
+
+            // 5. Send to the backend
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating account...';
+
+            try {
+                await apiPost('/signup', {
+                    firstName: firstName.value.trim(),
+                    lastName: lastName.value.trim(),
+                    email: emailInput.value.trim().toLowerCase(),
+                    idNumber: idInput.value.trim(),
+                    password: passwordInput.value,
+                    confirmPassword: confirmPasswordInput.value,
+                    termsAgreement: termsCheckbox.checked, // real boolean
+                });
+
+                if (successModal) successModal.classList.add('active');
+            } catch (err) {
+                if (err.status === 409) {
+                    setError(emailInput, err.message);
+                } else if (err.status) {
+                    formError.textContent = err.message;
+                } else {
+                    formError.textContent = 'Cannot reach the server. Please try again.';
                 }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
             }
         });
     }

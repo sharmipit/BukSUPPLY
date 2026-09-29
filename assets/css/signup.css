@@ -486,3 +486,18 @@ body {
     grid-column: span 1;
   }
 }
+
+.form-error {
+  color: var(--error-color);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.terms-group.has-error .error-msg {
+  display: block;
+}
