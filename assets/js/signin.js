@@ -1,6 +1,6 @@
 // BukSUPPLY - Sign In Page
 
-const GOOGLE_CLIENT_ID = "119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "883686994401-g3u7ag01hf2bjnn8kr1gdepri8ogeuta.apps.googleusercontent.com";
 
 document.addEventListener('DOMContentLoaded', () => {
   const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
