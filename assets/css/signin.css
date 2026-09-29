@@ -402,3 +402,6 @@ body {
 .modal-step.hidden {
   display: none;
 }
+
+.alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
+.alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }

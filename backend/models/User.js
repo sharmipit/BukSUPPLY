@@ -25,6 +25,10 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [
+        /^[^@\s]+@(student\.)?buksu\.edu\.ph$/,
+        "Email must be a BukSU institutional address (@student.buksu.edu.ph or @buksu.edu.ph).",
+      ],
     },
     // Student ID Number or Employee/Personnel ID, depending on role
     idNumber: {

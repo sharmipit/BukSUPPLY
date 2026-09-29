@@ -1,156 +1,250 @@
 // BukSUPPLY - Sign In Page
 
 document.addEventListener('DOMContentLoaded', () => {
+  const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+
+  // Where each role lands after signing in (adjust file names to your real pages)
+  const ROLE_REDIRECTS = {
+    'Student': '../user-interface/dashboard.html',
+    'Regular Staff': '../user-interface/dashboard.html',
+    // Moderator / Administrator will be added later
+  };
+
+  // ---------- Elements ----------
   const loginForm = document.getElementById('loginForm');
   const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
   const alertBanner = document.getElementById('alertBanner');
   const googleSsoBtn = document.getElementById('googleSsoBtn');
 
-  // Helper Banner Functions
-  function showAlert(message, type) {
-    if (!alertBanner) return;
-    alertBanner.textContent = message;
-    alertBanner.className = `alert-banner ${type}`;
+  const forgotModal = document.getElementById('forgotPasswordModal');
+  const openForgotModalBtn = document.getElementById('openForgotModal');
+  const closeForgotModalBtn = document.getElementById('closeForgotModal');
+  const forgotStep1 = document.getElementById('forgotStep1');
+  const forgotStep2 = document.getElementById('forgotStep2');
+  const forgotForm = document.getElementById('forgotForm');
+  const resetForm = document.getElementById('resetForm');
+  const modalAlert1 = document.getElementById('modalAlert1');
+  const modalAlert2 = document.getElementById('modalAlert2');
+
+  // ---------- Banner helpers (type: 'info' | 'error' | 'success') ----------
+  function showBanner(el, message, type = 'info') {
+    if (!el) return;
+    el.textContent = message;
+    el.className = `alert-banner ${type}`;
   }
 
-  function hideAlert() {
-    if (!alertBanner) return;
-    alertBanner.textContent = '';
-    alertBanner.className = 'alert-banner hidden';
+  function hideBanner(el) {
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'alert-banner hidden';
   }
 
-  // Validate Institutional Email Domain
-  function validateBuksuEmail(email) {
-    const cleanEmail = email.trim().toLowerCase();
-    return cleanEmail.endsWith('@student.buksu.edu.ph') || cleanEmail.endsWith('@buksu.edu.ph');
+  function setLoading(button, loading, loadingText) {
+    if (!button.dataset.label) button.dataset.label = button.textContent;
+    button.disabled = loading;
+    button.textContent = loading ? loadingText : button.dataset.label;
   }
 
-  // Handle Form Submission
+  function errorMessage(err) {
+    return err.status ? err.message : 'Cannot reach the server. Please try again.';
+  }
+
+  // ---------- Already signed in? Skip the form ----------
+  try {
+    const saved = JSON.parse(localStorage.getItem('user'));
+    if (localStorage.getItem('token') && saved && ROLE_REDIRECTS[saved.role]) {
+      window.location.href = ROLE_REDIRECTS[saved.role];
+      return;
+    }
+  } catch { /* corrupt storage, show the form */ }
+
+  // ---------- Sign in ----------
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = emailInput.value.trim();
+    const loginBtn = loginForm.querySelector('.btn-submit');
 
-      if (!validateBuksuEmail(email)) {
-        showAlert('Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).', 'info');
+    [emailInput, passwordInput].forEach((el) =>
+      el.addEventListener('input', () => hideBanner(alertBanner))
+    );
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideBanner(alertBanner);
+
+      const email = emailInput.value.trim().toLowerCase();
+      const password = passwordInput.value;
+
+      if (!EMAIL_PATTERN.test(email)) {
+        showBanner(
+          alertBanner,
+          'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).',
+          'error'
+        );
+        return;
+      }
+      if (!password) {
+        showBanner(alertBanner, 'Please enter your password.', 'error');
         return;
       }
 
-      hideAlert();
-      showAlert(`Authenticating ${email}...`, 'info');
+      setLoading(loginBtn, true, 'Signing in...');
+
+      try {
+        const { token, user } = await apiPost('/signin', { email, password });
+
+        const destination = ROLE_REDIRECTS[user.role];
+        if (!destination) {
+          showBanner(alertBanner, 'This account type is not supported here yet.', 'error');
+          return; // don't store the token
+        }
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        showBanner(alertBanner, 'Signed in! Redirecting...', 'success');
+        window.location.href = destination;
+      } catch (err) {
+        showBanner(alertBanner, errorMessage(err), 'error');
+      } finally {
+        setLoading(loginBtn, false);
+      }
     });
   }
 
-  // Google SSO Click Action
+  // ---------- Google SSO (not implemented yet) ----------
   if (googleSsoBtn) {
     googleSsoBtn.addEventListener('click', () => {
-      showAlert('Initiating BukSU Google SSO Authentication...', 'info');
+      showBanner(alertBanner, 'Google sign-in is not available yet.', 'info');
+    });
+  }
+
+  // ---------- Forgot / reset password modal ----------
+  let resetEmail = ''; // remembered between step 1 and step 2
+
+  function openModal() {
+    resetModalState();
+    forgotModal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    forgotModal.classList.add('hidden');
+  }
+
+  function resetModalState() {
+    forgotStep1.classList.remove('hidden');
+    forgotStep2.classList.add('hidden');
+    forgotForm.reset();
+    resetForm.reset();
+    resetEmail = '';
+    hideBanner(modalAlert1);
+    hideBanner(modalAlert2);
+  }
+
+  if (openForgotModalBtn && forgotModal) {
+    openForgotModalBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal();
+    });
+  }
+  if (closeForgotModalBtn) closeForgotModalBtn.addEventListener('click', closeModal);
+  if (forgotModal) {
+    forgotModal.addEventListener('click', (e) => {
+      if (e.target === forgotModal) closeModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && forgotModal && !forgotModal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  // Only digits in the code box
+  const codeInput = document.getElementById('resetCode');
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    });
+  }
+
+  // Step 1: request the code
+  if (forgotForm) {
+    const sendBtn = forgotForm.querySelector('.btn-submit');
+
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideBanner(modalAlert1);
+
+      const email = document.getElementById('resetEmail').value.trim().toLowerCase();
+      if (!EMAIL_PATTERN.test(email)) {
+        showBanner(modalAlert1, 'Please use a valid BukSU institutional email address.', 'error');
+        return;
+      }
+
+      setLoading(sendBtn, true, 'Sending code...');
+
+      try {
+        const data = await apiPost('/forgot-password/request-code', { email });
+        resetEmail = email;
+        forgotStep1.classList.add('hidden');
+        forgotStep2.classList.remove('hidden');
+        // The server answers the same way whether or not the email is registered
+        showBanner(modalAlert2, data.message, 'info');
+      } catch (err) {
+        showBanner(modalAlert1, errorMessage(err), 'error');
+      } finally {
+        setLoading(sendBtn, false);
+      }
+    });
+  }
+
+  // Step 2: code + new password (the backend re-checks the code here)
+  if (resetForm) {
+    const updateBtn = resetForm.querySelector('.btn-submit');
+
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideBanner(modalAlert2);
+
+      const otp = codeInput.value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmNewPassword').value;
+
+      if (!/^\d{6}$/.test(otp)) {
+        showBanner(modalAlert2, 'Enter the 6-digit code from your email.', 'error');
+        return;
+      }
+      if (newPassword.length < 8) {
+        showBanner(modalAlert2, 'Password must be at least 8 characters.', 'error');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showBanner(modalAlert2, 'Passwords do not match. Please try again.', 'error');
+        return;
+      }
+
+      setLoading(updateBtn, true, 'Updating password...');
+
+      try {
+        const data = await apiPost('/forgot-password/reset-password', {
+          email: resetEmail,
+          otp,
+          newPassword,
+          confirmPassword,
+        });
+        showBanner(modalAlert2, data.message, 'success');
+        setTimeout(() => {
+          closeModal();
+          emailInput.value = resetEmail;
+          passwordInput.value = '';
+          passwordInput.focus();
+        }, 1500);
+      } catch (err) {
+        const hint = err.status === 400 && /code/i.test(err.message)
+          ? ' After 5 wrong tries you need a new code: close this window and request one again.'
+          : '';
+        showBanner(modalAlert2, errorMessage(err) + hint, 'error');
+      } finally {
+        setLoading(updateBtn, false);
+      }
     });
   }
 });
-
-// ==========================================
-// Forgot / Reset Password Modal Logic
-// ==========================================
-const forgotModal = document.getElementById('forgotPasswordModal');
-const openForgotModalBtn = document.getElementById('openForgotModal');
-const closeForgotModalBtn = document.getElementById('closeForgotModal');
-
-const forgotStep1 = document.getElementById('forgotStep1');
-const forgotStep2 = document.getElementById('forgotStep2');
-
-const forgotForm = document.getElementById('forgotForm');
-const resetForm = document.getElementById('resetForm');
-
-const modalAlert1 = document.getElementById('modalAlert1');
-const modalAlert2 = document.getElementById('modalAlert2');
-
-if (openForgotModalBtn) {
-  openForgotModalBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (forgotModal) {
-      forgotModal.classList.remove('hidden');
-      resetModalState();
-    }
-  });
-}
-
-if (closeForgotModalBtn) {
-  closeForgotModalBtn.addEventListener('click', () => {
-    if (forgotModal) forgotModal.classList.add('hidden');
-  });
-}
-
-if (forgotModal) {
-  forgotModal.addEventListener('click', (e) => {
-    if (e.target === forgotModal) {
-      forgotModal.classList.add('hidden');
-    }
-  });
-}
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && forgotModal && !forgotModal.classList.contains('hidden')) {
-    forgotModal.classList.add('hidden');
-  }
-});
-
-if (forgotForm) {
-  forgotForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const resetEmail = document.getElementById('resetEmail').value;
-
-    showModalAlert(modalAlert1, 'Sending code...', 'info');
-
-    setTimeout(() => {
-      forgotStep1.classList.add('hidden');
-      forgotStep2.classList.remove('hidden');
-      showModalAlert(modalAlert2, `Code sent to ${resetEmail}! Please check your inbox.`, 'info');
-    }, 1000);
-  });
-}
-
-if (resetForm) {
-  resetForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const newPass = document.getElementById('newPassword').value;
-    const confirmPass = document.getElementById('confirmNewPassword').value;
-
-    if (newPass !== confirmPass) {
-      showModalAlert(modalAlert2, 'Passwords do not match. Please try again.', 'info');
-      return;
-    }
-
-    showModalAlert(modalAlert2, 'Updating password...', 'info');
-
-    setTimeout(() => {
-      showModalAlert(modalAlert2, 'Password successfully reset! You can now log in.', 'info');
-      setTimeout(() => {
-        if (forgotModal) forgotModal.classList.add('hidden');
-      }, 1500);
-    }, 1000);
-  });
-}
-
-function resetModalState() {
-  if (forgotStep1 && forgotStep2) {
-    forgotStep1.classList.remove('hidden');
-    forgotStep2.classList.add('hidden');
-  }
-  if (forgotForm) forgotForm.reset();
-  if (resetForm) resetForm.reset();
-  hideModalAlert(modalAlert1);
-  hideModalAlert(modalAlert2);
-}
-
-function showModalAlert(element, message, type) {
-  if (!element) return;
-  element.textContent = message;
-  element.className = `alert-banner ${type}`;
-}
-
-function hideModalAlert(element) {
-  if (!element) return;
-  element.textContent = '';
-  element.className = 'alert-banner hidden';
-}
