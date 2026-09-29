@@ -10,6 +10,7 @@ async function apiPost(path, body) {
   if (!res.ok) {
     const err = new Error(data.message || "Request failed.");
     err.status = res.status;
+    err.data = data; // lets callers read fields like requiresTerms
     throw err;
   }
   return data;

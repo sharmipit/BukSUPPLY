@@ -9,16 +9,8 @@ const bcrypt = require("bcryptjs");
  */
 const UserSchema = new mongoose.Schema(
   {
-    firstName: {
-      type: String,
-      required: [true, "First name is required"],
-      trim: true,
-    },
-    lastName: {
-      type: String,
-      required: [true, "Last name is required"],
-      trim: true,
-    },
+    firstName: { type: String, required: [true, "First name is required"], trim: true },
+    lastName: { type: String, required: [true, "Last name is required"], trim: true },
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -30,29 +22,37 @@ const UserSchema = new mongoose.Schema(
         "Email must be a BukSU institutional address (@student.buksu.edu.ph or @buksu.edu.ph).",
       ],
     },
-    // Student ID Number or Employee/Personnel ID, depending on role
     idNumber: {
       type: String,
-      required: [true, "ID number is required"],
       trim: true,
+      // Only required for accounts created the old way (local signup).
+      // Google sign-ins start without one and fill it in afterward.
+      required: [function () { return this.authProvider === "local"; }, "ID number is required"],
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      select: false, // never returned by default; opt in with .select("+password")
+      select: false,
+      required: [function () { return this.authProvider === "local"; }, "Password is required"],
+    },
+    // NEW: identifies which login method created/owns this account
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    // NEW: Google's stable per-account ID (the `sub` claim), used to link accounts
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // allows many docs with no googleId without violating uniqueness
+      select: false,
     },
     role: {
       type: String,
       enum: ["Student", "Regular Staff", "Moderator", "Administrator"],
       required: [true, "Role is required"],
     },
-    accountStatus: {
-      type: String,
-      enum: ["Active", "Deactivated"],
-      default: "Active",
-    },
-    // Single checkbox on the frontend covers both Terms & Conditions and
-    // Privacy Policy, so this is stored as one combined agreement flag.
+    accountStatus: { type: String, enum: ["Active", "Deactivated"], default: "Active" },
     agreedToTerms: {
       type: Boolean,
       required: [true, "You must agree to the Terms and Conditions and Privacy Policy"],
@@ -61,36 +61,21 @@ const UserSchema = new mongoose.Schema(
         message: "You must agree to the Terms and Conditions and Privacy Policy",
       },
     },
-
-    // --- Forgot Password (6-digit OTP workflow) ---
-    resetPasswordOtp: {
-      type: String,
-      select: false,
-    },
-    resetPasswordOtpExpires: {
-      type: Date,
-      select: false,
-    },
-    resetPasswordOtpUsed: {
-      type: Boolean,
-      default: false,
-    },
+    resetPasswordOtp: { type: String, select: false },
+    resetPasswordOtpExpires: { type: Date, select: false },
+    resetPasswordOtpUsed: { type: Boolean, default: false },
   },
-  {
-    timestamps: true, // adds createdAt, updatedAt
-  }
+  { timestamps: true }
 );
 
-// --- Hash password before saving, only if it was modified ---
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-
+  if (!this.isModified("password") || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// --- Instance method: compare plaintext login password to hashed one ---
 UserSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false; // Google-only accounts have nothing to compare
   return bcrypt.compare(candidatePassword, this.password);
 };
 

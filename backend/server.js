@@ -1,4 +1,5 @@
 require("dotenv").config();
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -11,12 +12,15 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || "http://localhost:5001",
     credentials: true,
   })
 );
 
-// --- Routes ---
+// --- Static frontend files (admin-interface, staff-interface, user-interface, auth, assets, index.html) ---
+app.use(express.static(path.join(__dirname, "..")));
+
+// --- API routes ---
 app.use("/api/auth", require("./routes/authRoutes"));
 
 app.get("/api/health", (req, res) => {

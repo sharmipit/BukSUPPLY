@@ -1,9 +1,11 @@
 // BukSUPPLY - Sign In Page
 
+const GOOGLE_CLIENT_ID = "119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com";
+
 document.addEventListener('DOMContentLoaded', () => {
   const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 
-  // Where each role lands after signing in (adjust file names to your real pages)
+  // Where each role lands after signing in
   const ROLE_REDIRECTS = {
     'Student': '../user-interface/dashboard.html',
     'Regular Staff': '../user-interface/dashboard.html',
@@ -15,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const alertBanner = document.getElementById('alertBanner');
-  const googleSsoBtn = document.getElementById('googleSsoBtn');
 
   const forgotModal = document.getElementById('forgotPasswordModal');
   const openForgotModalBtn = document.getElementById('openForgotModal');
@@ -27,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalAlert1 = document.getElementById('modalAlert1');
   const modalAlert2 = document.getElementById('modalAlert2');
 
-  // ---------- Banner helpers (type: 'info' | 'error' | 'success') ----------
+  // ---------- Helpers (type: 'info' | 'error' | 'success') ----------
   function showBanner(el, message, type = 'info') {
     if (!el) return;
     el.textContent = message;
@@ -50,6 +51,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return err.status ? err.message : 'Cannot reach the server. Please try again.';
   }
 
+  // Shared by email/password and Google sign-in.
+  // Returns true if the user was signed in and redirected.
+  function completeSignIn({ token, user }) {
+    const destination = ROLE_REDIRECTS[user.role];
+    if (!destination) {
+      showBanner(alertBanner, 'This account type is not supported here yet.', 'error');
+      return false; // don't store the token
+    }
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    showBanner(alertBanner, 'Signed in! Redirecting...', 'success');
+    window.location.href = destination;
+    return true;
+  }
+
   // ---------- Already signed in? Skip the form ----------
   try {
     const saved = JSON.parse(localStorage.getItem('user'));
@@ -59,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch { /* corrupt storage, show the form */ }
 
-  // ---------- Sign in ----------
+  // ---------- Email + password sign in ----------
   if (loginForm) {
     const loginBtn = loginForm.querySelector('.btn-submit');
 
@@ -90,18 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setLoading(loginBtn, true, 'Signing in...');
 
       try {
-        const { token, user } = await apiPost('/signin', { email, password });
-
-        const destination = ROLE_REDIRECTS[user.role];
-        if (!destination) {
-          showBanner(alertBanner, 'This account type is not supported here yet.', 'error');
-          return; // don't store the token
-        }
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        showBanner(alertBanner, 'Signed in! Redirecting...', 'success');
-        window.location.href = destination;
+        const data = await apiPost('/signin', { email, password });
+        completeSignIn(data);
       } catch (err) {
         showBanner(alertBanner, errorMessage(err), 'error');
       } finally {
@@ -110,24 +116,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ---------- Google SSO (not implemented yet) ----------
-  if (googleSsoBtn) {
-    googleSsoBtn.addEventListener('click', () => {
-      showBanner(alertBanner, 'Google sign-in is not available yet.', 'info');
+  // ---------- Google sign in ----------
+  async function handleGoogleCredential(response, agreedToTerms = false) {
+    hideBanner(alertBanner);
+    try {
+      const data = await apiPost('/google', {
+        credential: response.credential,
+        agreedToTerms,
+      });
+      completeSignIn(data);
+    } catch (err) {
+      // First-time Google users must accept the terms
+      if (err.status === 428 && err.data && err.data.requiresTerms) {
+        const confirmed = confirm(
+          'By continuing you agree to the Terms and Conditions and Privacy Policy. Continue?'
+        );
+        if (confirmed) return handleGoogleCredential(response, true);
+        return;
+      }
+      showBanner(alertBanner, errorMessage(err), 'error');
+    }
+  }
+
+  function initGoogleSignIn() {
+    const container = document.getElementById('googleSsoBtn');
+    if (!container) return;
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+
+    google.accounts.id.renderButton(container, {
+      theme: 'outline',
+      size: 'large',
+      width: 320,
+      text: 'continue_with',
     });
   }
 
+  // The Google script loads with async, so wait for it
+  function loadGoogleSignIn(retries = 20) {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      initGoogleSignIn();
+      return;
+    }
+    if (retries <= 0) {
+      console.error('Google Identity Services script failed to load.');
+      return;
+    }
+    setTimeout(() => loadGoogleSignIn(retries - 1), 250);
+  }
+  loadGoogleSignIn();
+
   // ---------- Forgot / reset password modal ----------
   let resetEmail = ''; // remembered between step 1 and step 2
-
-  function openModal() {
-    resetModalState();
-    forgotModal.classList.remove('hidden');
-  }
-
-  function closeModal() {
-    forgotModal.classList.add('hidden');
-  }
 
   function resetModalState() {
     forgotStep1.classList.remove('hidden');
@@ -137,6 +180,15 @@ document.addEventListener('DOMContentLoaded', () => {
     resetEmail = '';
     hideBanner(modalAlert1);
     hideBanner(modalAlert2);
+  }
+
+  function openModal() {
+    resetModalState();
+    forgotModal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    forgotModal.classList.add('hidden');
   }
 
   if (openForgotModalBtn && forgotModal) {
@@ -186,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
         resetEmail = email;
         forgotStep1.classList.add('hidden');
         forgotStep2.classList.remove('hidden');
-        // The server answers the same way whether or not the email is registered
         showBanner(modalAlert2, data.message, 'info');
       } catch (err) {
         showBanner(modalAlert1, errorMessage(err), 'error');
@@ -196,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Step 2: code + new password (the backend re-checks the code here)
+  // Step 2: code + new password
   if (resetForm) {
     const updateBtn = resetForm.querySelector('.btn-submit');
 
