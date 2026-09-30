@@ -23,7 +23,9 @@ cd BukSUPPLY/backend
 ### 2. Install Dependencies
 
 ```bash
+cd backend
 npm install
+npm install google-auth-library
 
 ```
 
