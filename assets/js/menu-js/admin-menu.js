@@ -20,6 +20,11 @@ const navSections = [
   },
 ];
 
+const currentUser = {
+  name: "James Abobo", 
+  role: "Moderator Account",
+  userPicture: "https://lh3.googleusercontent.com/a/default-user" 
+
 function renderNav() {
   return navSections
     .map(
@@ -47,14 +52,28 @@ function renderApp() {
   document.getElementById("app").innerHTML = `
     <div class="layout" id="layout">
       <aside class="sidebar" id="sidebar">
-        <div class="brand">
-          <a href="dashboard.html" class="logo">
-            <img src="../assets/img/buksupply-sidebar-logo.png" alt="BukSUPPLY" class="logo-img" />
-          </a>  
-          <img src="../assets/img/brand-text-img.png" alt="BukSUPPLY Brand" class="brand-img" />
-          <!-- <span class="brand-text">Buk<strong>SUPPLY</strong></span> -->
+        <div class="sidebar-top">
+          <div class="brand">
+            <a href="dashboard.html" class="logo">
+              <img src="../assets/img/buksupply-sidebar-logo.png" alt="BukSUPPLY" class="logo-img" />
+            </a>  
+            <img src="../assets/img/brand-text-img.png" alt="BukSUPPLY Brand" class="brand-img" />
+            <!-- <span class="brand-text">Buk<strong>SUPPLY</strong></span> -->
+          </div>
+          <nav class="nav">${renderNav()}</nav>
         </div>
-        <nav class="nav">${renderNav()}</nav>
+
+        <!-- Sidebar Bottom User Profile Card -->
+        <div class="sidebar-footer">
+          <hr class="sidebar-divider" />
+          <div class="user-profile">
+            <img src="${currentUser.userPicture}" alt="${currentUser.name}" class="user-avatar" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/a/default-user';" />
+            <div class="user-info">
+              <span class="user-name">${currentUser.name}</span>
+              <span class="user-role">${currentUser.role}</span>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <div class="main">
@@ -73,8 +92,8 @@ function renderApp() {
             <button class="icon-btn bell" aria-label="Notifications">
               <i class="bi bi-bell"></i>
             </button>
-            <button class="avatar" aria-label="Profile">
-              <img src="../assets/img/cute-duck-for-good-luck.jpeg" alt="avatar" />
+            <button class="avatar" aria-label="${currentUser.name}">
+              <img src="${currentUser.userPicture}" alt="${currentUser.name}" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/a/default-user';" />
             </button>
           </div>
         </header>
@@ -89,13 +108,11 @@ function setupEvents() {
   const layout = document.getElementById("layout");
   const menuBtn = document.getElementById("menuBtn");
 
-  // Hamburger toggles collapsed sidebar
   menuBtn.addEventListener("click", () => {
     const collapsed = layout.classList.toggle("collapsed");
     menuBtn.setAttribute("aria-expanded", String(!collapsed));
   });
 
-  // Active nav item
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
@@ -103,7 +120,6 @@ function setupEvents() {
     });
   });
 
-  // Start collapsed on small screens
   if (window.matchMedia("(max-width: 768px)").matches) {
     layout.classList.add("collapsed");
     menuBtn.setAttribute("aria-expanded", "false");

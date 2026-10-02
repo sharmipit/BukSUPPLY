@@ -217,3 +217,292 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   PASTE THIS INTO admin.css
+   (replace your old .content-panel rule with the one below)
+   ========================================================================== */
+
+/* --- 3. Pending Requisition Slips panel --- */
+.content-panel {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  overflow: hidden;            /* keeps table + footer inside the rounded corners */
+  padding: 0;                  /* no gap: table and footer touch the card edges */
+  min-height: 0;
+  margin-bottom: 24px;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 32px;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.3;
+}
+
+.panel-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-body);
+  margin-top: 2px;
+}
+
+.filter-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background-color: var(--accent);
+  border: 3px double #E5D9CC;
+  outline: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.filter-btn:hover {
+  background-color: var(--icon-badge-hover);
+}
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.req-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.req-table thead th {
+  background-color: var(--accent);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 14px 16px;
+}
+
+.req-table tbody td {
+  font-size: 0.8rem;
+  color: var(--text-body);
+  text-align: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: middle;
+}
+
+.req-table tbody td small {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+.req-table tbody tr:hover:not(.empty-row) {
+  background-color: #FAF7F2;
+}
+
+.empty-row td {
+  border-bottom: none;
+  padding: 0;
+}
+
+.row-action {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background-color: var(--accent);
+  padding: 6px 14px;
+  border-radius: 50px;
+  transition: background-color 0.25s ease;
+}
+
+.row-action:hover {
+  background-color: var(--icon-badge-hover);
+}
+
+/* Table footer bar */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--accent);
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  padding: 10px 20px;
+}
+
+.table-footer span {
+  opacity: 0.75;
+}
+
+.table-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.table-footer-link i {
+  transition: transform 0.25s ease;
+}
+
+.table-footer-link:hover i {
+  transform: translateX(3px);
+}
+
+/* --- Shared empty state --- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 56px 24px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.empty-state i {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.empty-text {
+  font-size: 0.68rem;
+  color: var(--accent);
+  opacity: 0.75;
+  line-height: 1.6;
+}
+
+/* --- 4. Issuance & Audit panels --- */
+.panels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;   /* Issuance is narrower than Audit Logs */
+  gap: 24px;
+}
+
+.mini-panel {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 0 24px 24px 24px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mini-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 0 14px 0;
+  border-bottom: 1px solid var(--text-body);
+  color: var(--accent);
+}
+
+.mini-panel-arrow {
+  color: var(--accent);
+  display: inline-flex;
+  line-height: 1;
+}
+
+.mini-panel-head h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.mini-panel-arrow i {
+  font-size: 1.3rem;
+  transition: transform 0.25s ease;
+}
+
+.mini-panel-arrow:hover i {
+  transform: translateX(4px);
+}
+
+.mini-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+
+/* Lists shown when there IS data */
+.mini-list {
+  list-style: none;
+}
+
+.mini-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 0.8rem;
+  color: var(--text-body);
+}
+
+.mini-list li:last-child {
+  border-bottom: none;
+}
+
+.mini-list strong {
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.mini-list small {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+.mini-meta {
+  text-align: right;
+}
+
+/* --- Responsive additions (add inside / next to your existing media queries) --- */
+@media (max-width: 1000px) {
+  .panels-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  .table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

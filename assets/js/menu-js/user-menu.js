@@ -1,0 +1,115 @@
+const navSections = [
+  {
+    title: "Main Navigation",
+    className: "main-nav",
+    items: [
+      { label: "Dashboard", icon: "bi-grid", url: "/user-interface/dashboard.html" },
+      { label: "Requisition Portal", icon: "bi-file-earmark-text", url: "/user-interface/requisition-portal.html" },
+    ],
+  },
+  {
+    title: "Account & Support",
+    items: [
+      { label: "Profile Settings", icon: "bi-person-gear", url: "/user-interface/profile-settings.html" },
+      { label: "Help & Support", icon: "bi-question-circle", url: "/user-interface/help-support.html" },
+    ],
+  },
+];
+
+const currentUser = {
+  name: "James Abobo",
+  role: "Faculty Account",
+  userPicture: "https://lh3.googleusercontent.com/a/default-user" 
+};
+
+function renderNav() {
+  const currentPath = window.location.pathname;
+
+  return navSections
+    .map(
+      (section) => `
+      <h3 class="nav-title ${section.className || ""}">${section.title}</h3>
+      <ul class="nav-group">
+        ${section.items
+          .map((item) => {
+            const isActive = currentPath.includes(item.url) || (item.label === "Dashboard" && currentPath.endsWith("/"));
+            return `
+          <li>
+            <a href="${item.url}" class="nav-item${isActive ? " active" : ""}" title="${item.label}">
+              <i class="bi ${item.icon}"></i>
+              <span class="nav-label">${item.label}</span>
+            </a>
+          </li>`;
+          })
+          .join("")}
+      </ul>`
+    )
+    .join("");
+}
+
+function renderApp() {
+  document.getElementById("app").innerHTML = `
+    <div class="layout" id="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+          <div class="brand">
+            <a href="/user-interface/dashboard.html" class="logo">
+              <img src="../assets/img/buksupply-sidebar-logo.png" alt="BukSUPPLY" class="logo-img" onerror="this.style.display='none'" />
+            </a>  
+            <img src="../assets/img/brand-text-img.png" alt="BukSUPPLY Brand" class="brand-img" onerror="this.style.display='none'" />
+          </div>
+          <nav class="nav">${renderNav()}</nav>
+        </div>
+
+        <!-- Sidebar Bottom User Profile Card -->
+        <div class="sidebar-footer">
+          <hr class="sidebar-divider" />
+          <div class="user-profile">
+            <img src="${currentUser.userPicture}" alt="${currentUser.name}" class="user-avatar" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/a/default-user';" />
+            <div class="user-info">
+              <span class="user-name">${currentUser.name}</span>
+              <span class="user-role">${currentUser.role}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <button class="menu-btn" id="menuBtn" aria-label="Toggle sidebar" aria-expanded="true">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <div class="topbar-right">
+            <button class="icon-btn bell" aria-label="Notifications">
+              <i class="bi bi-bell"></i>
+            </button>
+            <button class="avatar" aria-label="${currentUser.name}">
+              <img src="${currentUser.userPicture}" alt="${currentUser.name}" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/a/default-user';" />
+            </button>
+          </div>
+        </header>
+
+        <main class="content" id="content"></main>
+      </div>
+    </div>
+  `;
+}
+
+function setupEvents() {
+  const layout = document.getElementById("layout");
+  const menuBtn = document.getElementById("menuBtn");
+
+  menuBtn.addEventListener("click", () => {
+    const collapsed = layout.classList.toggle("collapsed");
+    menuBtn.setAttribute("aria-expanded", String(!collapsed));
+  });
+
+  if (window.matchMedia("(max-width: 768px)").matches) {
+    layout.classList.add("collapsed");
+    menuBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
+renderApp();
+setupEvents();

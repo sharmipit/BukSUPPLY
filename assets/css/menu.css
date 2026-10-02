@@ -39,6 +39,13 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
   overflow-x: hidden;
   overflow-y: auto;
   transition: width var(--ease);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-top {
+  flex: 1;
 }
 
 .layout.collapsed .sidebar { width: var(--sidebar-w-collapsed); }
@@ -129,6 +136,8 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
   white-space: nowrap;
   text-align: left;
   transition: background var(--ease), padding var(--ease), gap var(--ease);
+  color: var(--sidebar-text);
+  text-decoration: none;
 }
 
 .nav-item i { font-size: 1.1rem; width: 1.1rem; flex-shrink: 0; line-height: 1; }
@@ -158,6 +167,68 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
   margin: 18px 12px;
   background: rgba(243, 235, 228, 0.25);
   font-size: 0;
+}
+
+/* ---------- Sidebar Bottom User Profile Card ---------- */
+.sidebar-footer {
+  padding: 16px 20px 24px;
+}
+
+.sidebar-divider {
+  border: 0;
+  border-top: 1px solid rgba(243, 235, 228, 0.25);
+  margin-bottom: 16px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sidebar-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  color: var(--sidebar-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layout.collapsed .user-profile {
+  justify-content: center;
+}
+
+.layout.collapsed .user-info {
+  display: none;
+}
+
+.layout.collapsed .sidebar-footer {
+  padding: 16px 12px 24px;
 }
 
 /* ---------- Main ---------- */
@@ -229,6 +300,7 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
   overflow: hidden;
   display: block;
   font-size: 0.75rem;
+  border: 1px solid var(--border);
 }
 
 .avatar img {
