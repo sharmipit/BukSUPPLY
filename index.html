@@ -1,240 +1,309 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BukSUPPLY</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  
-  <link rel="icon" type="image/png" href="assets/img/favicon.ico">
-  <link rel="stylesheet" href="assets/css/index.css" />
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BukSUPPLY</title>
 
-  <!-- STICKY HEADER / NAVIGATION -->
-  <header class="navbar">
-    <div class="container nav-container">
-      <a href="#overview" class="logo">
-        <img src="assets/img/buksupply-brown.png" alt="BukSUPPLY" class="logo-img" />
-      </a>
+    <script src="assets/js/auth.js"></script>
+    <script>
+      redirectIfLoggedIn();
+    </script>
 
-      <!-- Navigation Links -->
-      <nav class="nav-menu" id="navMenu">
-        <a href="#overview" class="nav-link active">Overview</a>
-        <a href="#about" class="nav-link">About Us</a>
-        <a href="#services" class="nav-link">Services</a>
-      </nav>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
-      <!-- Navigation Actions -->
-      <div class="nav-actions">
-        <a href="auth/signin.html" class="btn-nav">
-          Sign In <i class="bi bi-arrow-right"></i>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
+    <link rel="icon" type="image/png" href="assets/img/favicon.ico" />
+    <link rel="stylesheet" href="assets/css/index.css" />
+  </head>
+  <body>
+    <!-- STICKY HEADER / NAVIGATION -->
+    <header class="navbar">
+      <div class="container nav-container">
+        <a href="#overview" class="logo">
+          <img
+            src="assets/img/buksupply-brown.png"
+            alt="BukSUPPLY"
+            class="logo-img"
+          />
         </a>
-        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">
-          ☰
-        </button>
-      </div>
-    </div>
-  </header>
 
-  <!-- MAIN CONTENT AREA -->
-  <main>
-    
-    <!-- HERO SECTION -->
-    <section class="hero-section" id="overview">
+        <!-- Navigation Links -->
+        <nav class="nav-menu" id="navMenu">
+          <a href="#overview" class="nav-link active">Overview</a>
+          <a href="#about" class="nav-link">About Us</a>
+          <a href="#services" class="nav-link">Services</a>
+        </nav>
 
-      <!-- CONCENTRIC BACKGROUND CIRCLES -->
-      <div class="hero-bg-circles" aria-hidden="true">
-        <div class="circle circle-1"></div>
-        <div class="circle circle-2"></div>
-        <div class="circle circle-3"></div>
-        <div class="circle circle-4"></div>
-        <div class="circle circle-5"></div>
-        <div class="circle circle-6"></div>
-      </div>
-      
-      <div class="container hero-container">
-        <h1 class="hero-title">
-          The smarter way to <br>
-          <span class="text-accent">requisition & track</span> university<br>
-          supplies
-        </h1>
-        <p class="hero-subtitle">
-          Streamlined inventory claiming, equipment reservations, and automated COA compliance for BukSU faculty, personnel, and students.
-        </p>
-        <div class="hero-buttons">
-          <a href="auth/signin.html" class="btn btn-dark">Get Started</a>
-          <a href="#about" class="btn btn-light">About Us</a>
+        <!-- Navigation Actions -->
+        <div class="nav-actions">
+          <a href="auth/signin.html" class="btn-nav">
+            Sign In <i class="bi bi-arrow-right"></i>
+          </a>
+          <button
+            class="mobile-toggle"
+            id="mobileToggle"
+            aria-label="Toggle Navigation"
+          >
+            ☰
+          </button>
         </div>
       </div>
-    </section>
+    </header>
 
-    <!-- WHAT IS BUKSUPPLY CARD SECTION -->
-    <section class="about-section" id="about">
-      <div class="container">
-        <div class="info-card">
-          <h2 class="card-title">What is BukSUPPLY?</h2>
-          <p class="card-text">
-            <strong>BukSUPPLY</strong> was made specifically for the Property and Supply Management Office (PSMO) of <strong>Bukidnon State University</strong> to eliminate tedious, paper-based requisition forms, unorganized inventory tracking, and long physical queues at the Main Campus Bodega.
-          </p>
-          <p class="card-text">
-            By providing an intuitive digital portal, this system connects university faculty, administrative employees, custodians, and recognized student leaders with the university's central supply repository in real time.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SERVICES CARD -->
-    <section class="services-section" id="services">
-      <div class="container">
-        <div class="section-header">
-          <h2 class="section-title">What You Can Do with BukSUPPLY?</h2>
-          <p class="section-subtitle">
-            Three simple services to help BukSU students, faculty, and staff request supplies, borrow equipment, and keep track of items
-          </p>
+    <!-- MAIN CONTENT AREA -->
+    <main>
+      <!-- HERO SECTION -->
+      <section class="hero-section" id="overview">
+        <!-- CONCENTRIC BACKGROUND CIRCLES -->
+        <div class="hero-bg-circles" aria-hidden="true">
+          <div class="circle circle-1"></div>
+          <div class="circle circle-2"></div>
+          <div class="circle circle-3"></div>
+          <div class="circle circle-4"></div>
+          <div class="circle circle-5"></div>
+          <div class="circle circle-6"></div>
         </div>
 
-        <div class="services-grid">
-          
-          <!-- Card 1: Request Supplies -->
-          <div class="service-card">
-            <div class="icon-circle">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
-              </svg>
-            </div>
-            <h3 class="service-title">Request Supplies</h3>
-            <p class="service-category">Bond paper, pens, markers, and office supplies</p>
-            
-            <hr class="card-divider" />
+        <div class="container hero-container">
+          <h1 class="hero-title">
+            The smarter way to <br />
+            <span class="text-accent">requisition & track</span>
+            university<br />
+            supplies
+          </h1>
+          <p class="hero-subtitle">
+            Streamlined inventory claiming, equipment reservations, and
+            automated COA compliance for BukSU faculty, personnel, and students.
+          </p>
+          <div class="hero-buttons">
+            <a href="auth/signin.html" class="btn btn-dark">Get Started</a>
+            <a href="#about" class="btn btn-light">About Us</a>
+          </div>
+        </div>
+      </section>
 
-            <p class="service-description">
-              Look up available supplies online and submit a request in seconds. Once approved, you can pick up your items at the supply window using your digital claim slip.
+      <!-- WHAT IS BUKSUPPLY CARD SECTION -->
+      <section class="about-section" id="about">
+        <div class="container">
+          <div class="info-card">
+            <h2 class="card-title">What is BukSUPPLY?</h2>
+            <p class="card-text">
+              <strong>BukSUPPLY</strong> was made specifically for the Property
+              and Supply Management Office (PSMO) of
+              <strong>Bukidnon State University</strong> to eliminate tedious,
+              paper-based requisition forms, unorganized inventory tracking, and
+              long physical queues at the Main Campus Bodega.
+            </p>
+            <p class="card-text">
+              By providing an intuitive digital portal, this system connects
+              university faculty, administrative employees, custodians, and
+              recognized student leaders with the university's central supply
+              repository in real time.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SERVICES CARD -->
+      <section class="services-section" id="services">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">What You Can Do with BukSUPPLY?</h2>
+            <p class="section-subtitle">
+              Three simple services to help BukSU students, faculty, and staff
+              request supplies, borrow equipment, and keep track of items
             </p>
           </div>
 
-          <!-- Card 2: Borrow Equipment -->
-          <div class="service-card">
-            <div class="icon-circle">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="17"></line>
-              </svg>
+          <div class="services-grid">
+            <!-- Card 1: Request Supplies -->
+            <div class="service-card">
+              <div class="icon-circle">
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                  ></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+              </div>
+              <h3 class="service-title">Request Supplies</h3>
+              <p class="service-category">
+                Bond paper, pens, markers, and office supplies
+              </p>
+
+              <hr class="card-divider" />
+
+              <p class="service-description">
+                Look up available supplies online and submit a request in
+                seconds. Once approved, you can pick up your items at the supply
+                window using your digital claim slip.
+              </p>
             </div>
-            <h3 class="service-title">Borrow Equipment</h3>
-            <p class="service-category">Projectors, laptops, cables, and other school equipment</p>
-            
-            <hr class="card-divider" />
 
-            <p class="service-description">
-              Reserve projectors, laptops, and other school equipment ahead of time for your classes, thesis defense, or university events. Return items on schedule with ease.
-            </p>
-          </div>
+            <!-- Card 2: Borrow Equipment -->
+            <div class="service-card">
+              <div class="icon-circle">
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="17"></line>
+                </svg>
+              </div>
+              <h3 class="service-title">Borrow Equipment</h3>
+              <p class="service-category">
+                Projectors, laptops, cables, and other school equipment
+              </p>
 
-          <!-- Card 3: Track & Manage Records -->
-          <div class="service-card">
-            <div class="icon-circle">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
+              <hr class="card-divider" />
+
+              <p class="service-description">
+                Reserve projectors, laptops, and other school equipment ahead of
+                time for your classes, thesis defense, or university events.
+                Return items on schedule with ease.
+              </p>
             </div>
-            <h3 class="service-title">Track & Manage Records</h3>
-            <p class="service-category">History, inventory tracking, and clearance status</p>
-            
-            <hr class="card-divider" />
 
-            <p class="service-description">
-              Keep a clear record of all your requests and borrowed items. Staff can manage live inventory, while students and faculty ensure their semester clearance stays clear.
-            </p>
+            <!-- Card 3: Track & Manage Records -->
+            <div class="service-card">
+              <div class="icon-circle">
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+              <h3 class="service-title">Track & Manage Records</h3>
+              <p class="service-category">
+                History, inventory tracking, and clearance status
+              </p>
+
+              <hr class="card-divider" />
+
+              <p class="service-description">
+                Keep a clear record of all your requests and borrowed items.
+                Staff can manage live inventory, while students and faculty
+                ensure their semester clearance stays clear.
+              </p>
+            </div>
           </div>
-
         </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="container footer-container">
+        <div class="footer-logo">
+          <img
+            src="assets/img/buksupply-white.png"
+            alt="BukSUPPLY"
+            class="footer-logo-img"
+          />
+        </div>
+        <p class="copyright">© 2026 BukSUPPLY. All rights reserved.</p>
       </div>
-    </section>
+    </footer>
 
-  </main>
+    <!-- SCRIPT FOR MOBILE MENU & DYNAMIC SCROLLSPY NAVIGATION INDICATOR -->
+    <script>
+      const mobileToggle = document.getElementById("mobileToggle");
+      const navMenu = document.getElementById("navMenu");
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <div class="container footer-container">
-      <div class="footer-logo">
-        <img src="assets/img/buksupply-white.png" alt="BukSUPPLY" class="footer-logo-img" />
-      </div>
-      <p class="copyright">© 2026 BukSUPPLY. All rights reserved.</p>
-    </div>
-  </footer>
-
-  <!-- SCRIPT FOR MOBILE MENU & DYNAMIC SCROLLSPY NAVIGATION INDICATOR -->
-  <script>
-    const mobileToggle = document.getElementById('mobileToggle');
-    const navMenu = document.getElementById('navMenu');
-
-    mobileToggle.addEventListener('click', () => {
-      navMenu.classList.toggle('active');
-    });
-
-    const navLinks = document.querySelectorAll('.nav-link');
-    navLinks.forEach(link => {
-      link.addEventListener('click', () => {
-        if (navMenu.classList.contains('active')) {
-          navMenu.classList.remove('active');
-        }
+      mobileToggle.addEventListener("click", () => {
+        navMenu.classList.toggle("active");
       });
-    });
 
-    const sections = document.querySelectorAll('section[id]');
+      const navLinks = document.querySelectorAll(".nav-link");
+      navLinks.forEach((link) => {
+        link.addEventListener("click", () => {
+          if (navMenu.classList.contains("active")) {
+            navMenu.classList.remove("active");
+          }
+        });
+      });
 
-    const observerOptions = {
-      root: null,
-      rootMargin: '-20% 0px -60% 0px',
-      threshold: 0
-    };
+      const sections = document.querySelectorAll("section[id]");
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const activeId = entry.target.getAttribute('id');
-          
-          navLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${activeId}`) {
-              link.classList.add('active');
+      const observerOptions = {
+        root: null,
+        rootMargin: "-20% 0px -60% 0px",
+        threshold: 0,
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const activeId = entry.target.getAttribute("id");
+
+            navLinks.forEach((link) => {
+              link.classList.remove("active");
+              if (link.getAttribute("href") === `#${activeId}`) {
+                link.classList.add("active");
+              }
+            });
+          }
+        });
+      }, observerOptions);
+
+      sections.forEach((section) => {
+        observer.observe(section);
+      });
+
+      const revealElements = document.querySelectorAll(
+        ".info-card, .service-card, .section-header",
+      );
+
+      const scrollObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-visible");
             }
           });
-        }
+        },
+        { threshold: 0.15 },
+      );
+
+      revealElements.forEach((el) => {
+        el.classList.add("reveal-on-scroll");
+        scrollObserver.observe(el);
       });
-    }, observerOptions);
-
-    sections.forEach(section => {
-      observer.observe(section);
-    });
-
-    const revealElements = document.querySelectorAll('.info-card, .service-card, .section-header');
-
-    const scrollObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-        }
-      });
-    }, { threshold: 0.15 });
-
-    revealElements.forEach(el => {
-      el.classList.add('reveal-on-scroll');
-      scrollObserver.observe(el);
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
