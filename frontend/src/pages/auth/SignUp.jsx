@@ -23,42 +23,63 @@ export default function SignUp() {
   const [generalError, setGeneralError] = useState('');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  // Initialize Google Auth Button
+  // Initialize Google Auth Overlay
   useEffect(() => {
+    const clientId = '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com';
+
     const handleGoogleCallback = (response) => {
-      console.log('Google Auth Credential:', response.credential);
+      // =========================================================================
+      // TODO FOR BACKEND DEVELOPER:
+      // 1. Send `response.credential` (JWT Token) to your registration API endpoint.
+      // 2. Decode payload to extract user info (email, given_name, family_name).
+      // 3. Complete user registration or pre-fill existing account credentials.
+      // 4. Resolve `origin_mismatch` (Error 400) by registering your domain/localhost in 
+      //    Google Cloud Console under "Authorized JavaScript origins".
+      // =========================================================================
+      console.log('Google Auth Credential Received:', response.credential);
       setIsSuccessModalOpen(true);
     };
 
-    const loadGoogleScript = () => {
-      if (document.getElementById('google-gsi-script')) return;
+    const initializeGoogleBtn = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        const targetDiv = document.getElementById('googleSsoBtn');
+        if (targetDiv) {
+          targetDiv.innerHTML = ''; // Clear prior iframe renders to enable unlimited multi-clicks
+          window.google.accounts.id.renderButton(targetDiv, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            width: 380,
+          });
+        }
+      }
+    };
+
+    if (!document.getElementById('google-gsi-script')) {
       const script = document.createElement('script');
       script.id = 'google-gsi-script';
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com',
-            callback: handleGoogleCallback,
-          });
-
-          const googleOverlay = document.getElementById('googleSsoBtn');
-          if (googleOverlay) {
-            window.google.accounts.id.renderButton(googleOverlay, {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              width: '100%',
-            });
-          }
-        }
-      };
+      script.onload = initializeGoogleBtn;
       document.body.appendChild(script);
-    };
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          initializeGoogleBtn();
+          clearInterval(checkInterval);
+        }
+      }, 100);
 
-    loadGoogleScript();
+      return () => clearInterval(checkInterval);
+    }
   }, []);
 
   const handleChange = (e) => {
@@ -67,7 +88,6 @@ export default function SignUp() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-    // Clear field-specific error upon typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -111,7 +131,6 @@ export default function SignUp() {
 
     if (!validateForm()) return;
 
-    // Simulate backend submission logic
     setIsSuccessModalOpen(true);
   };
 

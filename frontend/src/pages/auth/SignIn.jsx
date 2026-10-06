@@ -18,42 +18,63 @@ export default function SignIn() {
   const [modalAlert1, setModalAlert1] = useState({ message: '', type: '' });
   const [modalAlert2, setModalAlert2] = useState({ message: '', type: '' });
 
-  // Google OAuth Initialization
+  // Initialize Google OAuth Overlay
   useEffect(() => {
+    const clientId = '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com';
+
     const handleGoogleCallback = (response) => {
-      console.log('Google Auth Credential:', response.credential);
+      // =========================================================================
+      // TODO FOR BACKEND DEVELOPER:
+      // 1. Send `response.credential` (ID Token JWT) to backend endpoint (e.g., POST /api/auth/google).
+      // 2. Verify token integrity using Google Auth Library (`google-auth-library` or equivalent).
+      // 3. Match `email` against existing database records and return session JWT/token.
+      // 4. Resolve `origin_mismatch` (Error 400) by registering your domain/localhost in 
+      //    Google Cloud Console under "Authorized JavaScript origins".
+      // =========================================================================
+      console.log('Google Auth Credential Received:', response.credential);
       setAlert({ message: 'Google Authentication Successful!', type: 'success' });
     };
 
-    const loadGoogleScript = () => {
-      if (document.getElementById('google-gsi-script')) return;
+    const initializeGoogleBtn = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        const targetDiv = document.getElementById('googleSsoBtn');
+        if (targetDiv) {
+          targetDiv.innerHTML = ''; // Clear prior iframe renders to enable unlimited multi-clicks
+          window.google.accounts.id.renderButton(targetDiv, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            width: 380,
+          });
+        }
+      }
+    };
+
+    if (!document.getElementById('google-gsi-script')) {
       const script = document.createElement('script');
       script.id = 'google-gsi-script';
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com',
-            callback: handleGoogleCallback,
-          });
-
-          const googleOverlay = document.getElementById('googleSsoBtn');
-          if (googleOverlay) {
-            window.google.accounts.id.renderButton(googleOverlay, {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              width: '100%',
-            });
-          }
-        }
-      };
+      script.onload = initializeGoogleBtn;
       document.body.appendChild(script);
-    };
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          initializeGoogleBtn();
+          clearInterval(checkInterval);
+        }
+      }, 100);
 
-    loadGoogleScript();
+      return () => clearInterval(checkInterval);
+    }
   }, []);
 
   // Handle Login Form Submission
