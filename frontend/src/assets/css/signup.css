@@ -1,0 +1,533 @@
+/* ==========================================================================
+   BukSUPPLY - Sign Up Page
+   ========================================================================== */
+
+:root {
+  --bg-color: #FAF7F2;
+  --text-dark: #2C1A14;
+  --text-light-brown: #8C5839;
+  --text-body: #594D46;
+  --card-bg: #FFFFFF;
+  --card-border: #DFD8CC;
+  --input-bg: #F5EFE6;
+  --input-border: #E2D9CC;
+  --divider-color: #CFC7BA;
+  --btn-dark: #2C1A14;
+  --btn-hover: #1A0E0A;
+  --font-family: 'Poppins', sans-serif;
+  
+  --error-color: #C93B2B;
+  --error-bg: #FDF2F0;
+  --success-color: #2e7d32;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  line-height: 1.5;
+}
+
+/* Page Outer Wrapper */
+.signup-wrapper {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Main Card */
+.signup-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  width: 100%;
+  padding: 40px 50px;
+  box-shadow: 0px 10px 30px rgba(44, 26, 20, 0.04);
+  position: relative;
+}
+
+/* Go Back Button */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 25px;
+  transition: opacity 0.2s ease;
+}
+
+.back-link:hover {
+  opacity: 0.7;
+}
+
+/* Header Text */
+.signup-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.signup-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.signup-title span {
+  color: var(--text-light-brown);
+}
+
+.signup-subtitle {
+  color: var(--text-body);
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
+/* Form Styles & Grid */
+.signup-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 20px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group.full-width {
+  grid-column: span 2;
+}
+
+.form-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-label i {
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.form-label .required {
+  color: var(--error-color);
+}
+
+/* Input Fields */
+.form-input {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 50px;
+  padding: 13px 22px;
+  font-size: 0.92rem;
+  color: var(--text-dark);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--text-light-brown);
+  background-color: #FFFFFF;
+}
+
+.form-input::placeholder {
+  color: #A3968C;
+}
+
+/* Password Input & Icon Suffixed Inputs */
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input.with-suffix {
+  padding-right: 48px;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: #8C7C72;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--text-dark);
+}
+
+/* Error Messages & Input Error States */
+.error-msg {
+  font-size: 0.78rem;
+  color: var(--error-color);
+  margin-top: 5px;
+  display: none;
+  padding-left: 12px;
+}
+
+.input-group.has-error .form-input {
+  border-color: var(--error-color);
+  background-color: var(--error-bg);
+}
+
+.input-group.has-error .error-msg {
+  display: block;
+}
+
+/* Terms Checkbox */
+.terms-group {
+  margin-top: 22px;
+  margin-bottom: 10px;
+}
+
+.custom-checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-body);
+  user-select: none;
+}
+
+.custom-checkbox-container input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  height: 18px;
+  width: 18px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox-container:hover input ~ .checkmark {
+  border-color: var(--text-light-brown);
+}
+
+.custom-checkbox-container input:checked ~ .checkmark {
+  background-color: var(--btn-dark);
+  border-color: var(--btn-dark);
+}
+
+.checkmark::after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox-container input:checked ~ .checkmark::after {
+  display: block;
+}
+
+.inline-link {
+  color: var(--text-light-brown);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.inline-link:hover {
+  text-decoration: underline;
+}
+
+/* Center Submit Button */
+.btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.btn-submit {
+  background-color: var(--btn-dark);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 70%;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0px 4px 10px rgba(44, 26, 20, 0.12);
+}
+
+.btn-submit:hover {
+  background-color: var(--btn-hover);
+}
+
+.btn-submit:active {
+  transform: scale(0.98);
+}
+
+/* SSO / Google Section */
+.social-section {
+  margin-top: 25px;
+  text-align: center;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.divider span {
+  padding: 0 15px;
+  color: var(--text-body);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Google SSO Wrapper & Brown Button */
+.google-sso-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sso-google-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: var(--card-bg);
+  border: 1.5px solid var(--text-light-brown);
+  border-radius: 50px;
+  padding: 13px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sso-google-btn i {
+  font-size: 1.15rem;
+  color: var(--text-light-brown);
+  transition: color 0.2s ease;
+}
+
+.google-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.0001;
+  z-index: 10;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.google-overlay iframe {
+  width: 100% !important;
+  height: 100% !important;
+  transform: scale(2);
+  transform-origin: top left;
+  cursor: pointer !important;
+}
+
+.google-sso-wrapper:hover .sso-google-btn,
+.sso-google-btn:hover {
+  background-color: #F5EFE6;
+  border-color: var(--text-dark);
+  transform: translateY(-1px);
+}
+
+.google-sso-wrapper:hover .sso-google-btn i,
+.sso-google-btn:hover i {
+  color: var(--text-dark);
+}
+
+.sso-google-btn:active {
+  transform: translateY(0);
+}
+
+/* Footer Link */
+.signup-footer {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+}
+
+.create-account-link {
+  color: var(--text-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.create-account-link:hover {
+  text-decoration: underline;
+  color: var(--text-light-brown);
+}
+
+/* Modal Overlay & Instant Success Screen */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(44, 26, 20, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  padding: 20px;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-card {
+  background-color: var(--card-bg);
+  border-radius: 28px;
+  max-width: 460px;
+  width: 100%;
+  padding: 35px 30px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-card {
+  transform: translateY(0);
+}
+
+.modal-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background-color: #E8F5E9;
+  color: var(--success-color);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  margin-bottom: 18px;
+}
+
+.modal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+
+.modal-description {
+  font-size: 0.88rem;
+  color: var(--text-body);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.modal-btn {
+  width: 100%;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .signup-card {
+    padding: 30px 20px;
+    border-radius: 20px;
+  }
+
+  .signup-title {
+    font-size: 1.8rem;
+  }
+
+  .btn-submit {
+    width: 100%;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .input-group.full-width {
+    grid-column: span 1;
+  }
+}
+
+.form-error {
+  color: var(--error-color);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.terms-group.has-error .error-msg {
+  display: block;
+}

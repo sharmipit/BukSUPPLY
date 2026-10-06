@@ -1,0 +1,436 @@
+/* ==========================================================================
+    BukSUPPLY - Sign In Page
+   ========================================================================== */
+
+:root {
+  --bg-color: #FAF7F2;
+  --text-dark: #2C1A14;
+  --text-light-brown: #8C5839;
+  --text-body: #594D46;
+  --card-bg: #FFFFFF;
+  --card-border: #DFD8CC;
+  --input-bg: #F5EFE6;
+  --input-border: #E2D9CC;
+  --divider-color: #CFC7BA;
+  --btn-dark: #2C1A14;
+  --btn-hover: #1A0E0A;
+  --font-family: 'Poppins', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Page Outer Wrapper */
+.login-wrapper {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Main Card */
+.login-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  width: 100%;
+  padding: 40px 50px;
+  box-shadow: 0px 10px 30px rgba(44, 26, 20, 0.04);
+  position: relative;
+}
+
+/* Go Back Button */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 25px;
+  transition: opacity 0.2s ease;
+}
+
+.back-link:hover {
+  opacity: 0.7;
+}
+
+/* Header Text */
+.login-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.login-title span {
+  color: var(--text-light-brown);
+}
+
+.login-subtitle {
+  color: var(--text-body);
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
+.login-subtitle strong {
+  color: var(--text-dark);
+}
+
+/* Form Styles */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-label i {
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.form-input {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 50px;
+  padding: 14px 22px;
+  font-size: 0.92rem;
+  color: var(--text-dark);
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--text-light-brown);
+  background-color: #FFFFFF;
+}
+
+/* Forgot Password Link */
+.forgot-wrapper {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.forgot-link {
+  font-size: 0.85rem;
+  color: var(--text-body);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-link:hover {
+  color: var(--text-light-brown);
+  text-decoration: underline;
+}
+
+/* Alert Message Banner */
+.alert-banner {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  text-align: center;
+  margin-top: 5px;
+}
+
+.alert-banner.info {
+  background-color: #EFE7DC;
+  color: var(--text-dark);
+  border: 1px solid var(--card-border);
+}
+
+.alert-banner.hidden {
+  display: none;
+}
+
+/* Center Log In Button */
+.btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.btn-submit {
+  background-color: var(--btn-dark);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 65%;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-submit:hover {
+  background-color: var(--btn-hover);
+}
+
+.btn-submit:active {
+  transform: scale(0.98);
+}
+
+/* SSO / Google Section */
+.social-section {
+  margin-top: 25px;
+  text-align: center;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.divider span {
+  padding: 0 15px;
+  color: var(--text-body);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Google SSO Wrapper & Brown Button */
+.google-sso-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sso-google-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: var(--card-bg);
+  border: 1.5px solid var(--text-light-brown);
+  border-radius: 50px;
+  padding: 13px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sso-google-btn i {
+  font-size: 1.15rem;
+  color: var(--text-light-brown);
+  transition: color 0.2s ease;
+}
+
+.google-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.0001;
+  z-index: 10;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.google-overlay iframe {
+  width: 100% !important;
+  height: 100% !important;
+  transform: scale(2);
+  transform-origin: top left;
+  cursor: pointer !important;
+}
+
+.google-sso-wrapper:hover .sso-google-btn,
+.sso-google-btn:hover {
+  background-color: #F5EFE6;
+  border-color: var(--text-dark);
+  transform: translateY(-1px);
+}
+
+.google-sso-wrapper:hover .sso-google-btn i,
+.sso-google-btn:hover i {
+  color: var(--text-dark);
+}
+
+.sso-google-btn:active {
+  transform: translateY(0);
+}
+
+/* Footer Link */
+.login-footer {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+}
+
+.create-account-link {
+  color: var(--text-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.create-account-link:hover {
+  text-decoration: underline;
+  color: var(--text-light-brown);
+}
+
+/* Responsive Styles for Mobile Screens */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 30px 20px;
+    border-radius: 20px;
+  }
+
+  .login-title {
+    font-size: 1.8rem;
+  }
+
+  .btn-submit {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Forgot / Reset Password Modal Styles
+   ========================================================================== */
+
+/* Dark Backdrop Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(34, 18, 11, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  opacity: 1;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Modal Window Card */
+.modal-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  width: 100%;
+  max-width: 520px;
+  padding: 35px 40px;
+  box-shadow: 0px 15px 35px rgba(44, 26, 20, 0.15);
+  position: relative;
+  transform: translateY(0);
+  transition: transform 0.25s ease;
+}
+
+.modal-overlay.hidden .modal-card {
+  transform: translateY(-20px);
+}
+
+/* Close Icon Button */
+.modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 22px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-dark);
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #F5EFE6;
+  color: var(--text-light-brown);
+}
+
+/* Modal Title Styles */
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.modal-title span {
+  color: var(--text-light-brown);
+}
+
+.modal-subtitle {
+  color: var(--text-body);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+/* Step Visibility Control */
+.modal-step.hidden {
+  display: none;
+}
+
+.alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
+.alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }
