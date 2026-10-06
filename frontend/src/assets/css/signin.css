@@ -17,29 +17,22 @@
   --font-family: 'Poppins', sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-family);
-}
-
-body {
+/* Page Outer Wrapper (Scoped - prevents global body leaks) */
+.login-wrapper {
+  width: 100%;
+  min-height: 100vh;
   background-color: var(--bg-color);
   color: var(--text-dark);
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  box-sizing: border-box;
 }
 
-/* Page Outer Wrapper */
-.login-wrapper {
-  width: 100%;
-  max-width: 620px;
-  display: flex;
-  justify-content: center;
+.login-wrapper * {
+  box-sizing: border-box;
+  font-family: var(--font-family);
 }
 
 /* Main Card */
@@ -48,6 +41,7 @@ body {
   border: 1px solid var(--card-border);
   border-radius: 28px;
   width: 100%;
+  max-width: 620px;
   padding: 40px 50px;
   box-shadow: 0px 10px 30px rgba(44, 26, 20, 0.04);
   position: relative;
@@ -140,17 +134,23 @@ body {
   background-color: #FFFFFF;
 }
 
-/* Forgot Password Link */
+/* Forgot Password Link Button */
 .forgot-wrapper {
   text-align: right;
   margin-top: 8px;
 }
 
 .forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
   font-size: 0.85rem;
   color: var(--text-body);
   text-decoration: none;
   font-weight: 500;
+  cursor: pointer;
+  outline: none;
 }
 
 .forgot-link:hover {
@@ -172,6 +172,9 @@ body {
   color: var(--text-dark);
   border: 1px solid var(--card-border);
 }
+
+.alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
+.alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }
 
 .alert-banner.hidden {
   display: none;
@@ -232,7 +235,7 @@ body {
   font-weight: 500;
 }
 
-/* Google SSO Wrapper & Brown Button */
+/* Google SSO Wrapper & Button */
 .google-sso-wrapper {
   position: relative;
   width: 100%;
@@ -431,6 +434,3 @@ body {
 .modal-step.hidden {
   display: none;
 }
-
-.alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
-.alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }
