@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BukSUPPLY - Sign Up Page
+   BukSUPPLY - Sign Up Page 
    ========================================================================== */
 
 :root {
@@ -21,30 +21,23 @@
   --success-color: #2e7d32;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-family);
-}
-
-body {
+/* Page Outer Wrapper */
+.signup-wrapper {
+  width: 100%;
+  min-height: 100vh;
   background-color: var(--bg-color);
   color: var(--text-dark);
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 30px 20px;
   line-height: 1.5;
+  box-sizing: border-box;
 }
 
-/* Page Outer Wrapper */
-.signup-wrapper {
-  width: 100%;
-  max-width: 680px;
-  display: flex;
-  justify-content: center;
+.signup-wrapper * {
+  box-sizing: border-box;
+  font-family: var(--font-family);
 }
 
 /* Main Card */
@@ -53,12 +46,13 @@ body {
   border: 1px solid var(--card-border);
   border-radius: 28px;
   width: 100%;
+  max-width: 680px;
   padding: 40px 50px;
   box-shadow: 0px 10px 30px rgba(44, 26, 20, 0.04);
   position: relative;
 }
 
-/* Go Back Button */
+/* Go Back Link */
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -194,17 +188,12 @@ body {
   font-size: 0.78rem;
   color: var(--error-color);
   margin-top: 5px;
-  display: none;
   padding-left: 12px;
 }
 
 .input-group.has-error .form-input {
   border-color: var(--error-color);
   background-color: var(--error-bg);
-}
-
-.input-group.has-error .error-msg {
-  display: block;
 }
 
 /* Terms Checkbox */
@@ -279,7 +268,7 @@ body {
   text-decoration: underline;
 }
 
-/* Center Submit Button */
+/* Submit Button */
 .btn-wrapper {
   display: flex;
   justify-content: center;
@@ -335,71 +324,19 @@ body {
   font-weight: 500;
 }
 
-/* Google SSO Wrapper & Brown Button */
+/* Google Container Wrapper */
 .google-sso-wrapper {
-  position: relative;
   width: 100%;
   display: flex;
   justify-content: center;
+  min-height: 48px;
 }
 
-.sso-google-btn {
+/* Embedded Google Button Container */
+.google-btn-container {
   width: 100%;
-  display: inline-flex;
-  align-items: center;
+  display: flex;
   justify-content: center;
-  gap: 12px;
-  background-color: var(--card-bg);
-  border: 1.5px solid var(--text-light-brown);
-  border-radius: 50px;
-  padding: 13px 24px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-dark);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.sso-google-btn i {
-  font-size: 1.15rem;
-  color: var(--text-light-brown);
-  transition: color 0.2s ease;
-}
-
-.google-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.0001;
-  z-index: 10;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.google-overlay iframe {
-  width: 100% !important;
-  height: 100% !important;
-  transform: scale(2);
-  transform-origin: top left;
-  cursor: pointer !important;
-}
-
-.google-sso-wrapper:hover .sso-google-btn,
-.sso-google-btn:hover {
-  background-color: #F5EFE6;
-  border-color: var(--text-dark);
-  transform: translateY(-1px);
-}
-
-.google-sso-wrapper:hover .sso-google-btn i,
-.sso-google-btn:hover i {
-  color: var(--text-dark);
-}
-
-.sso-google-btn:active {
-  transform: translateY(0);
 }
 
 /* Footer Link */
@@ -421,7 +358,7 @@ body {
   color: var(--text-light-brown);
 }
 
-/* Modal Overlay & Instant Success Screen */
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -434,15 +371,15 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  opacity: 0;
-  visibility: hidden;
+  opacity: 1;
   transition: opacity 0.3s ease, visibility 0.3s ease;
   padding: 20px;
 }
 
-.modal-overlay.active {
-  opacity: 1;
-  visibility: visible;
+.modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .modal-card {
@@ -453,12 +390,12 @@ body {
   padding: 35px 30px;
   text-align: center;
   box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-  transform: translateY(20px);
+  transform: translateY(0);
   transition: transform 0.3s ease;
 }
 
-.modal-overlay.active .modal-card {
-  transform: translateY(0);
+.modal-overlay.hidden .modal-card {
+  transform: translateY(20px);
 }
 
 .modal-icon-wrapper {
@@ -492,6 +429,13 @@ body {
   width: 100%;
 }
 
+.form-error {
+  color: var(--error-color);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 12px;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 640px) {
   .signup-card {
@@ -515,19 +459,4 @@ body {
   .input-group.full-width {
     grid-column: span 1;
   }
-}
-
-.form-error {
-  color: var(--error-color);
-  font-size: 0.85rem;
-  text-align: center;
-  margin-top: 12px;
-}
-
-.form-error:empty {
-  display: none;
-}
-
-.terms-group.has-error .error-msg {
-  display: block;
 }
