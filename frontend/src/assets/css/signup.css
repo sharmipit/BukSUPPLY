@@ -137,21 +137,22 @@
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 50px;
-  padding: 13px 22px;
+  padding: 14px 22px;
   font-size: 0.92rem;
   color: var(--text-dark);
   outline: none;
-  width: 100%;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:hover {
+  border-color: var(--text-light-brown);
 }
 
 .form-input:focus {
   border-color: var(--text-light-brown);
-  background-color: #FFFFFF;
-}
-
-.form-input::placeholder {
-  color: #A3968C;
+  background-color: var(--input-bg);
+  outline: none;
+  box-shadow: none;
 }
 
 /* Password Input & Icon Suffixed Inputs */
