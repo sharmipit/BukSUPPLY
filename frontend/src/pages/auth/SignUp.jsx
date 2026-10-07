@@ -1,23 +1,9 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
 import '../../assets/css/signup.css';
-
-// =========================================================================
-// BACKEND NOTE FOR DEVELOPER:
-// 1. Ensure Express server is running on PORT 5000 (or update API_BASE_URL below).
-// 2. ENABLE CORS in your Express server:
-//    const cors = require('cors');
-//    app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
-// 3. Ensure your registration routes are registered under `/api/auth/signup`:
-//    - POST /api/auth/signup
-//    - POST /api/auth/google
-// =========================================================================
-const API_BASE_URL = 'http://localhost:5000/api/auth';
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -33,41 +19,15 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
     const clientId = '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com';
 
-    const handleGoogleCallback = async (response) => {
-      try {
-        setGeneralError('');
-        
-        // =========================================================================
-        // BACKEND NOTE:
-        // POST /api/auth/google expects `{ credential: response.credential, agreedToTerms: true }`.
-        // Server creates/finds the user, assigns role by domain (`@student.buksu.edu.ph` vs `@buksu.edu.ph`),
-        // and returns `{ user, token }`.
-        // =========================================================================
-        const res = await fetch(`${API_BASE_URL}/google`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential, agreedToTerms: true }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Google registration failed.');
-
-        if (data.token) {
-          login(data.user, data.token);
-        }
-        setIsSuccessModalOpen(true);
-      } catch (err) {
-        const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-          ? 'Cannot connect to backend server. Verify Express server is running on http://localhost:5000 and CORS is enabled.'
-          : err.message;
-        setGeneralError(errorMsg);
-      }
+    const handleGoogleCallback = (response) => {
+      // TODO FOR BACKEND DEVELOPER: Send `response.credential` to POST /api/auth/google
+      console.log('Google Auth Credential Received:', response.credential);
+      setIsSuccessModalOpen(true);
     };
 
     const initializeGoogleBtn = () => {
@@ -131,8 +91,8 @@ export default function SignUp() {
 
     if (!formData.email.trim()) {
       newErrors.email = 'Institutional email is required';
-    } else if (!/^[^@\s]+@(student\.)?buksu\.edu\.ph$/.test(formData.email)) {
-      newErrors.email = 'Must be an institutional email (@student.buksu.edu.ph or @buksu.edu.ph)';
+    } else if (!formData.email.endsWith('@buksu.edu.ph') && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid institutional email address.';
     }
 
     if (!formData.idNumber.trim()) newErrors.idNumber = 'ID Number is required';
@@ -155,39 +115,14 @@ export default function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setGeneralError('');
 
     if (!validateForm()) return;
 
-    setLoading(true);
-    try {
-      // =========================================================================
-      // BACKEND NOTE:
-      // POST /api/auth/signup expects `{ firstName, lastName, email, idNumber, password, confirmPassword, termsAgreement }`.
-      // The backend will automatically map role based on domain:
-      // - @student.buksu.edu.ph => Student
-      // - @buksu.edu.ph => Regular Staff
-      // =========================================================================
-      const response = await fetch(`${API_BASE_URL}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Registration failed.');
-
-      setIsSuccessModalOpen(true);
-    } catch (err) {
-      const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-        ? 'Cannot connect to backend server. Verify Express API is running on http://localhost:5000 and cors() middleware is active.'
-        : err.message;
-      setGeneralError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
+    // TODO FOR BACKEND DEVELOPER: Connect to POST /api/auth/signup
+    setIsSuccessModalOpen(true);
   };
 
   return (
@@ -201,7 +136,9 @@ export default function SignUp() {
           <h1 className="signup-title">
             Create your <span>account</span>
           </h1>
-          <p className="signup-subtitle">Register to submit requisitions and reservations</p>
+          <p className="signup-subtitle">
+            Register to submit requisitions and reservations
+          </p>
         </div>
 
         <form className="signup-form" onSubmit={handleSubmit} noValidate>
@@ -351,11 +288,11 @@ export default function SignUp() {
             )}
           </div>
 
-          {generalError && <p className="form-error" style={{ color: '#dc2626', marginTop: '10px' }}>{generalError}</p>}
+          {generalError && <p className="form-error">{generalError}</p>}
 
           <div className="btn-wrapper">
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
+            <button type="submit" className="btn-submit">
+              Create Account
             </button>
           </div>
         </form>
@@ -390,7 +327,7 @@ export default function SignUp() {
           </div>
           <h2 className="modal-title">Account Created Successfully!</h2>
           <p className="modal-description">
-            Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and activated. You can now proceed to sign in.
+            Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and activated instantly. You can now proceed to sign in or access your dashboard.
           </p>
           <button
             type="button"

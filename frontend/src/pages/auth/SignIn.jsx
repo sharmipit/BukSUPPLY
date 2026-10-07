@@ -1,31 +1,14 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
 import '../../assets/css/signin.css';
-
-// =========================================================================
-// BACKEND NOTE FOR DEVELOPER:
-// 1. Ensure Express server is running on PORT 5000 (or update API_BASE_URL below).
-// 2. ENABLE CORS in your Express server `app.js` or `server.js`:
-//    const cors = require('cors');
-//    app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
-// 3. Ensure your authentication routes are registered under `/api/auth`:
-//    - POST /api/auth/signin
-//    - POST /api/auth/google
-//    - POST /api/auth/forgot-password/request-code
-//    - POST /api/auth/forgot-password/reset-password
-// =========================================================================
-const API_BASE_URL = 'http://localhost:5000/api/auth';
 
 export default function SignIn() {
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
 
   // Login Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [alert, setAlert] = useState({ message: '', type: '' });
-  const [loading, setLoading] = useState(false);
 
   // Forgot Password Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,49 +20,16 @@ export default function SignIn() {
   const [modalAlert1, setModalAlert1] = useState({ message: '', type: '' });
   const [modalAlert2, setModalAlert2] = useState({ message: '', type: '' });
 
-  const navigateByRole = (role) => {
-    switch (role) {
-      case 'Administrator':
-      case 'Moderator':
-      case 'Regular Staff':
-      case 'Student':
-      default:
-        navigate('/user-dashboard');
-        break;
-    }
-  };
-
   // Initialize Google OAuth Overlay
   useEffect(() => {
     const clientId = '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com';
 
-    const handleGoogleCallback = async (response) => {
-      try {
-        setAlert({ message: 'Authenticating with Google...', type: 'info' });
-        
-        // =========================================================================
-        // BACKEND NOTE:
-        // POST /api/auth/google expects `{ credential: response.credential }`.
-        // Server should verify token via Google Auth Library and return `{ user, token }`.
-        // =========================================================================
-        const res = await fetch(`${API_BASE_URL}/google`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential, agreedToTerms: true }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Google Sign-In failed.');
-
-        login(data.user, data.token);
-        setAlert({ message: 'Signed in successfully!', type: 'success' });
-        navigateByRole(data.user?.role);
-      } catch (err) {
-        const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-          ? 'Unable to connect to backend server. Check if Express server is running on PORT 5000 and CORS is enabled.'
-          : err.message;
-        setAlert({ message: errorMsg, type: 'error' });
-      }
+    const handleGoogleCallback = (response) => {
+      // TODO FOR BACKEND DEVELOPER:
+      // Send `response.credential` to backend endpoint POST /api/auth/google
+      console.log('Google Auth Credential Received:', response.credential);
+      setAlert({ message: 'Google Authentication Successful!', type: 'success' });
+      setTimeout(() => navigate('/user-dashboard'), 1000);
     };
 
     const initializeGoogleBtn = () => {
@@ -122,121 +72,47 @@ export default function SignIn() {
 
       return () => clearInterval(checkInterval);
     }
-  }, []);
+  }, [navigate]);
 
-  // Handle Login Form Submission
-  const handleLoginSubmit = async (e) => {
+  // Handle Login Form Submission (Simulated)
+  const handleLoginSubmit = (e) => {
     e.preventDefault();
-    setAlert({ message: '', type: '' });
-
     if (!email || !password) {
       setAlert({ message: 'Please fill in all required fields.', type: 'error' });
       return;
     }
+    setAlert({ message: 'Logging in...', type: 'info' });
 
-    setLoading(true);
-    try {
-      // =========================================================================
-      // BACKEND NOTE:
-      // POST /api/auth/signin expects `{ email, password }`.
-      // Return payload format expected:
-      // {
-      //   message: "Login successful",
-      //   token: "JWT_TOKEN_HERE",
-      //   user: { id: "...", email: "...", role: "Student" | "Regular Staff" | "Moderator" | "Administrator" }
-      // }
-      // =========================================================================
-      const response = await fetch(`${API_BASE_URL}/signin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Invalid email or password.');
-
-      login(data.user, data.token);
-      setAlert({ message: 'Signed in successfully!', type: 'success' });
-      navigateByRole(data.user?.role);
-    } catch (err) {
-      const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-        ? 'Cannot connect to server. Please verify Express API server is running on http://localhost:5000 and cors() middleware is enabled.'
-        : err.message;
-      setAlert({ message: errorMsg, type: 'error' });
-    } finally {
-      setLoading(false);
-    }
+    // TODO FOR BACKEND DEVELOPER: Connect to POST /api/auth/signin
+    setTimeout(() => {
+      navigate('/user-dashboard');
+    }, 800);
   };
 
   // Handle Step 1 Reset Password Submission
-  const handleForgotStep1 = async (e) => {
+  const handleForgotStep1 = (e) => {
     e.preventDefault();
     if (!resetEmail) {
       setModalAlert1({ message: 'Please enter your email.', type: 'error' });
       return;
     }
-
-    try {
-      // =========================================================================
-      // BACKEND NOTE:
-      // POST /api/auth/forgot-password/request-code expects `{ email }`.
-      // Should generate an OTP/Reset Code and send it via email (e.g. via Nodemailer).
-      // =========================================================================
-      const res = await fetch(`${API_BASE_URL}/forgot-password/request-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to send reset code.');
-
-      setModalAlert1({ message: '', type: '' });
-      setResetStep(2);
-    } catch (err) {
-      const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-        ? 'Server connection error. Check CORS & PORT 5000 backend status.'
-        : err.message;
-      setModalAlert1({ message: errorMsg, type: 'error' });
-    }
+    // TODO FOR BACKEND DEVELOPER: Connect to POST /api/auth/forgot-password/request-code
+    setModalAlert1({ message: '', type: '' });
+    setResetStep(2);
   };
 
   // Handle Step 2 Password Update
-  const handleForgotStep2 = async (e) => {
+  const handleForgotStep2 = (e) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
       setModalAlert2({ message: 'Passwords do not match.', type: 'error' });
       return;
     }
-
-    try {
-      // =========================================================================
-      // BACKEND NOTE:
-      // POST /api/auth/forgot-password/reset-password expects `{ email, otp, newPassword, confirmPassword }`.
-      // =========================================================================
-      const res = await fetch(`${API_BASE_URL}/forgot-password/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: resetEmail,
-          otp: resetCode,
-          newPassword,
-          confirmPassword: confirmNewPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Password reset failed.');
-
-      setModalAlert2({ message: 'Password updated successfully!', type: 'success' });
-      setTimeout(() => {
-        closeModal();
-      }, 1500);
-    } catch (err) {
-      const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
-        ? 'Server connection error. Check CORS & PORT 5000 backend status.'
-        : err.message;
-      setModalAlert2({ message: errorMsg, type: 'error' });
-    }
+    // TODO FOR BACKEND DEVELOPER: Connect to POST /api/auth/forgot-password/reset-password
+    setModalAlert2({ message: 'Password updated successfully!', type: 'success' });
+    setTimeout(() => {
+      closeModal();
+    }, 1500);
   };
 
   const closeModal = () => {
@@ -311,8 +187,8 @@ export default function SignIn() {
           )}
 
           <div className="btn-wrapper">
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Logging in...' : 'Log In'}
+            <button type="submit" className="btn-submit">
+              Log In
             </button>
           </div>
         </form>
