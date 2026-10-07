@@ -1,11 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import '../../assets/css/signup.css';
+
+// =========================================================================
+// BACKEND NOTE FOR DEVELOPER:
+// 1. Ensure Express server is running on PORT 5000 (or update API_BASE_URL below).
+// 2. ENABLE CORS in your Express server:
+//    const cors = require('cors');
+//    app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+// 3. Ensure your registration routes are registered under `/api/auth/signup`:
+//    - POST /api/auth/signup
+//    - POST /api/auth/google
+// =========================================================================
+const API_BASE_URL = 'http://localhost:5000/api/auth';
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
-  // Form Field States
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -16,28 +29,45 @@ export default function SignUp() {
     termsAgreement: false,
   });
 
-  // UI & Validation States
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-  // Initialize Google Auth Overlay
   useEffect(() => {
     const clientId = '119378619205-32j7sol7rdlks9jmda04geetnlng6ovu.apps.googleusercontent.com';
 
-    const handleGoogleCallback = (response) => {
-      // =========================================================================
-      // TODO FOR BACKEND DEVELOPER:
-      // 1. Send `response.credential` (JWT Token) to your registration API endpoint.
-      // 2. Decode payload to extract user info (email, given_name, family_name).
-      // 3. Complete user registration or pre-fill existing account credentials.
-      // 4. Resolve `origin_mismatch` (Error 400) by registering your domain/localhost in 
-      //    Google Cloud Console under "Authorized JavaScript origins".
-      // =========================================================================
-      console.log('Google Auth Credential Received:', response.credential);
-      setIsSuccessModalOpen(true);
+    const handleGoogleCallback = async (response) => {
+      try {
+        setGeneralError('');
+        
+        // =========================================================================
+        // BACKEND NOTE:
+        // POST /api/auth/google expects `{ credential: response.credential, agreedToTerms: true }`.
+        // Server creates/finds the user, assigns role by domain (`@student.buksu.edu.ph` vs `@buksu.edu.ph`),
+        // and returns `{ user, token }`.
+        // =========================================================================
+        const res = await fetch(`${API_BASE_URL}/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential, agreedToTerms: true }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Google registration failed.');
+
+        if (data.token) {
+          login(data.user, data.token);
+        }
+        setIsSuccessModalOpen(true);
+      } catch (err) {
+        const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
+          ? 'Cannot connect to backend server. Verify Express server is running on http://localhost:5000 and CORS is enabled.'
+          : err.message;
+        setGeneralError(errorMsg);
+      }
     };
 
     const initializeGoogleBtn = () => {
@@ -51,7 +81,7 @@ export default function SignUp() {
 
         const targetDiv = document.getElementById('googleSsoBtn');
         if (targetDiv) {
-          targetDiv.innerHTML = ''; // Clear prior iframe renders to enable unlimited multi-clicks
+          targetDiv.innerHTML = '';
           window.google.accounts.id.renderButton(targetDiv, {
             type: 'standard',
             theme: 'outline',
@@ -101,8 +131,8 @@ export default function SignUp() {
 
     if (!formData.email.trim()) {
       newErrors.email = 'Institutional email is required';
-    } else if (!formData.email.endsWith('@buksu.edu.ph') && !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid institutional email address.';
+    } else if (!/^[^@\s]+@(student\.)?buksu\.edu\.ph$/.test(formData.email)) {
+      newErrors.email = 'Must be an institutional email (@student.buksu.edu.ph or @buksu.edu.ph)';
     }
 
     if (!formData.idNumber.trim()) newErrors.idNumber = 'ID Number is required';
@@ -125,37 +155,57 @@ export default function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError('');
 
     if (!validateForm()) return;
 
-    setIsSuccessModalOpen(true);
+    setLoading(true);
+    try {
+      // =========================================================================
+      // BACKEND NOTE:
+      // POST /api/auth/signup expects `{ firstName, lastName, email, idNumber, password, confirmPassword, termsAgreement }`.
+      // The backend will automatically map role based on domain:
+      // - @student.buksu.edu.ph => Student
+      // - @buksu.edu.ph => Regular Staff
+      // =========================================================================
+      const response = await fetch(`${API_BASE_URL}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Registration failed.');
+
+      setIsSuccessModalOpen(true);
+    } catch (err) {
+      const errorMsg = err.name === 'TypeError' && err.message === 'Failed to fetch'
+        ? 'Cannot connect to backend server. Verify Express API is running on http://localhost:5000 and cors() middleware is active.'
+        : err.message;
+      setGeneralError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="signup-wrapper">
       <div className="signup-card">
-        {/* Back Link */}
         <Link to="/signin" className="back-link">
           <i className="bi bi-arrow-left"></i> Go Back
         </Link>
 
-        {/* Header */}
         <div className="signup-header">
           <h1 className="signup-title">
             Create your <span>account</span>
           </h1>
-          <p className="signup-subtitle">
-            Register to submit requisitions and reservations
-          </p>
+          <p className="signup-subtitle">Register to submit requisitions and reservations</p>
         </div>
 
-        {/* Sign-Up Form */}
         <form className="signup-form" onSubmit={handleSubmit} noValidate>
           <div className="form-grid">
-            {/* First Name */}
             <div className={`input-group ${errors.firstName ? 'has-error' : ''}`}>
               <label htmlFor="firstName" className="form-label">
                 First Name <span className="required">*</span>
@@ -172,7 +222,6 @@ export default function SignUp() {
               {errors.firstName && <span className="error-msg">{errors.firstName}</span>}
             </div>
 
-            {/* Last Name */}
             <div className={`input-group ${errors.lastName ? 'has-error' : ''}`}>
               <label htmlFor="lastName" className="form-label">
                 Last Name <span className="required">*</span>
@@ -189,7 +238,6 @@ export default function SignUp() {
               {errors.lastName && <span className="error-msg">{errors.lastName}</span>}
             </div>
 
-            {/* Institutional Email */}
             <div className={`input-group full-width ${errors.email ? 'has-error' : ''}`}>
               <label htmlFor="email" className="form-label">
                 Institutional Email <span className="required">*</span>
@@ -206,7 +254,6 @@ export default function SignUp() {
               {errors.email && <span className="error-msg">{errors.email}</span>}
             </div>
 
-            {/* ID Number */}
             <div className={`input-group full-width ${errors.idNumber ? 'has-error' : ''}`}>
               <label htmlFor="idNumber" className="form-label">
                 ID Number <span className="required">*</span>
@@ -223,7 +270,6 @@ export default function SignUp() {
               {errors.idNumber && <span className="error-msg">{errors.idNumber}</span>}
             </div>
 
-            {/* Password */}
             <div className={`input-group ${errors.password ? 'has-error' : ''}`}>
               <label htmlFor="password" className="form-label">
                 <i className="bi bi-lock"></i> Password <span className="required">*</span>
@@ -250,7 +296,6 @@ export default function SignUp() {
               {errors.password && <span className="error-msg">{errors.password}</span>}
             </div>
 
-            {/* Confirm Password */}
             <div className={`input-group ${errors.confirmPassword ? 'has-error' : ''}`}>
               <label htmlFor="confirmPassword" className="form-label">
                 <i className="bi bi-lock"></i> Confirm Password <span className="required">*</span>
@@ -280,7 +325,6 @@ export default function SignUp() {
             </div>
           </div>
 
-          {/* Terms & Privacy */}
           <div className={`terms-group ${errors.termsAgreement ? 'has-error' : ''}`}>
             <label className="custom-checkbox-container">
               <input
@@ -307,17 +351,15 @@ export default function SignUp() {
             )}
           </div>
 
-          {generalError && <p className="form-error">{generalError}</p>}
+          {generalError && <p className="form-error" style={{ color: '#dc2626', marginTop: '10px' }}>{generalError}</p>}
 
-          {/* Submit Button */}
           <div className="btn-wrapper">
-            <button type="submit" className="btn-submit">
-              Create Account
+            <button type="submit" className="btn-submit" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
         </form>
 
-        {/* SSO Section */}
         <div className="social-section">
           <div className="divider">
             <span>or Sign Up with</span>
@@ -331,7 +373,6 @@ export default function SignUp() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="signup-footer">
           <p>
             Already have an account?{' '}
@@ -342,7 +383,6 @@ export default function SignUp() {
         </div>
       </div>
 
-      {/* Success Modal */}
       <div className={`modal-overlay ${!isSuccessModalOpen ? 'hidden' : ''}`}>
         <div className="modal-card">
           <div className="modal-icon-wrapper success-icon">
@@ -350,9 +390,7 @@ export default function SignUp() {
           </div>
           <h2 className="modal-title">Account Created Successfully!</h2>
           <p className="modal-description">
-            Welcome to <strong>BukSUPPLY</strong>! Your account has been registered
-            and activated instantly. You can now proceed to sign in or access your
-            dashboard.
+            Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and activated. You can now proceed to sign in.
           </p>
           <button
             type="button"
