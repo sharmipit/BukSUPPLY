@@ -73,8 +73,8 @@ frontend/
 │   │   └── img/         # Images, icons, and branding assets
 │   ├── components/      # Reusable React components
 │   ├── pages/
-│   │   ├── SignIn.jsx   # Login page component
-│   │   └── SignUp.jsx   # Registration page component
+│   │   ├── admin/  
+│   │   └── auth and more/
 │   ├── App.jsx          # Root routing configuration
 │   └── main.jsx         # Entry point script
 ├── index.html           # HTML template
