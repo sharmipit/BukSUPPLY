@@ -169,9 +169,16 @@ document.addEventListener("DOMContentLoaded", () => {
         isValid = false;
       }
 
+      // 5. reCAPTCHA Check
+      const recaptchaToken = grecaptcha.getResponse();
+      if (!recaptchaToken) {
+          formError.textContent = 'Please confirm you are not a robot.';
+          isValid = false;
+      }
+
       if (!isValid) return;
 
-      // 5. Send to the backend
+      // 6. Send to the backend
       submitBtn.disabled = true;
       submitBtn.textContent = "Creating account...";
 
@@ -184,10 +191,12 @@ document.addEventListener("DOMContentLoaded", () => {
           password: passwordInput.value,
           confirmPassword: confirmPasswordInput.value,
           termsAgreement: termsCheckbox.checked, // real boolean
+          recaptchaToken,
         });
 
         if (successModal) successModal.classList.add("active");
       } catch (err) {
+        grecaptcha.reset(); 
         if (err.status === 409) {
           setError(emailInput, err.message);
         } else if (err.status) {
