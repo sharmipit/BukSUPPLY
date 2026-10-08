@@ -1,0 +1,372 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import api, { errMsg } from '../api/client';
+import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
+import usePage from '../hooks/usePage';
+import css from '../styles/signin.css?raw';
+
+const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+const NO_BANNER = { message: '', type: '' };
+
+function Banner({ banner }) {
+  return (
+    <div className={banner.message ? `alert-banner ${banner.type}` : 'alert-banner hidden'}>
+      {banner.message}
+    </div>
+  );
+}
+
+export default function Signin() {
+  usePage(css, 'BukSUPPLY | Sign In');
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  // ---------- Sign in form ----------
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [banner, setBanner] = useState(NO_BANNER);
+  const [busy, setBusy] = useState(false);
+
+  // Shared by email/password and Google sign-in
+  const completeSignIn = ({ token, user }) => {
+    if (!ROLE_HOME[user.role]) {
+      setBanner({ message: 'This account type is not supported here yet.', type: 'error' });
+      return;
+    }
+    login(token, user);
+    setBanner({ message: 'Signed in! Redirecting...', type: 'success' });
+    navigate(homeFor(user.role), { replace: true });
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setBanner(NO_BANNER);
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanEmail)) {
+      setBanner({
+        message:
+          'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).',
+        type: 'error',
+      });
+      return;
+    }
+    if (!password) {
+      setBanner({ message: 'Please enter your password.', type: 'error' });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { data } = await api.post('/auth/signin', { email: cleanEmail, password });
+      completeSignIn(data);
+    } catch (err) {
+      setBanner({ message: errMsg(err), type: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ---------- Google sign in ----------
+  const handleGoogle = async (credential, agreedToTerms = false) => {
+    setBanner(NO_BANNER);
+    try {
+      const { data } = await api.post('/auth/google', { credential, agreedToTerms });
+      completeSignIn(data);
+    } catch (err) {
+      // First-time Google users must accept the terms
+      if (err.response?.status === 428 && err.response.data?.requiresTerms) {
+        const confirmed = window.confirm(
+          'By continuing you agree to the Terms and Conditions and Privacy Policy. Continue?'
+        );
+        if (confirmed) return handleGoogle(credential, true);
+        return;
+      }
+      setBanner({ message: errMsg(err), type: 'error' });
+    }
+  };
+
+  // ---------- Forgot / reset password modal ----------
+  const [modalOpen, setModalOpen] = useState(false);
+  const [step, setStep] = useState(1);
+  const [resetEmail, setResetEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [alert1, setAlert1] = useState(NO_BANNER);
+  const [alert2, setAlert2] = useState(NO_BANNER);
+  const [modalBusy, setModalBusy] = useState(false);
+
+  const openModal = (e) => {
+    e.preventDefault();
+    setStep(1);
+    setResetEmail('');
+    setOtp('');
+    setNewPass('');
+    setConfirmPass('');
+    setAlert1(NO_BANNER);
+    setAlert2(NO_BANNER);
+    setModalOpen(true);
+  };
+  const closeModal = () => setModalOpen(false);
+
+  useEffect(() => {
+    if (!modalOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setModalOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [modalOpen]);
+
+  // Step 1: request the code
+  const requestCode = async (e) => {
+    e.preventDefault();
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    setAlert1({ message: 'Sending code...', type: 'info' });
+    setModalBusy(true);
+    try {
+      await api.post('/auth/forgot-password/request-code', { email: cleanEmail });
+      setResetEmail(cleanEmail);
+      setStep(2);
+      setAlert2({
+        message: `Code sent to ${cleanEmail}! Check your inbox. It expires in 15 minutes.`,
+        type: 'info',
+      });
+    } catch (err) {
+      setAlert1({ message: errMsg(err), type: 'error' });
+    } finally {
+      setModalBusy(false);
+    }
+  };
+
+  // Step 2: code + new password
+  const resetPassword = async (e) => {
+    e.preventDefault();
+    if (newPass !== confirmPass) {
+      setAlert2({ message: 'Passwords do not match. Please try again.', type: 'error' });
+      return;
+    }
+    setAlert2({ message: 'Updating password...', type: 'info' });
+    setModalBusy(true);
+    try {
+      await api.post('/auth/forgot-password/reset-password', {
+        email: resetEmail,
+        otp: otp.trim(),
+        newPassword: newPass,
+        confirmPassword: confirmPass,
+      });
+      setAlert2({ message: 'Password successfully reset! You can now log in.', type: 'success' });
+      setTimeout(() => setModalOpen(false), 1500);
+    } catch (err) {
+      setAlert2({ message: errMsg(err), type: 'error' });
+    } finally {
+      setModalBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <main className="login-wrapper">
+        <div className="login-card">
+          <Link to="/" className="back-link">
+            <i className="bi bi-arrow-left"></i> Go Back
+          </Link>
+
+          <header className="login-header">
+            <h1 className="login-title">Log in to your <span>account</span></h1>
+            <p className="login-subtitle">
+              Welcome! Enter your institutional credentials to access{' '}
+              <strong>BukSUPPLY</strong>
+            </p>
+          </header>
+
+          <form id="loginForm" className="login-form" onSubmit={onSubmit}>
+            <div className="form-group">
+              <label htmlFor="email" className="form-label">
+                <i className="bi bi-envelope-fill"></i> Institutional Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                className="form-input"
+                placeholder="Enter your institutional email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setBanner(NO_BANNER); }}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">
+                <i className="bi bi-lock-fill"></i> Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                className="form-input"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setBanner(NO_BANNER); }}
+                required
+              />
+              <div className="forgot-wrapper">
+                <a href="#" className="forgot-link" id="openForgotModal" onClick={openModal}>
+                  Forgot Password?
+                </a>
+              </div>
+            </div>
+
+            <Banner banner={banner} />
+
+            <div className="btn-wrapper">
+              <button type="submit" className="btn-submit" disabled={busy}>
+                {busy ? 'Signing in...' : 'Log In'}
+              </button>
+            </div>
+          </form>
+
+          <div className="social-section" id="socialSection">
+            <div className="divider"><span>or Log In with</span></div>
+
+            <div className="google-sso-wrapper">
+              <button type="button" className="sso-google-btn">
+                <i className="bi bi-google"></i> Continue with Google
+              </button>
+              <div className="google-overlay">
+                <GoogleLogin
+                  theme="outline"
+                  size="large"
+                  width="320"
+                  text="continue_with"
+                  onSuccess={(res) => handleGoogle(res.credential)}
+                  onError={() => setBanner({ message: 'Google sign-in failed.', type: 'error' })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="login-footer" id="signupFooter">
+            <p>
+              Don&rsquo;t have an account?{' '}
+              <Link to="/signup" className="create-account-link">Create Account</Link>
+            </p>
+          </div>
+        </div>
+      </main>
+
+      {/* FORGOT / RESET PASSWORD MODAL */}
+      <div
+        className={`modal-overlay${modalOpen ? '' : ' hidden'}`}
+        onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+      >
+        <div className="modal-card">
+          <button type="button" className="modal-close-btn" title="Close Modal" onClick={closeModal}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+
+          {/* STEP 1 */}
+          <div className={`modal-step${step === 1 ? '' : ' hidden'}`}>
+            <header className="modal-header">
+              <h2 className="modal-title">Reset your <span>Password</span></h2>
+              <p className="modal-subtitle">
+                Enter your institutional email and we&apos;ll send you a verification code to
+                reset your password.
+              </p>
+            </header>
+
+            <form className="login-form" onSubmit={requestCode}>
+              <div className="form-group">
+                <label htmlFor="resetEmail" className="form-label">
+                  <i className="bi bi-envelope-fill"></i> Institutional Email
+                </label>
+                <input
+                  type="email"
+                  id="resetEmail"
+                  className="form-input"
+                  placeholder="Enter your institutional email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Banner banner={alert1} />
+
+              <div className="btn-wrapper">
+                <button type="submit" className="btn-submit" disabled={modalBusy}>
+                  Send Reset Code
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* STEP 2 */}
+          <div className={`modal-step${step === 2 ? '' : ' hidden'}`}>
+            <header className="modal-header">
+              <h2 className="modal-title">Set New <span>Password</span></h2>
+              <p className="modal-subtitle">
+                Enter the 6-digit code sent to your email along with your new password.
+              </p>
+            </header>
+
+            <form className="login-form" onSubmit={resetPassword}>
+              <div className="form-group">
+                <label htmlFor="resetCode" className="form-label">
+                  <i className="bi bi-shield-lock-fill"></i> 6-Digit Reset Code
+                </label>
+                <input
+                  type="text"
+                  id="resetCode"
+                  className="form-input"
+                  placeholder="e.g. 123456"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="newPassword" className="form-label">
+                  <i className="bi bi-lock-fill"></i> New Password
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  className="form-input"
+                  placeholder="Enter new password"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirmNewPassword" className="form-label">
+                  <i className="bi bi-lock-fill"></i> Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  id="confirmNewPassword"
+                  className="form-input"
+                  placeholder="Confirm new password"
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Banner banner={alert2} />
+
+              <div className="btn-wrapper">
+                <button type="submit" className="btn-submit" disabled={modalBusy}>
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
