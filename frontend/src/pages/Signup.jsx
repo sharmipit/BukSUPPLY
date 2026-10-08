@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
 import css from '../styles/signup.css?raw';
@@ -47,6 +48,8 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState({ password: false, confirmPassword: false });
+  const recaptchaRef = useRef(null);
+  const [captchaToken, setCaptchaToken] = useState(null);
 
   // The ID field label changes with the email domain
   const kind = emailType(values.email);
@@ -98,6 +101,12 @@ export default function Signup() {
     setErrors(found);
     if (Object.keys(found).length) return;
 
+    //reCAPTCHA check
+    if (!captchaToken) {
+      setFormError('Please confirm you are not a robot.');
+      return;
+    }
+
     setBusy(true);
     try {
       await api.post('/auth/signup', {
@@ -108,9 +117,12 @@ export default function Signup() {
         password: values.password,
         confirmPassword: values.confirmPassword,
         termsAgreement: values.termsAgreement,
+        recaptchaToken: captchaToken,
       });
       setShowModal(true);
     } catch (err) {
+      recaptchaRef.current?.reset();   //token is single-use
+      setCaptchaToken(null);
       if (err.response?.status === 409) {
         setErrors({ email: err.response.data.message });
       } else {
@@ -239,6 +251,19 @@ export default function Signup() {
                 </span>
               </label>
               <span className="error-msg">{errors.termsAgreement}</span>
+            </div>
+
+            {/*reCAPTCHA */}
+            <div className="recaptcha-group">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={(token) => {
+                  setCaptchaToken(token);
+                  setFormError('');
+                }}
+                onExpired={() => setCaptchaToken(null)}
+              />
             </div>
 
             <p className="form-error" id="formError">{formError}</p>
