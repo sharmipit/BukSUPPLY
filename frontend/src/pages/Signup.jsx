@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import ReCAPTCHAImport from 'react-google-recaptcha';
-const ReCAPTCHA = ReCAPTCHAImport.default || ReCAPTCHAImport;
+import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
 import css from '../styles/signup.css?raw';
