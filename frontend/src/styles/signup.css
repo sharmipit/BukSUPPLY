@@ -335,6 +335,13 @@ body {
   font-weight: 500;
 }
 
+/* reCAPTCHA */
+.recaptcha-group {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+}
+
 /* Google SSO Wrapper & Brown Button */
 .google-sso-wrapper {
   position: relative;
