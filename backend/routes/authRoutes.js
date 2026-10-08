@@ -20,7 +20,7 @@ const authLimiter = rateLimit({
   message: { message: "Too many attempts. Please try again later." },
 });
 
-// --- Sign up / Sign in (Student, Regular Staff, Moderator, Administrator) ---
+// --- Sign up / Sign in ---
 router.post("/signup", authLimiter, signUp);
 router.post("/signin", authLimiter, signIn);
 
