@@ -33,6 +33,24 @@ const signToken = (user) =>
     expiresIn: process.env.JWT_EXPIRES_IN || "1d",
   });
 
+const verifyRecaptcha = async (token, ip) => {
+  if (!isString(token) || !token) return false;
+
+  const params = new URLSearchParams({
+    secret: process.env.RECAPTCHA_SECRET_KEY,
+    response: token,
+  });
+  if (ip) params.append("remoteip", ip);
+
+  const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
+  const data = await response.json();
+  return data.success === true;
+};
+
 const SERVER_ERROR = { message: "Something went wrong. Please try again." };
 const GOOGLE_ONLY_MESSAGE =
   'This account uses Google Sign-In. Please use "Continue with Google" instead.';
@@ -88,6 +106,11 @@ exports.signUp = async (req, res) => {
   try {
     const { firstName, lastName, email, idNumber, password, confirmPassword, termsAgreement } =
       req.body;
+
+    // reCAPTCHA check (bots get stopped before touching the database)
+    if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
+      return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+    }
 
     if (![firstName, lastName, email, idNumber, password, confirmPassword].every(isString)) {
       return res.status(400).json({ message: "All fields are required." });
