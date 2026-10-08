@@ -29,6 +29,9 @@
 
     <!-- Google SSO Client -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   </head>
   <body>
     <div class="signup-wrapper">
@@ -184,6 +187,11 @@
             <span class="error-msg" id="termsError"
               >You must agree to the terms and privacy policy to proceed</span
             >
+          </div>
+
+          <!-- reCAPTCHA -->
+          <div class="recaptcha-group">
+            <div class="g-recaptcha" data-sitekey="6LcleeUtAAAAAF8Ju1F5b8sNix-awcSqTTAKeRw2"></div>
           </div>
 
           <!-- Server / Custom error message -->
