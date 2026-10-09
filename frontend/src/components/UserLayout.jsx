@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import usePage from "../hooks/usePage";
 import menuCss from "../styles/menu.css?raw";
+import LogoutModal from "../components/LogoutModal"; // adjust path if needed
 
 const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/a/default-user";
 
@@ -87,6 +88,87 @@ const roleLabels = {
   Administrator: "Administrator Account",
 };
 
+/**
+ * Dropdown shown when clicking a profile trigger.
+ * Uses position: fixed so it is never clipped by the sidebar's overflow.
+ * direction: "up" (opens above the trigger) | "down" (opens below it)
+ */
+function ProfileMenu({ trigger, base, direction = "down", onLogout }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({});
+  const wrapRef = useRef(null);
+  const navigate = useNavigate();
+
+  const toggle = () => {
+    if (!open && wrapRef.current) {
+      const r = wrapRef.current.getBoundingClientRect();
+      setPos(
+        direction === "up"
+          ? { bottom: window.innerHeight - r.top + 8, left: r.left }
+          : { top: r.bottom + 8, right: window.innerWidth - r.right }
+      );
+    }
+    setOpen((o) => !o);
+  };
+
+  // Close on outside click, Escape, resize, or scroll
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const onMouseDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) close();
+    };
+    const onKey = (e) => e.key === "Escape" && close();
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
+
+  return (
+    <div className="profile-menu-wrap" ref={wrapRef}>
+      {trigger({ open, toggle })}
+
+      {open && (
+        <div className="profile-menu" style={pos} role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            className="profile-menu-item"
+            onClick={() => {
+              setOpen(false);
+              navigate(`${base}/profile`);
+            }}
+          >
+            <i className="bi bi-person-gear"></i>
+            <span>Edit Profile</span>
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            className="profile-menu-item danger"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+          >
+            <i className="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function UserLayout() {
   usePage(menuCss);
 
@@ -96,6 +178,7 @@ export default function UserLayout() {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
   });
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   // Select navigation set based on role
   const { sections: navSections, base } = roleConfig[user?.role] || defaultConfig;
@@ -176,18 +259,31 @@ export default function UserLayout() {
         {/* SIDEBAR FOOTER */}
         <div className="sidebar-footer">
           <hr className="sidebar-divider" />
-          <div className="user-profile">
-            <img
-              src={avatarSrc}
-              alt={displayName}
-              className="user-avatar"
-              onError={handleAvatarError}
-            />
-            <div className="user-info">
-              <span className="user-name">{displayName}</span>
-              <span className="user-role">{displayRole}</span>
-            </div>
-          </div>
+          <ProfileMenu
+            base={base}
+            direction="up"
+            onLogout={() => setLogoutOpen(true)}
+            trigger={({ open, toggle }) => (
+              <button
+                type="button"
+                className="user-profile"
+                onClick={toggle}
+                aria-haspopup="menu"
+                aria-expanded={open}
+              >
+                <img
+                  src={avatarSrc}
+                  alt={displayName}
+                  className="user-avatar"
+                  onError={handleAvatarError}
+                />
+                <div className="user-info">
+                  <span className="user-name">{displayName}</span>
+                  <span className="user-role">{displayRole}</span>
+                </div>
+              </button>
+            )}
+          />
         </div>
       </aside>
 
@@ -212,13 +308,23 @@ export default function UserLayout() {
               <i className="bi bi-bell"></i>
             </button>
 
-            <button
-              className="avatar"
-              aria-label="User profile"
-              onClick={() => navigate(`${base}/profile`)}
-            >
-              <img src={avatarSrc} alt={displayName} onError={handleAvatarError} />
-            </button>
+            <ProfileMenu
+              base={base}
+              direction="down"
+              onLogout={() => setLogoutOpen(true)}
+              trigger={({ open, toggle }) => (
+                <button
+                  type="button"
+                  className="avatar"
+                  aria-label="User profile"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  onClick={toggle}
+                >
+                  <img src={avatarSrc} alt={displayName} onError={handleAvatarError} />
+                </button>
+              )}
+            />
           </div>
         </header>
 
@@ -226,6 +332,9 @@ export default function UserLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      <LogoutModal isOpen={logoutOpen} onClose={() => setLogoutOpen(false)} />
     </div>
   );
 }

@@ -19,7 +19,7 @@ export default function LogoutModal({ isOpen, onClose }) {
         <div className="lo-icon">
           <i className="bi bi-box-arrow-right"></i>
         </div>
-        <h2 class="lo-title">Log out?</h2>
+        <h2 className="lo-title">Log out?</h2>
         <p className="modal-description lo-desc">
           Are you sure you want to log out of <strong>BukSUPPLY</strong>?
           You will need to sign in again to access your dashboard.

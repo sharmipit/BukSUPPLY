@@ -104,8 +104,16 @@ const publicUser = (user) => ({
 /** POST /api/auth/signup */
 exports.signUp = async (req, res) => {
   try {
-    const { firstName, lastName, email, idNumber, password, confirmPassword, termsAgreement } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      idNumber,
+      password,
+      confirmPassword,
+      termsAgreement,
+      recaptchaToken,
+    } = req.body;
 
     // reCAPTCHA check (bots get stopped before touching the database)
     if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
@@ -177,6 +185,10 @@ exports.signUp = async (req, res) => {
       return res.status(400).json({ message: Object.values(err.errors)[0].message });
     }
     if (err.code === 11000) {
+      // Duplicate ID number vs duplicate email
+      if (err.keyPattern && err.keyPattern.idNumber) {
+        return res.status(409).json({ message: "This ID number is already registered." });
+      }
       return res.status(409).json({ message: "An account with this email already exists." });
     }
     console.error("signUp error:", err);
@@ -187,7 +199,12 @@ exports.signUp = async (req, res) => {
 /** POST /api/auth/signin */
 exports.signIn = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, recaptchaToken } = req.body;
+
+    // reCAPTCHA check (bots get stopped before touching the database)
+    if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
+      return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+    }
 
     if (!isString(email) || !isString(password) || !email.trim() || !password) {
       return res.status(400).json({ message: "Email and password are required." });
@@ -224,11 +241,12 @@ exports.signIn = async (req, res) => {
 /**
  * POST /api/auth/google
  * Verifies a Google ID token, enforces the BukSU domain restriction,
- * and creates / logs in the user.
+ * and creates / logs in the user. New users must also send agreedToTerms
+ * and an idNumber.
  */
 exports.googleSignIn = async (req, res) => {
   try {
-    const { credential, agreedToTerms } = req.body;
+    const { credential, agreedToTerms, idNumber } = req.body;
 
     if (!isString(credential) || !credential) {
       return res.status(400).json({ message: "Missing Google credential." });
@@ -261,30 +279,43 @@ exports.googleSignIn = async (req, res) => {
     }
 
     let user = await User.findOne({ email }).select("+googleId");
+    let isNewUser = false; // true only when this request creates the account
 
     if (user && user.accountStatus === "Deactivated") {
       return res.status(403).json({ message: "Your account has been deactivated." });
     }
 
     if (!user) {
-      // First time this email has signed in: create the account
+      // First time this email has signed in: terms + ID number are required
       if (agreedToTerms !== true) {
         return res.status(428).json({
           requiresTerms: true,
+          requiresIdNumber: true,
+          email, // lets the frontend pick the right ID label (Student / Employee)
           message: "Please agree to the Terms and Conditions and Privacy Policy to continue.",
         });
+      }
+
+      const cleanId = isString(idNumber) ? idNumber.trim() : "";
+      if (!cleanId) {
+        return res.status(400).json({ message: "ID number is required.", field: "idNumber" });
+      }
+      if (cleanId.length > 30) {
+        return res.status(400).json({ message: "ID number is too long.", field: "idNumber" });
       }
 
       user = new User({
         firstName: payload.given_name || payload.name || "Unknown",
         lastName: payload.family_name || "-", // schema requires a non-empty last name
         email,
+        idNumber: cleanId,
         role,
         authProvider: "google",
         googleId: payload.sub,
         agreedToTerms: true,
       });
       await user.save();
+      isNewUser = true;
     } else if (!user.googleId) {
       // Existing account signing in with Google for the first time:
       // link the Google identity to it.
@@ -299,12 +330,23 @@ exports.googleSignIn = async (req, res) => {
       message: "Signed in successfully.",
       token: signToken(user),
       user: publicUser(user),
+      isNewUser,
     });
   } catch (err) {
     if (err.name === "ValidationError") {
-      return res.status(400).json({ message: Object.values(err.errors)[0].message });
+      const first = Object.values(err.errors)[0];
+      return res.status(400).json({
+        message: first.message,
+        field: first.path === "idNumber" ? "idNumber" : undefined,
+      });
     }
     if (err.code === 11000) {
+      // Duplicate ID number vs duplicate email
+      if (err.keyPattern && err.keyPattern.idNumber) {
+        return res
+          .status(409)
+          .json({ message: "This ID number is already registered.", field: "idNumber" });
+      }
       return res.status(409).json({ message: "An account with this email already exists." });
     }
     console.error("googleSignIn error:", err);

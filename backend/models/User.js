@@ -25,22 +25,28 @@ const UserSchema = new mongoose.Schema(
     idNumber: {
       type: String,
       trim: true,
-      // Only required for accounts created the old way (local signup).
-      // Google sign-ins start without one and fill it in afterward.
-      required: [function () { return this.authProvider === "local"; }, "ID number is required"],
+      unique: true,
+      sparse: true, // accounts without an ID (old test accounts, admins) don't conflict
+      // Required for local signups, and for NEW Google accounts (collected during Google sign-up)
+      required: [
+        function () {
+          return this.authProvider === "local" || (this.authProvider === "google" && this.isNew);
+        },
+        "ID number is required",
+      ],
     },
     password: {
       type: String,
       select: false,
       required: [function () { return this.authProvider === "local"; }, "Password is required"],
     },
-    // NEW: identifies which login method created/owns this account
+    // Identifies which login method created/owns this account
     authProvider: {
       type: String,
       enum: ["local", "google"],
       default: "local",
     },
-    // NEW: Google's stable per-account ID (the `sub` claim), used to link accounts
+    // Google's stable per-account ID (the `sub` claim), used to link accounts
     googleId: {
       type: String,
       unique: true,
