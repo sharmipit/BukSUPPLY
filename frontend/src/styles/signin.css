@@ -158,6 +158,13 @@ body {
   text-decoration: underline;
 }
 
+/* reCAPTCHA */
+.recaptcha-group {
+  display: flex;
+  justify-content: center;
+  margin: 0;   /* .login-form already has gap: 20px */
+}
+
 /* Alert Message Banner */
 .alert-banner {
   padding: 12px 16px;
@@ -331,6 +338,12 @@ body {
 
   .btn-submit {
     width: 100%;
+  }
+
+  .recaptcha-group {
+    transform: scale(0.88);
+    transform-origin: center;
+    margin: -4px 0;   /* offsets the empty space left by scaling */
   }
 }
 

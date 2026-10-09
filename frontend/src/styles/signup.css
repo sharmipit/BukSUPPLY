@@ -499,6 +499,76 @@ body {
   width: 100%;
 }
 
+.legal-card {
+  max-width: 560px;
+  width: 92%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 24px;
+}
+
+/* Legal Card */
+.legal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.legal-header .modal-title { margin: 0; }
+.legal-close {
+  background: none;
+  border: 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: inherit;
+}
+.legal-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.legal-tabs button {
+  background: none;
+  border: 0;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  opacity: 0.6;
+  border-bottom: 2px solid transparent;
+}
+.legal-tabs button.active {
+  opacity: 1;
+  font-weight: 600;
+  border-bottom-color: currentColor;
+}
+.legal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.legal-body h3 { font-size: 0.95rem; margin: 16px 0 4px; }
+.legal-body p { margin: 0; }
+.legal-actions { margin-top: 16px; }
+
+/* Legal Note */
+.legal-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.legal-id-field {
+  padding: 12px 24px 0;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 640px) {
   .signup-card {

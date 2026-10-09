@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
@@ -9,12 +10,10 @@ import css from '../styles/signin.css?raw';
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const NO_BANNER = { message: '', type: '' };
 
+// Renders nothing when there is no message (prevents flashing)
 function Banner({ banner }) {
-  return (
-    <div className={banner.message ? `alert-banner ${banner.type}` : 'alert-banner hidden'}>
-      {banner.message}
-    </div>
-  );
+  if (!banner.message) return null;
+  return <div className={`alert-banner ${banner.type}`}>{banner.message}</div>;
 }
 
 export default function Signin() {
@@ -27,6 +26,8 @@ export default function Signin() {
   const [password, setPassword] = useState('');
   const [banner, setBanner] = useState(NO_BANNER);
   const [busy, setBusy] = useState(false);
+  const recaptchaRef = useRef(null);
+  const [captchaToken, setCaptchaToken] = useState(null);
 
   // Shared by email/password and Google sign-in
   const completeSignIn = ({ token, user }) => {
@@ -57,11 +58,23 @@ export default function Signin() {
       return;
     }
 
+    // reCAPTCHA check
+    if (!captchaToken) {
+      setBanner({ message: 'Please confirm you are not a robot.', type: 'error' });
+      return;
+    }
+
     setBusy(true);
     try {
-      const { data } = await api.post('/auth/signin', { email: cleanEmail, password });
+      const { data } = await api.post('/auth/signin', {
+        email: cleanEmail,
+        password,
+        recaptchaToken: captchaToken,
+      });
       completeSignIn(data);
     } catch (err) {
+      recaptchaRef.current?.reset(); // token is single-use
+      setCaptchaToken(null);
       setBanner({ message: errMsg(err), type: 'error' });
     } finally {
       setBusy(false);
@@ -69,23 +82,21 @@ export default function Signin() {
   };
 
   // ---------- Google sign in ----------
-  const handleGoogle = async (credential, agreedToTerms = false) => {
-    setBanner(NO_BANNER);
-    try {
-      const { data } = await api.post('/auth/google', { credential, agreedToTerms });
-      completeSignIn(data);
-    } catch (err) {
-      // First-time Google users must accept the terms
-      if (err.response?.status === 428 && err.response.data?.requiresTerms) {
-        const confirmed = window.confirm(
-          'By continuing you agree to the Terms and Conditions and Privacy Policy. Continue?'
-        );
-        if (confirmed) return handleGoogle(credential, true);
-        return;
-      }
-      setBanner({ message: errMsg(err), type: 'error' });
+ // ---------- Google sign in ----------
+const handleGoogle = async (credential) => {
+  setBanner(NO_BANNER);
+  try {
+    const { data } = await api.post('/auth/google', { credential });
+    completeSignIn(data);
+  } catch (err) {
+    // No account yet: new users must register (ID number + terms) on the sign-up page
+    if (err.response?.status === 428) {
+      navigate('/signup', { replace: true });
+      return;
     }
-  };
+    setBanner({ message: errMsg(err), type: 'error' });
+  }
+};
 
   // ---------- Forgot / reset password modal ----------
   const [modalOpen, setModalOpen] = useState(false);
@@ -216,6 +227,19 @@ export default function Signin() {
               </div>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="recaptcha-group">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={(token) => {
+                  setCaptchaToken(token);
+                  setBanner(NO_BANNER);
+                }}
+                onExpired={() => setCaptchaToken(null)}
+              />
+            </div>
+
             <Banner banner={banner} />
 
             <div className="btn-wrapper">
@@ -254,119 +278,124 @@ export default function Signin() {
         </div>
       </main>
 
-      {/* FORGOT / RESET PASSWORD MODAL */}
-      <div
-        className={`modal-overlay${modalOpen ? '' : ' hidden'}`}
-        onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
-      >
-        <div className="modal-card">
-          <button type="button" className="modal-close-btn" title="Close Modal" onClick={closeModal}>
-            <i className="bi bi-x-lg"></i>
-          </button>
+      {/* FORGOT / RESET PASSWORD MODAL (only mounted while open) */}
+      {modalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className="modal-card">
+            <button type="button" className="modal-close-btn" title="Close Modal" onClick={closeModal}>
+              <i className="bi bi-x-lg"></i>
+            </button>
 
-          {/* STEP 1 */}
-          <div className={`modal-step${step === 1 ? '' : ' hidden'}`}>
-            <header className="modal-header">
-              <h2 className="modal-title">Reset your <span>Password</span></h2>
-              <p className="modal-subtitle">
-                Enter your institutional email and we&apos;ll send you a verification code to
-                reset your password.
-              </p>
-            </header>
+            {/* STEP 1 */}
+            <div className={`modal-step${step === 1 ? '' : ' hidden'}`}>
+              <header className="modal-header">
+                <h2 className="modal-title">Reset your <span>Password</span></h2>
+                <p className="modal-subtitle">
+                  Enter your institutional email and we&apos;ll send you a verification code to
+                  reset your password.
+                </p>
+              </header>
 
-            <form className="login-form" onSubmit={requestCode}>
-              <div className="form-group">
-                <label htmlFor="resetEmail" className="form-label">
-                  <i className="bi bi-envelope-fill"></i> Institutional Email
-                </label>
-                <input
-                  type="email"
-                  id="resetEmail"
-                  className="form-input"
-                  placeholder="Enter your institutional email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  required
-                />
-              </div>
+              <form className="login-form" onSubmit={requestCode}>
+                <div className="form-group">
+                  <label htmlFor="resetEmail" className="form-label">
+                    <i className="bi bi-envelope-fill"></i> Institutional Email
+                  </label>
+                  <input
+                    type="email"
+                    id="resetEmail"
+                    className="form-input"
+                    placeholder="Enter your institutional email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <Banner banner={alert1} />
+                <Banner banner={alert1} />
 
-              <div className="btn-wrapper">
-                <button type="submit" className="btn-submit" disabled={modalBusy}>
-                  Send Reset Code
-                </button>
-              </div>
-            </form>
-          </div>
+                <div className="btn-wrapper">
+                  <button type="submit" className="btn-submit" disabled={modalBusy}>
+                    Send Reset Code
+                  </button>
+                </div>
+              </form>
+            </div>
 
-          {/* STEP 2 */}
-          <div className={`modal-step${step === 2 ? '' : ' hidden'}`}>
-            <header className="modal-header">
-              <h2 className="modal-title">Set New <span>Password</span></h2>
-              <p className="modal-subtitle">
-                Enter the 6-digit code sent to your email along with your new password.
-              </p>
-            </header>
+            {/* STEP 2 */}
+            <div className={`modal-step${step === 2 ? '' : ' hidden'}`}>
+              <header className="modal-header">
+                <h2 className="modal-title">Set New <span>Password</span></h2>
+                <p className="modal-subtitle">
+                  Enter the 6-digit code sent to your email along with your new password.
+                </p>
+              </header>
 
-            <form className="login-form" onSubmit={resetPassword}>
-              <div className="form-group">
-                <label htmlFor="resetCode" className="form-label">
-                  <i className="bi bi-shield-lock-fill"></i> 6-Digit Reset Code
-                </label>
-                <input
-                  type="text"
-                  id="resetCode"
-                  className="form-input"
-                  placeholder="e.g. 123456"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  required
-                />
-              </div>
+              <form className="login-form" onSubmit={resetPassword}>
+                <div className="form-group">
+                  <label htmlFor="resetCode" className="form-label">
+                    <i className="bi bi-shield-lock-fill"></i> 6-Digit Reset Code
+                  </label>
+                  <input
+                    type="text"
+                    id="resetCode"
+                    className="form-input"
+                    placeholder="e.g. 123456"
+                    maxLength={6}
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    autoComplete="one-time-code"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                </div>
 
-              <div className="form-group">
-                <label htmlFor="newPassword" className="form-label">
-                  <i className="bi bi-lock-fill"></i> New Password
-                </label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  className="form-input"
-                  placeholder="Enter new password"
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  required
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="newPassword" className="form-label">
+                    <i className="bi bi-lock-fill"></i> New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    className="form-input"
+                    placeholder="Enter new password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="form-group">
-                <label htmlFor="confirmNewPassword" className="form-label">
-                  <i className="bi bi-lock-fill"></i> Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  id="confirmNewPassword"
-                  className="form-input"
-                  placeholder="Confirm new password"
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  required
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="confirmNewPassword" className="form-label">
+                    <i className="bi bi-lock-fill"></i> Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmNewPassword"
+                    className="form-input"
+                    placeholder="Confirm new password"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <Banner banner={alert2} />
+                <Banner banner={alert2} />
 
-              <div className="btn-wrapper">
-                <button type="submit" className="btn-submit" disabled={modalBusy}>
-                  Update Password
-                </button>
-              </div>
-            </form>
+                <div className="btn-wrapper">
+                  <button type="submit" className="btn-submit" disabled={modalBusy}>
+                    Update Password
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
