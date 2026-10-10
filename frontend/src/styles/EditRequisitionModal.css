@@ -1,0 +1,326 @@
+/* ==========================================================================
+   BukSUPPLY - Edit Requisition Modal Styles
+   ========================================================================== */
+
+.req-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(44, 26, 20, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  font-family: 'Poppins', sans-serif;
+}
+
+.req-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.req-toast-notification {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background-color: #2C1A14;
+  color: #FFFFFF;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  z-index: 100000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.req-toast-notification.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.req-toast-notification i {
+  color: #10B981;
+  font-size: 1.1rem;
+}
+
+.req-modal-card {
+  background-color: #FFFFFF;
+  border-radius: 24px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.req-modal-overlay.active .req-modal-card {
+  transform: translateY(0);
+}
+
+.req-modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #DFD8CC;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.req-modal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2C1A14;
+  margin-bottom: 4px;
+}
+
+.req-modal-subtitle {
+  font-size: 0.88rem;
+  color: #594D46;
+}
+
+.req-modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #594D46;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.req-modal-close-btn:hover {
+  color: #2C1A14;
+}
+
+.req-modal-body {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2C1A14;
+  display: block;
+}
+
+.char-counter {
+  font-size: 0.78rem;
+  color: #8C7A70;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #DFD8CC;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  color: #2C1A14;
+  background-color: #FAF7F2;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea.custom-input {
+  resize: vertical;
+  max-height: 120px;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #8C5839;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
+}
+
+/* Items Section */
+.items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.item-row-card {
+  background-color: #FAF7F2;
+  border: 1px solid #DFD8CC;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.item-main-inputs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.qty-input-wrapper {
+  width: 90px;
+}
+
+.btn-remove-item {
+  background: none;
+  border: 1px solid #E5E7EB;
+  color: #9CA3AF;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-item:hover:not(:disabled) {
+  background-color: #FEF2F2;
+  border-color: #FCA5A5;
+  color: #DC2626;
+}
+
+.btn-remove-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Inventory Dropdown */
+.inventory-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid #DFD8CC;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  z-index: 100;
+  margin-top: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.inventory-dropdown-item {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border-bottom: 1px solid #FAF7F2;
+  transition: background-color 0.15s ease;
+}
+
+.inventory-dropdown-item:hover {
+  background-color: #FAF7F2;
+}
+
+.inventory-dropdown-empty {
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: #786B63;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.stock-badge {
+  font-size: 0.78rem;
+  color: #065F46;
+  background-color: #D1FAE5;
+  padding: 2px 8px;
+  border-radius: 50px;
+  font-weight: 600;
+}
+
+/* Justification warning box */
+.warning-banner {
+  background-color: #FEF3C7;
+  color: #92400E;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.btn-add-item-row {
+  background-color: #FFFFFF;
+  border: 1px dashed #8C5839;
+  color: #8C5839;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.btn-add-item-row:hover {
+  background-color: #FAF7F2;
+}
+
+.req-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #DFD8CC;
+}
+
+.btn-modal-cancel {
+  padding: 10px 22px;
+  border-radius: 50px;
+  border: 1px solid #DFD8CC;
+  background-color: #FFFFFF;
+  color: #2C1A14;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-save {
+  padding: 10px 24px;
+  border-radius: 50px;
+  border: none;
+  background-color: #2C1A14;
+  color: #FFFFFF;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-modal-save:hover {
+  background-color: #8C5839;
+}
