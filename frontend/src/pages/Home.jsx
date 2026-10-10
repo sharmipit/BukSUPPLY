@@ -145,7 +145,7 @@ export default function Home() {
           <div className="container hero-container">
             <h1 className="hero-title">
               The smarter way to <br />
-              <span className="text-accent">requisition &amp; track</span>
+              <span className="text-accent">requisition &amp; track </span>
               university
               <br />
               supplies
