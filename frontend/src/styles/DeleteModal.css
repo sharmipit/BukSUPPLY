@@ -1,107 +1,112 @@
 /* ==========================================================================
-   BukSUPPLY - Reusable Delete Modal Styles
+   BukSUPPLY - Delete Modal Styles (Consistent with Logout Modal Design)
    ========================================================================== */
 
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
+.lo-overlay {
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
   height: 100vh;
-  background-color: rgba(44, 26, 20, 0.5);
+  background-color: rgba(44, 26, 20, 0.6);
   backdrop-filter: blur(4px);
-  display: flex;
+  display: flex; 
+  justify-content: center; 
   align-items: center;
-  justify-content: center;
-  z-index: 1050;
-  animation: fadeIn 0.2s ease-in-out;
+  z-index: 99999; 
+  padding: 20px;
+  opacity: 0; 
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  font-family: 'Poppins', sans-serif;
 }
 
-.modal-card {
-  background-color: var(--card-bg, #FFFFFF);
-  border: 1px solid var(--card-border, #DFD8CC);
-  border-radius: 20px;
-  padding: 32px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 12px 32px rgba(44, 26, 20, 0.12);
-  text-align: center;
-  animation: slideUp 0.25s ease-out;
+.lo-overlay.active { 
+  opacity: 1; 
+  visibility: visible; 
 }
 
-.modal-icon-container {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+.lo-card {
+  background-color: #FFFFFF; 
+  border-radius: 28px;
+  max-width: 460px; 
+  width: 100%; 
+  padding: 35px 30px;
+  text-align: center; 
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(20px); 
+  transition: transform 0.3s ease;
+}
+
+.lo-overlay.active .lo-card { 
+  transform: translateY(0); 
+}
+
+.lo-icon.danger {
+  width: 64px; 
+  height: 64px; 
   background-color: #FEF2F2;
-  color: #DC2626;
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
+  color: #DC2626; 
+  border-radius: 50%;
+  display: inline-flex; 
+  align-items: center; 
   justify-content: center;
-  margin: 0 auto 20px auto;
+  font-size: 2rem; 
+  margin-bottom: 18px;
 }
 
-.modal-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--text-dark, #2C1A14);
-  margin-bottom: 8px;
+.lo-title {
+  font-size: 1.35rem; 
+  font-weight: 700; 
+  color: #2C1A14;
+  margin: 0 0 8px;
 }
 
-.modal-message {
-  font-size: 0.92rem;
-  color: var(--text-body, #594D46);
-  line-height: 1.5;
-  margin-bottom: 28px;
+.lo-desc {
+  font-size: 0.88rem; 
+  color: #594D46;
+  margin: 0 0 24px; 
+  line-height: 1.6;
 }
 
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
+.lo-actions { 
+  display: flex; 
+  gap: 12px; 
 }
 
-.btn-modal-cancel {
-  background-color: #F3F4F6;
-  color: #374151;
-  border: 1px solid #D1D5DB;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
+.lo-btn {
+  flex: 1; 
+  border-radius: 50px; 
+  padding: 13px 20px;
+  font-size: 0.95rem; 
+  font-weight: 600; 
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  flex: 1;
+  font-family: inherit;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
 }
 
-.btn-modal-cancel:hover {
-  background-color: #E5E7EB;
+.lo-btn:active { 
+  transform: scale(0.98); 
 }
 
-.btn-modal-confirm {
-  background-color: #DC2626;
-  color: #FFFFFF;
-  border: 1px solid transparent;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  flex: 1;
+.lo-cancel {
+  background-color: #FFFFFF; 
+  color: #2C1A14;
+  border: 1.5px solid #8C5839;
 }
 
-.btn-modal-confirm:hover {
-  background-color: #B91C1C;
+.lo-cancel:hover { 
+  background-color: #F5EFE6; 
+  border-color: #2C1A14; 
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.lo-confirm-danger {
+  background-color: #DC2626; 
+  color: #FFFFFF; 
+  border: none;
+  box-shadow: 0px 4px 10px rgba(220, 38, 38, 0.2);
 }
 
-@keyframes slideUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.lo-confirm-danger:hover { 
+  background-color: #B91C1C; 
 }
