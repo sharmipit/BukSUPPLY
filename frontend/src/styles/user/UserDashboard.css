@@ -1,0 +1,368 @@
+/* ==========================================================================
+   BukSUPPLY - Regular User Dashboard Styles
+   ========================================================================== */
+
+.user-dashboard-container {
+  padding: 32px 40px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* 1. Welcome Card */
+.welcome-card {
+  background-color: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #DFD8CC);
+  border-radius: 24px;
+  padding: 36px 40px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
+}
+
+.welcome-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-dark, #2C1A14);
+  margin-bottom: 12px;
+}
+
+.welcome-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-body, #594D46);
+  line-height: 1.6;
+  max-width: 950px;
+}
+
+.welcome-divider {
+  width: 100%;
+  height: 1px;
+  background-color: var(--divider-color, #CFC7BA);
+  margin-top: 24px;
+  margin-bottom: 28px;
+}
+
+/* 2. Indicator Cards Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.stat-card {
+  background-color: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #DFD8CC);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 16px rgba(44, 26, 20, 0.02);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+/* Light brown hover effect on indicators */
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(140, 88, 57, 0.12);
+  background-color: #FDFBF7;
+  border-color: #8C5839;
+}
+
+.stat-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-body, #594D46);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.stat-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-dark, #2C1A14);
+}
+
+.stat-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #8C5839;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  transition: background-color 0.2s ease;
+}
+
+.stat-card:hover .stat-icon-circle {
+  background-color: #72462C;
+}
+
+/* 3. Dashboard Section Cards & Tables */
+.dashboard-section-card {
+  background-color: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #DFD8CC);
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.section-card-header {
+  padding: 28px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--card-border, #DFD8CC);
+}
+
+.section-card-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-dark, #2C1A14);
+  margin-bottom: 4px;
+}
+
+.section-card-desc {
+  font-size: 0.92rem;
+  color: var(--text-body, #594D46);
+}
+
+.btn-file-slip {
+  background-color: var(--btn-dark, #2C1A14);
+  color: #FFFFFF;
+  padding: 10px 20px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none !important;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-file-slip:hover {
+  background-color: var(--text-light-brown, #8C5839);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+}
+
+/* Custom Table Design */
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.custom-table th {
+  background-color: #8C5839;
+  color: #FFFFFF;
+  font-weight: 600;
+  padding: 16px 24px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.custom-table td {
+  padding: 18px 24px;
+  color: var(--text-dark, #2C1A14);
+  border-bottom: 1px solid var(--card-border, #DFD8CC);
+  vertical-align: middle;
+}
+
+.custom-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.custom-table tbody tr:hover {
+  background-color: rgba(250, 247, 242, 0.6);
+}
+
+/* Status Badges */
+.badge-status {
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.badge-status.pending {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.badge-status.accepted {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.badge-status.denied {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-action {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-edit {
+  background-color: #F3F4F6;
+  color: #374151;
+  border-color: #D1D5DB;
+}
+
+.btn-edit:hover:not(:disabled) {
+  background-color: #E5E7EB;
+  color: #1F2937;
+}
+
+.btn-delete {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border-color: #FCA5A5;
+}
+
+.btn-delete:hover {
+  background-color: #DC2626;
+  color: #FFFFFF;
+}
+
+/* Empty State Styling */
+.empty-state-cell {
+  text-align: center;
+  padding: 48px 24px !important;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--bg-color, #FAF7F2);
+  border: 1px solid var(--text-light-brown, #8C5839);
+  color: var(--text-light-brown, #8C5839);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+}
+
+.empty-state-content h4 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark, #2C1A14);
+  margin-bottom: 8px;
+}
+
+.empty-state-content p {
+  font-size: 0.9rem;
+  color: var(--text-body, #594D46);
+  line-height: 1.5;
+}
+
+/* Table Footer Bar & Pagination Spacing */
+.table-footer-bar {
+  padding: 16px 32px;
+  background-color: var(--bg-color, #FAF7F2);
+  border-top: 1px solid var(--card-border, #DFD8CC);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  color: var(--text-body, #594D46);
+}
+
+.pagination-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-indicator {
+  font-weight: 600;
+  color: var(--text-dark, #2C1A14);
+  padding: 0 4px;
+}
+
+.footer-link {
+  font-weight: 600;
+  color: var(--text-light-brown, #8C5839);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--text-dark, #2C1A14);
+}
+
+/* Responsive queries */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .user-dashboard-container {
+    padding: 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .history-footer-bar {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+}
