@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BukSUPPLY - Delete Modal Styles (Consistent with Logout Modal Design)
+   BukSUPPLY - Delete Modal Styles 
    ========================================================================== */
 
 .lo-overlay {
@@ -24,6 +24,38 @@
 .lo-overlay.active { 
   opacity: 1; 
   visibility: visible; 
+}
+
+.lo-toast-notification {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background-color: #2C1A14;
+  color: #FFFFFF;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  z-index: 100000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lo-toast-notification.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.lo-toast-notification i {
+  color: #DC2626;
+  font-size: 1.1rem;
 }
 
 .lo-card {
@@ -89,15 +121,16 @@
   transform: scale(0.98); 
 }
 
-.lo-cancel {
-  background-color: #FFFFFF; 
-  color: #2C1A14;
-  border: 1.5px solid #8C5839;
+.lo-btn.lo-btn-danger-cancel {
+  background-color: #FFFFFF;
+  border: 1.5px solid #DC2626;
+  color: #DC2626;
 }
 
-.lo-cancel:hover { 
-  background-color: #F5EFE6; 
-  border-color: #2C1A14; 
+.lo-btn.lo-btn-danger-cancel:hover {
+  background-color: #FEF2F2;
+  border-color: #B91C1C;
+  color: #B91C1C;
 }
 
 .lo-confirm-danger {

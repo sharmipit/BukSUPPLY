@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeleteModal from '../../components/DeleteModal';
+import EditRequisitionModal from '../../components/EditRequisitionModal';
 import '../../styles/user/UserDashboard.css';
 
 export default function UserDashboard() {
@@ -15,10 +16,10 @@ export default function UserDashboard() {
     { title: 'Denied', count: 1, icon: 'bi-x-circle', colorClass: 'stat-denied' },
   ];
 
-  // Dummy recent requests (Action Queue / Active items) with state for deletion
+  // Dummy recent requests (Action Queue / Active items) with state for deletion & editing
   const [recentRequests, setRecentRequests] = useState([
-    { id: 'REQ-2026-089', item: 'Standard Bond Paper (2 Reams), Ballpoint Pens (1 Box)', date: '2026-10-05', status: 'Pending' },
-    { id: 'REQ-2026-092', item: 'Whiteboard Marker (Black - 3pcs)', date: '2026-10-08', status: 'Accepted' },
+    { id: 'REQ-2026-089', item: 'Standard Bond Paper (2 Reams), Ballpoint Pens (1 Box)', date: '2026-10-05', status: 'Pending', department: 'College of Technologies', title: 'Term 2 supplies', purpose: 'Monthly office supplies for the department.' },
+    { id: 'REQ-2026-092', item: 'Whiteboard Marker (Black - 3pcs)', date: '2026-10-08', status: 'Accepted', department: 'College of Technologies', title: 'Markers replenishment', purpose: 'Classroom discussion boards.' },
   ]);
 
   // Dummy request history with state for clearing & pagination support
@@ -35,13 +36,23 @@ export default function UserDashboard() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedReqId, setSelectedReqId] = useState(null);
 
+  // Edit Modal State Management
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedEditReq, setSelectedEditReq] = useState(null);
+
   // Calculate sliced data for the current page view
   const indexOfLastItem = historyPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentHistoryItems = requestHistory.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handleEdit = (id) => {
-    alert(`Edit functionality for requisition ${id} triggered.`);
+  const handleEdit = (req) => {
+    setSelectedEditReq(req);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEditedReq = (updatedReq) => {
+    // BACKEND DEV NOTE: Make an API call to update requisition: PUT /api/user/requisitions/:id
+    setRecentRequests(recentRequests.map(r => r.id === updatedReq.id ? updatedReq : r));
   };
 
   const handleDeleteClick = (id) => {
@@ -138,7 +149,7 @@ export default function UserDashboard() {
                     <td className="text-end action-buttons">
                       <button 
                         className="btn-action btn-edit" 
-                        onClick={() => handleEdit(req.id)}
+                        onClick={() => handleEdit(req)}
                         title="Edit Requisition"
                       >
                         <i className="bi bi-pencil-square"></i> Edit
@@ -278,6 +289,14 @@ export default function UserDashboard() {
         message={`Are you sure you want to delete requisition slip ${selectedReqId}? This action cannot be undone.`}
         onConfirm={handleConfirmDelete}
         onClose={() => setDeleteModalOpen(false)}
+      />
+
+      {/* Edit Requisition Modal */}
+      <EditRequisitionModal 
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        requisitionData={selectedEditReq}
+        onSave={handleSaveEditedReq}
       />
     </div>
   );

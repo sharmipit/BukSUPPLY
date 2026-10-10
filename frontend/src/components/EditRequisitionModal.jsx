@@ -1,0 +1,267 @@
+import React, { useState, useEffect } from 'react';
+import '../styles/EditRequisitionModal.css';
+
+// Dummy stock database matching your system items
+const MOCK_INVENTORY = [
+  { id: '1', name: 'A4 bond paper (ream)', available: 8, maxNormal: 10 },
+  { id: '2', name: 'Long bond paper (ream)', available: 15, maxNormal: 10 },
+  { id: '3', name: 'Ballpen (blue)', available: 200, maxNormal: 30 },
+  { id: '4', name: 'Ballpen (black)', available: 150, maxNormal: 30 },
+  { id: '5', name: 'Pencil', available: 120, maxNormal: 30 },
+  { id: '6', name: 'Whiteboard Marker (Black)', available: 45, maxNormal: 5 },
+];
+
+export default function EditRequisitionModal({ isOpen, onClose, requisitionData, onSave }) {
+  const [department, setDepartment] = useState('');
+  const [title, setTitle] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [items, setItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchIndex, setActiveSearchIndex] = useState(null);
+  
+  // Toast state notification
+  const [showToast, setShowToast] = useState(false);
+
+  const PURPOSE_MAX_LENGTH = 250;
+
+  useEffect(() => {
+    if (requisitionData) {
+      setDepartment(requisitionData.department || 'College of Technologies');
+      setTitle(requisitionData.title || requisitionData.id || '');
+      setPurpose(requisitionData.purpose || 'Departmental office supplies requisition');
+      
+      if (requisitionData.itemsList && requisitionData.itemsList.length > 0) {
+        setItems(requisitionData.itemsList);
+      } else {
+        setItems([
+          { id: '1', name: 'A4 bond paper (ream)', qty: 2, reason: '', maxNormal: 10 }
+        ]);
+      }
+    }
+  }, [requisitionData, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleAddItem = () => {
+    setItems([...items, { id: Date.now().toString(), name: '', qty: 1, reason: '', maxNormal: 10 }]);
+  };
+
+  const handleRemoveItem = (index) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const updated = [...items];
+    updated[index][field] = value;
+    setItems(updated);
+  };
+
+  const handleSelectItem = (index, selectedProduct) => {
+    const updated = [...items];
+    updated[index].name = selectedProduct.name;
+    updated[index].maxNormal = selectedProduct.maxNormal;
+    setItems(updated);
+    setActiveSearchIndex(null);
+    setSearchTerm('');
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const updatedRequisition = {
+      ...requisitionData,
+      department,
+      title,
+      purpose,
+      itemsList: items,
+      item: items.map(i => `${i.name || 'Item'} (${i.qty})`).join(', ')
+    };
+
+    // Trigger parent save handler
+    onSave(updatedRequisition);
+
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+      onClose();
+    }, 1500);
+  };
+
+  return (
+    <div className={`req-modal-overlay ${isOpen ? 'active' : ''}`}>
+      {/* Toast Notification Container positioned at top of viewport */}
+      <div className={`req-toast-notification ${showToast ? 'show' : ''}`}>
+        <i className="bi bi-check-circle-fill"></i>
+        <span>Changes successfully saved for Requisition #{requisitionData?.id}!</span>
+      </div>
+
+      <div className="req-modal-card">
+        <div className="req-modal-header">
+          <div>
+            <h3 className="req-modal-title">
+              Edit Requisition Slip <span className="text-accent">#{requisitionData?.id}</span>
+            </h3>
+            <p className="req-modal-subtitle">Update your requested items or requisition details before moderator approval.</p>
+          </div>
+          <button className="req-modal-close-btn" onClick={onClose} type="button">
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="req-modal-body">
+          {/* Department / Organization */}
+          <div className="form-group">
+            <label className="form-label">Department or Organization</label>
+            <input 
+              type="text" 
+              className="form-control custom-input" 
+              value={department} 
+              onChange={(e) => setDepartment(e.target.value)} 
+              required 
+            />
+          </div>
+
+          {/* Request Title */}
+          <div className="form-group">
+            <label className="form-label">Request Title</label>
+            <input 
+              type="text" 
+              className="form-control custom-input" 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)} 
+              required 
+            />
+          </div>
+
+          {/* Purpose with constraints */}
+          <div className="form-group">
+            <div className="d-flex justify-content-between align-items-center">
+              <label className="form-label mb-0">Purpose</label>
+              <span className={`char-counter ${purpose.length > PURPOSE_MAX_LENGTH ? 'text-danger' : ''}`}>
+                {purpose.length}/{PURPOSE_MAX_LENGTH}
+              </span>
+            </div>
+            <textarea 
+              className="form-control custom-input mt-1" 
+              rows="3" 
+              maxLength={PURPOSE_MAX_LENGTH}
+              value={purpose} 
+              onChange={(e) => setPurpose(e.target.value)} 
+              required 
+            />
+          </div>
+
+          {/* Items Section */}
+          <div className="items-section">
+            <label className="form-label font-bold">Requested Items</label>
+
+            {items.map((item, index) => {
+              const needsReason = item.qty > (item.maxNormal || 10);
+              const filteredProducts = MOCK_INVENTORY.filter(p => 
+                p.name.toLowerCase().includes(searchTerm.toLowerCase())
+              );
+
+              return (
+                <div key={index} className="item-row-card">
+                  <div className="item-main-inputs">
+                    <div className="search-input-wrapper">
+                      <input 
+                        type="text" 
+                        className="form-control custom-input"
+                        placeholder="Search item by name..."
+                        value={activeSearchIndex === index ? searchTerm : item.name}
+                        onFocus={() => {
+                          setActiveSearchIndex(index);
+                          setSearchTerm(item.name || '');
+                        }}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          handleItemChange(index, 'name', e.target.value);
+                        }}
+                      />
+
+                      {/* Dropdown inventory list with no-results check */}
+                      {activeSearchIndex === index && searchTerm.length >= 1 && (
+                        <div className="inventory-dropdown">
+                          {filteredProducts.length > 0 ? (
+                            filteredProducts.map(product => (
+                              <div 
+                                key={product.id} 
+                                className="inventory-dropdown-item"
+                                onClick={() => handleSelectItem(index, product)}
+                              >
+                                <span>{product.name}</span>
+                                <span className="stock-badge">{product.available} available</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="inventory-dropdown-empty">
+                              <i className="bi bi-search"></i> No items found matching "{searchTerm}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="qty-input-wrapper">
+                      <input 
+                        type="number" 
+                        min="1" 
+                        className="form-control custom-input text-center" 
+                        value={item.qty} 
+                        onChange={(e) => handleItemChange(index, 'qty', parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+
+                    <button 
+                      type="button" 
+                      className="btn-remove-item"
+                      onClick={() => handleRemoveItem(index)}
+                      title="Remove item"
+                      disabled={items.length === 1}
+                    >
+                      <i className="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+
+                  {needsReason && (
+                    <div className="reason-box mt-3">
+                      <div className="warning-banner">
+                        <i className="bi bi-exclamation-triangle"></i>
+                        <span>Maximum {item.maxNormal || 10} per request. Please provide a justification.</span>
+                      </div>
+                      <input 
+                        type="text" 
+                        className="form-control custom-input mt-2"
+                        placeholder="Explain why you need this quantity..."
+                        value={item.reason || ''}
+                        onChange={(e) => handleItemChange(index, 'reason', e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <button 
+              type="button" 
+              className="btn-add-item-row" 
+              onClick={handleAddItem}
+            >
+              <i className="bi bi-plus-lg"></i> Add another item
+            </button>
+          </div>
+
+          <div className="req-modal-actions">
+            <button type="button" className="btn-modal-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-modal-save">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
