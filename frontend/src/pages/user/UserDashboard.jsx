@@ -150,31 +150,34 @@ export default function UserDashboard() {
                         {req.status}
                       </span>
                     </td>
-                    <td className="text-end action-buttons">
-                      {/* Wrapper div adds spacing between the Edit and Delete buttons */}
-                      <div
-                        className="action-buttons-group"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'flex-end',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <button 
-                          className="btn-action btn-edit" 
-                          onClick={() => handleEdit(req)}
-                          title="Edit Requisition"
-                        >
-                          <i className="bi bi-pencil-square"></i> Edit
-                        </button>
-                        <button 
-                          className="btn-action btn-delete" 
-                          onClick={() => handleDeleteClick(req.id)}
-                          title="Delete Requisition"
-                        >
-                          <i className="bi bi-trash3"></i> Delete
-                        </button>
+                    <td className="text-end align-middle">
+                      <div className="action-buttons">
+                        {req.status === 'Pending' && (
+                          <>
+                            <button 
+                              className="btn-action btn-edit" 
+                              onClick={() => handleEdit(req)}
+                              title="Edit Requisition"
+                            >
+                              <i className="bi bi-pencil-square"></i> Edit
+                            </button>
+                            <button 
+                              className="btn-action btn-delete" 
+                              onClick={() => handleDeleteClick(req.id)}
+                              title="Delete Requisition"
+                            >
+                              <i className="bi bi-trash3"></i> Delete
+                            </button>
+                          </>
+                        )}
+                        {req.status === 'Accepted' && (
+                          <span className="locked-badge-pill">
+                            <i className="bi bi-check-circle-fill text-success"></i> Locked (Approved)
+                          </span>
+                        )}
+                        {req.status === 'Denied' && (
+                          <span className="text-muted small">Requires new filing</span>
+                        )}
                       </div>
                     </td>
                   </tr>
