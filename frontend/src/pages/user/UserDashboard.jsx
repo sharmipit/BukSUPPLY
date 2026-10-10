@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeleteModal from '../../components/DeleteModal';
 import EditRequisitionModal from '../../components/EditRequisitionModal';
+import ClearHistoryModal from '../../components/ClearHistoryModal';
 import '../../styles/user/UserDashboard.css';
 
 export default function UserDashboard() {
@@ -40,6 +41,9 @@ export default function UserDashboard() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedEditReq, setSelectedEditReq] = useState(null);
 
+  // Clear History Modal State Management
+  const [clearModalOpen, setClearModalOpen] = useState(false);
+
   // Calculate sliced data for the current page view
   const indexOfLastItem = historyPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -70,12 +74,12 @@ export default function UserDashboard() {
     setSelectedReqId(null);
   };
 
-  // Static functional clear history handler
-  const handleClearHistory = () => {
+  const handleConfirmClearHistory = () => {
     // BACKEND DEV NOTE: Make an API call to delete or archive history records for the user.
     // Example: axios.delete('/api/user/requisitions/history', { headers: { Authorization: `Bearer ${token}` } })
     setRequestHistory([]);
     setHistoryPage(1);
+    setClearModalOpen(false);
   };
 
   return (
@@ -147,20 +151,31 @@ export default function UserDashboard() {
                       </span>
                     </td>
                     <td className="text-end action-buttons">
-                      <button 
-                        className="btn-action btn-edit" 
-                        onClick={() => handleEdit(req)}
-                        title="Edit Requisition"
+                      {/* Wrapper div adds spacing between the Edit and Delete buttons */}
+                      <div
+                        className="action-buttons-group"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
                       >
-                        <i className="bi bi-pencil-square"></i> Edit
-                      </button>
-                      <button 
-                        className="btn-action btn-delete" 
-                        onClick={() => handleDeleteClick(req.id)}
-                        title="Delete Requisition"
-                      >
-                        <i className="bi bi-trash3"></i> Delete
-                      </button>
+                        <button 
+                          className="btn-action btn-edit" 
+                          onClick={() => handleEdit(req)}
+                          title="Edit Requisition"
+                        >
+                          <i className="bi bi-pencil-square"></i> Edit
+                        </button>
+                        <button 
+                          className="btn-action btn-delete" 
+                          onClick={() => handleDeleteClick(req.id)}
+                          title="Delete Requisition"
+                        >
+                          <i className="bi bi-trash3"></i> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -198,11 +213,11 @@ export default function UserDashboard() {
           </div>
           {requestHistory.length > 0 && (
             <button 
-              className="btn-file-slip text-decoration-none" 
-              onClick={handleClearHistory}
+              className="btn-clear-history text-decoration-none" 
+              onClick={() => setClearModalOpen(true)}
               title="Clear entire transaction history"
             >
-              <i className="bi bi-trash"></i> Clear History
+              <i className="bi bi-trash3"></i> Clear History
             </button>
           )}
         </div>
@@ -223,7 +238,7 @@ export default function UserDashboard() {
                 BACKEND DEVELOPER INTEGRATION GUIDE (History Table):
                 1. Fetch history data from endpoint: GET /api/user/requisitions/history?page=${historyPage}&limit=${itemsPerPage}
                 2. Implement pagination controls by updating `historyPage` state on button clicks.
-                3. Connect handleClearHistory to DELETE /api/user/requisitions/history endpoint to clear logs server-side.
+                3. Connect handleConfirmClearHistory to DELETE /api/user/requisitions/history endpoint to clear logs server-side.
               */}
               {currentHistoryItems.length > 0 ? (
                 currentHistoryItems.map((hist) => (
@@ -297,6 +312,15 @@ export default function UserDashboard() {
         onClose={() => setEditModalOpen(false)}
         requisitionData={selectedEditReq}
         onSave={handleSaveEditedReq}
+      />
+
+      {/* Clear History Confirmation Modal */}
+      <ClearHistoryModal 
+        isOpen={clearModalOpen}
+        title="Clear History Archive?"
+        message="Are you sure you want to clear your complete transaction history? This action cannot be undone and all logs will be removed."
+        onConfirm={handleConfirmClearHistory}
+        onClose={() => setClearModalOpen(false)}
       />
     </div>
   );
