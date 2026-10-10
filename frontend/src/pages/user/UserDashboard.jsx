@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import DeleteModal from '../../components/DeleteModal';
 import '../../styles/user/UserDashboard.css';
 
 export default function UserDashboard() {
@@ -30,6 +31,10 @@ export default function UserDashboard() {
   const [historyPage, setHistoryPage] = useState(1);
   const itemsPerPage = 5;
 
+  // Delete Modal State Management
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedReqId, setSelectedReqId] = useState(null);
+
   // Calculate sliced data for the current page view
   const indexOfLastItem = historyPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -39,10 +44,19 @@ export default function UserDashboard() {
     alert(`Edit functionality for requisition ${id} triggered.`);
   };
 
-  const handleDelete = (id) => {
-    // BACKEND DEV NOTE: Make an API call to cancel or delete the active requisition.
-    // Example: axios.delete(`/api/user/requisitions/${id}`, { headers: { Authorization: `Bearer ${token}` } })
-    setRecentRequests(recentRequests.filter(req => req.id !== id));
+  const handleDeleteClick = (id) => {
+    setSelectedReqId(id);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedReqId) {
+      // BACKEND DEV NOTE: Make an API call to cancel or delete the active requisition.
+      // Example: axios.delete(`/api/user/requisitions/${selectedReqId}`, { headers: { Authorization: `Bearer ${token}` } })
+      setRecentRequests(recentRequests.filter(req => req.id !== selectedReqId));
+    }
+    setDeleteModalOpen(false);
+    setSelectedReqId(null);
   };
 
   // Static functional clear history handler
@@ -108,7 +122,7 @@ export default function UserDashboard() {
               {/* 
                 BACKEND DEVELOPER INTEGRATION GUIDE (Active Requests):
                 1. Fetch active requests from endpoint: GET /api/user/requisitions/active
-                2. Connect handleDelete to a DELETE /api/user/requisitions/:id endpoint.
+                2. Connect handleDeleteClick to trigger the confirmation modal, then DELETE /api/user/requisitions/:id endpoint upon confirmation.
               */}
               {recentRequests.length > 0 ? (
                 recentRequests.map((req) => (
@@ -131,7 +145,7 @@ export default function UserDashboard() {
                       </button>
                       <button 
                         className="btn-action btn-delete" 
-                        onClick={() => handleDelete(req.id)}
+                        onClick={() => handleDeleteClick(req.id)}
                         title="Delete Requisition"
                       >
                         <i className="bi bi-trash3"></i> Delete
@@ -256,6 +270,15 @@ export default function UserDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Reusable Delete Confirmation Modal */}
+      <DeleteModal 
+        isOpen={deleteModalOpen}
+        title="Delete Requisition Slip?"
+        message={`Are you sure you want to delete requisition slip ${selectedReqId}? This action cannot be undone.`}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteModalOpen(false)}
+      />
     </div>
   );
 }

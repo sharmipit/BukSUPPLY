@@ -1,0 +1,107 @@
+/* ==========================================================================
+   BukSUPPLY - Reusable Delete Modal Styles
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(44, 26, 20, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.modal-card {
+  background-color: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #DFD8CC);
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 32px rgba(44, 26, 20, 0.12);
+  text-align: center;
+  animation: slideUp 0.25s ease-out;
+}
+
+.modal-icon-container {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #FEF2F2;
+  color: #DC2626;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+}
+
+.modal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-dark, #2C1A14);
+  margin-bottom: 8px;
+}
+
+.modal-message {
+  font-size: 0.92rem;
+  color: var(--text-body, #594D46);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-modal-cancel {
+  background-color: #F3F4F6;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex: 1;
+}
+
+.btn-modal-cancel:hover {
+  background-color: #E5E7EB;
+}
+
+.btn-modal-confirm {
+  background-color: #DC2626;
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex: 1;
+}
+
+.btn-modal-confirm:hover {
+  background-color: #B91C1C;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
