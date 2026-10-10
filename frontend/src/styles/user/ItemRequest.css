@@ -128,7 +128,7 @@
 }
 
 /* ==========================================================================
-   Table: fixed layout + equal-looking rows + unbroken separator lines
+   Table Styles
    ========================================================================== */
 .dashboard-section-card {
   background-color: var(--card-bg, #FFFFFF);
@@ -146,7 +146,7 @@
 
 .custom-table {
   width: 100% !important;
-  min-width: 1170px; /* below this width the wrapper scrolls instead of squeezing columns */
+  min-width: 1190px; 
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -156,12 +156,10 @@
   margin-bottom: 0 !important;
 }
 
-/* Column widths: short columns are fixed in px so they never get squeezed
-   (e.g. when the sidebar opens). Title and Items share the remaining space. */
 .custom-table .col-slip    { width: 170px; }
 .custom-table .col-title   { width: auto; }
 .custom-table .col-items   { width: auto; }
-.custom-table .col-date    { width: 130px; }
+.custom-table .col-date    { width: 150px; } 
 .custom-table .col-status  { width: 140px; }
 .custom-table .col-actions { width: 250px; }
 
@@ -177,7 +175,6 @@
   white-space: nowrap;
 }
 
-/* Every td stays a real table-cell so its bottom border always spans the full row */
 .custom-table td {
   display: table-cell !important;
   height: 84px; /* uniform minimum row height */
@@ -191,9 +188,10 @@
   background-color: transparent !important;
 }
 
-/* Short-value cells (ID, date, status) must never wrap or break */
 .custom-table td.nowrap-cell {
   white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .custom-table tbody tr:last-child td {
@@ -204,8 +202,6 @@
   background-color: rgba(250, 247, 242, 0.7) !important;
 }
 
-/* Clamp long text to 2 lines with an ellipsis (full text shows on hover).
-   overflow-wrap lives here only, so it can't split short words like "Accepted". */
 .cell-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -224,7 +220,7 @@
   font-size: 0.82rem;
   font-weight: 600;
   display: inline-block;
-  white-space: nowrap;      /* keeps "Accepted" intact */
+  white-space: nowrap;      
   word-break: normal;
   overflow-wrap: normal;
 }
@@ -244,8 +240,7 @@
   color: #991B1B;
 }
 
-/* Action Buttons & Badges
-   NOTE: .action-buttons is an inner <div>, never the <td> itself */
+/* Action Buttons & Badges */
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
