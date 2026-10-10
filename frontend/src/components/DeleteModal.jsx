@@ -1,24 +1,24 @@
-import React from 'react';
-import '../styles/DeleteModal.css';
+import React from "react";
+import "../styles/DeleteModal.css";
 
 export default function DeleteModal({ isOpen, title, message, onConfirm, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-icon-container">
-          <i className="bi bi-exclamation-triangle-fill"></i>
+    <div className={`lo-overlay ${isOpen ? "active" : ""}`} role="dialog" aria-modal="true">
+      <div className="lo-card">
+        <div className="lo-icon danger">
+          <i className="bi bi-trash3"></i>
         </div>
-        <h3 className="modal-title">{title || 'Confirm Deletion'}</h3>
-        <p className="modal-message">
-          {message || 'Are you sure you want to delete this item? This action cannot be undone.'}
+        <h2 className="lo-title">{title || "Delete Requisition?"}</h2>
+        <p className="modal-description lo-desc">
+          {message || "Are you sure you want to delete this requisition slip? This action cannot be undone."}
         </p>
-        <div className="modal-actions">
-          <button className="btn-modal-cancel" onClick={onClose}>
+        <div className="lo-actions">
+          <button type="button" className="lo-btn lo-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-modal-confirm" onClick={onConfirm}>
+          <button type="button" className="lo-btn lo-confirm-danger" onClick={onConfirm}>
             Delete
           </button>
         </div>
