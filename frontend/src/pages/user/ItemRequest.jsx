@@ -32,7 +32,7 @@ export default function ItemRequest() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  // Filter logic (instantly handles any single character, symbol, or string)
+  // Filter logic 
   const filteredRequests = requisitions.filter(req => {
     const query = searchTerm.toLowerCase().trim();
     const matchesSearch = query === '' ||
@@ -170,7 +170,7 @@ export default function ItemRequest() {
               {currentItems.length > 0 ? (
                 currentItems.map((req) => (
                   <tr key={req.id}>
-                    <td className="fw-semibold align-middle">{req.id}</td>
+                    <td className="fw-semibold align-middle nowrap-cell">{req.id}</td>
                     <td className="align-middle">
                       <div className="req-title-text cell-clamp" title={req.title}>{req.title}</div>
                       <div className="req-purpose-text cell-clamp" title={req.purpose}>{req.purpose}</div>
@@ -178,8 +178,9 @@ export default function ItemRequest() {
                     <td className="align-middle">
                       <div className="cell-clamp" title={req.item}>{req.item}</div>
                     </td>
-                    <td className="align-middle">{req.date}</td>
-                    <td className="align-middle">
+                    {/* nowrap-cell keeps the date on one line, just like the status badge */}
+                    <td className="align-middle nowrap-cell">{req.date}</td>
+                    <td className="align-middle nowrap-cell">
                       <span className={`badge-status ${req.status.toLowerCase()}`}>
                         {req.status}
                       </span>
