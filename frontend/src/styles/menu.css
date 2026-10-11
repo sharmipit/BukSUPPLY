@@ -355,12 +355,11 @@ button {
 .profile-menu {
   position: fixed;
   z-index: 9999;
-  min-width: 190px;
-  padding: 6px;
+  width: 300px;
+  padding: 18px 20px 20px;
   background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(44, 26, 20, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
   animation: profile-menu-in 0.15s ease;
 }
 
@@ -375,33 +374,91 @@ button {
   }
 }
 
-.profile-menu-item {
+.profile-menu-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 16px;
+  padding: 0 4px 14px;
+}
+
+.profile-menu .profile-menu-avatar {
+  width: 56px;
+  height: 56px;
+  max-width: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+.profile-menu-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-menu-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #8c6239;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-menu-role {
   font-size: 0.85rem;
-  font-weight: 500;
-  text-align: left;
-  color: var(--text);
-  transition: background 0.2s ease;
+  color: #8c6239;
 }
 
-.profile-menu-item i {
-  font-size: 1.05rem;
-  line-height: 1;
-}
-.profile-menu-item:hover {
-  background: #f5efe6;
+.profile-menu-divider {
+  border: 0;
+  border-top: 1.5px solid #8c6239;
+  margin: 0 0 14px;
 }
 
-.profile-menu-item.danger {
-  color: #b42318;
+.profile-menu-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  cursor: pointer;
+  transition: filter 0.15s;
 }
-.profile-menu-item.danger:hover {
-  background: #fef3f2;
+
+.profile-menu-btn:last-child {
+  margin-bottom: 0;
+}
+
+.profile-menu-btn:hover {
+  filter: brightness(0.92);
+}
+
+.profile-menu-btn.edit {
+  background: #8c6239;
+}
+
+.profile-menu-btn.logout {
+  background: #dc2626;
+}
+
+/* ---------- Transparent top bar (Profile page only) ---------- */
+.topbar.transparent {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Pull the page up so the banner sits behind the transparent top bar */
+.main.profile-route .content {
+  margin-top: -78px;
 }
 
 /* ---------- Modal Styles ---------- */
