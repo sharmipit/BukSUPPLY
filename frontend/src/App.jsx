@@ -11,7 +11,7 @@ import UserDashboard from './pages/user/UserDashboard';
 import ItemRequest from './pages/user/ItemRequest';
 import RequestHistory from './pages/user/RequestHistory';
 import Notifications from './pages/user/Notifications';
-import Profile from './pages/user/Profile';
+import Profile from './pages/Profile';
 import HelpSupport from './pages/user/HelpSupport';
 
 // Imports for Moderator Pages
@@ -35,7 +35,7 @@ import AdminTransactionHistory from './pages/admin/TransactionHistory';
 import AdminStockReports from './pages/admin/StockReports';
 import AdminUserManagement from './pages/admin/UserManagement';
 import AdminActivityAuditLogs from './pages/admin/ActivityAuditLogs';
-import AdminProfile from './pages/admin/Profile';
+import AdminProfile from './pages/Profile';
 
 export default function App() {
   return (

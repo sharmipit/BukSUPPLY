@@ -86,7 +86,9 @@ export default function Notifications() {
         <div>
           <h1 className="hub-title">Notifications</h1>
           <p className="hub-subtitle">
-            Stay updated with real-time alerts regarding your requisition approvals, window pickups, and administrative announcements.
+            Stay updated with real-time alerts regarding your requisition approvals, window pickups, 
+            <br/>
+            and administrative announcements.
           </p>
         </div>
         <div className="header-actions-group">

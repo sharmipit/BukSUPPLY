@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import usePage from "../hooks/usePage";
 import menuCss from "../styles/menu.css?raw";
@@ -127,9 +127,11 @@ const roleConfig = {
 };
 const defaultConfig = { sections: userNavSections, base: "/user" };
 
-// Friendly labels for the sidebar footer
+// Friendly labels shown under the name (lowercase keys; lookup ignores case)
 const roleLabels = {
-  Administrator: "Administrator Account",
+  administrator: "Administrator Account",
+  moderator: "Moderator Account",
+  student: "Student Account",
 };
 
 /**
@@ -137,7 +139,16 @@ const roleLabels = {
  * Uses position: fixed so it is never clipped by the sidebar's overflow.
  * direction: "up" (opens above the trigger) | "down" (opens below it)
  */
-function ProfileMenu({ trigger, base, direction = "down", onLogout }) {
+function ProfileMenu({
+  trigger,
+  base,
+  direction = "down",
+  onLogout,
+  name,
+  roleLabel,
+  avatar,
+  onAvatarError,
+}) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({});
   const wrapRef = useRef(null);
@@ -182,30 +193,44 @@ function ProfileMenu({ trigger, base, direction = "down", onLogout }) {
 
       {open && (
         <div className="profile-menu" style={pos} role="menu">
+          {/* Account header (same as the institutional account) */}
+          <div className="profile-menu-header">
+            <img
+              src={avatar}
+              alt={name}
+              className="profile-menu-avatar"
+              onError={onAvatarError}
+            />
+            <div className="profile-menu-info">
+              <span className="profile-menu-name">{name}</span>
+              <span className="profile-menu-role">{roleLabel}</span>
+            </div>
+          </div>
+
+          <hr className="profile-menu-divider" />
+
           <button
             type="button"
             role="menuitem"
-            className="profile-menu-item"
+            className="profile-menu-btn edit"
             onClick={() => {
               setOpen(false);
               navigate(`${base}/profile`);
             }}
           >
-            <i className="bi bi-person-gear"></i>
-            <span>Edit Profile</span>
+            Edit Profile
           </button>
 
           <button
             type="button"
             role="menuitem"
-            className="profile-menu-item danger"
+            className="profile-menu-btn logout"
             onClick={() => {
               setOpen(false);
               onLogout();
             }}
           >
-            <i className="bi bi-box-arrow-right"></i>
-            <span>Logout</span>
+            Logout
           </button>
         </div>
       )}
@@ -218,6 +243,10 @@ export default function UserLayout() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // Top bar is transparent only on the Profile page (/user/profile, /staff/profile, /admin/profile)
+  const isProfilePage = /\/profile\/?$/.test(pathname);
 
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
@@ -233,7 +262,8 @@ export default function UserLayout() {
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.name ||
     "User";
-  const displayRole = roleLabels[user?.role] || user?.role || "Member";
+  const displayRole =
+    roleLabels[user?.role?.toLowerCase()] || user?.role || "Member";
   const avatarSrc = user?.avatar || DEFAULT_AVATAR;
 
   const handleAvatarError = (e) => {
@@ -324,8 +354,8 @@ export default function UserLayout() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <div className="main">
-        <header className="topbar">
+      <div className={`main${isProfilePage ? " profile-route" : ""}`}>
+        <header className={`topbar${isProfilePage ? " transparent" : ""}`}>
           <button
             className="menu-btn"
             onClick={toggleSidebar}
@@ -347,6 +377,10 @@ export default function UserLayout() {
             <ProfileMenu
               base={base}
               direction="down"
+              name={displayName}
+              roleLabel={displayRole}
+              avatar={avatarSrc}
+              onAvatarError={handleAvatarError}
               onLogout={() => setLogoutOpen(true)}
               trigger={({ open, toggle }) => (
                 <button

@@ -1,0 +1,423 @@
+/* frontend/src/styles/Profile.css */
+
+.profile-page {
+  --p-brown: #8b5a3c;
+  --p-brown-dark: #6b4129;
+  --p-name: #7d6a5f;
+  --p-muted: #7a6a5f;
+  --p-border: #d9d3cb;
+  --p-cream: #faf7f2;
+
+  min-height: 100%;
+  padding-bottom: 48px;
+  background: var(--p-cream);
+  font-family: "Poppins", sans-serif;
+}
+
+/* ---------- Banner ----------
+   The image (src/assets/BUKSU.jpg) is set from Profile.jsx.
+   Brown shows only while it loads. The transparent top bar (78px)
+   sits on top of this banner. */
+.profile-banner {
+  height: 320px;
+  background-color: #4a2c1c;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.profile-wrap {
+  position: relative;
+  max-width: 900px;
+  margin: -100px auto 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- Cards ---------- */
+.profile-card {
+  background: #fff;
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+}
+
+/* ---------- Identity card ---------- */
+.profile-main {
+  position: relative;
+  padding: 92px 24px 0;
+  text-align: center;
+}
+
+.profile-role-tag {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  padding: 3px 14px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #222;
+}
+
+.profile-avatar {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+  border: 2px solid #e3dcd3;
+}
+
+.profile-name {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--p-name);
+  line-height: 1.2;
+}
+
+.profile-name-line {
+  width: 120px;
+  margin: 12px auto 12px;
+  border: 0;
+  border-top: 3px solid var(--p-name);
+  opacity: 0.85;
+}
+
+.profile-id {
+  font-size: 0.72rem;
+  color: var(--p-muted);
+  margin-bottom: 28px;
+}
+
+/* Brown footer bar with Terms | Privacy */
+.profile-links {
+  display: flex;
+  align-items: stretch;
+  margin: 0 -25px -1px;
+  background: var(--p-brown);
+  border-radius: 0 0 14px 14px;
+}
+
+.profile-links button {
+  flex: 1;
+  padding: 14px 10px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.profile-links button:first-child {
+  border-bottom-left-radius: 14px;
+}
+
+.profile-links button:last-child {
+  border-bottom-right-radius: 14px;
+}
+
+.profile-links button:hover {
+  background: var(--p-brown-dark);
+}
+
+.profile-links-sep {
+  width: 1px;
+  margin: 10px 0;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- Settings & Security ---------- */
+.profile-settings {
+  padding: 18px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-settings-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  margin-bottom: 4px;
+}
+
+.profile-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.profile-btn:hover {
+  filter: brightness(0.93);
+}
+
+.profile-btn:active {
+  transform: scale(0.99);
+}
+
+.profile-btn.brown {
+  background: var(--p-brown);
+}
+
+.profile-btn.red {
+  background: #dc2626;
+}
+
+/* Notice */
+.profile-notice {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 10px 28px rgba(44, 26, 20, 0.22);
+  animation: profile-toast-in 0.3s ease;
+}
+
+@keyframes profile-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .profile-notice {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    max-width: none;
+  }
+}
+
+.profile-notice span {
+  flex: 1;
+}
+
+.profile-notice button {
+  color: inherit;
+  opacity: 0.7;
+  font-size: 0.75rem;
+}
+
+.profile-notice button:hover {
+  opacity: 1;
+}
+
+.profile-notice.success {
+  background: #ecf5e6;
+  color: #3a5a1e;
+  border: 1px solid #cfe2bd;
+}
+
+.profile-notice.error {
+  background: #fdecea;
+  color: #a12a1f;
+  border: 1px solid #f3c6c1;
+}
+
+/* ---------- Confirm modal ---------- */
+.pf-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(44, 26, 20, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.pf-modal {
+  width: 100%;
+  max-width: 440px;
+  padding: 32px 28px;
+  text-align: center;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.pf-modal-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f5efe6;
+  color: #8c5839;
+  font-size: 1.8rem;
+}
+
+.pf-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c1a14;
+  margin-bottom: 8px;
+}
+
+.pf-modal-desc {
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: #594d46;
+  margin-bottom: 22px;
+}
+
+.pf-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.pf-modal-btn {
+  flex: 1;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.pf-modal-btn.cancel {
+  background: #fff;
+  color: #2c1a14;
+  border: 1.5px solid #8c5839;
+}
+
+.pf-modal-btn.cancel:hover {
+  background: #f5efe6;
+}
+
+.pf-modal-btn.confirm {
+  background: #2c1a14;
+  color: #fff;
+}
+
+.pf-modal-btn.confirm:hover {
+  background: #1a0e0a;
+}
+
+.pf-modal-btn.confirm.danger {
+  background: #dc2626;
+}
+
+.pf-modal-btn.confirm.danger:hover {
+  background: #b91c1c;
+}
+
+/* ---------- Terms & Privacy modal ---------- */
+.pf-modal.pf-legal {
+  max-width: 560px;
+  max-height: 85vh;
+  padding: 26px 26px 22px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+.pf-legal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1.5px solid #8b5a3c;
+}
+
+.pf-legal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c1a14;
+}
+
+.pf-legal-x {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #8c5839;
+  font-size: 0.9rem;
+}
+
+.pf-legal-x:hover {
+  background: #f5efe6;
+}
+
+.pf-legal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.pf-legal-section {
+  margin-bottom: 16px;
+}
+
+.pf-legal-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #8b5a3c;
+  margin-bottom: 4px;
+}
+
+.pf-legal-section p {
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: #594d46;
+}
+
+.pf-legal-close {
+  margin-top: 14px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 999px;
+  background: #8b5a3c;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.pf-legal-close:hover {
+  background: #6b4129;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 560px) {
+  .profile-banner {
+    height: 280px;
+  }
+  .profile-name {
+    font-size: 1.6rem;
+  }
+  .profile-wrap {
+    padding: 0 14px;
+  }
+}
