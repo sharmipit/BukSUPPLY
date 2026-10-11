@@ -14,7 +14,11 @@ const userNavSections = [
     className: "main-nav",
     items: [
       { label: "Dashboard", icon: "bi-grid", to: "/user" },
-      { label: "Item Request", icon: "bi-file-earmark-plus", to: "/user/requests" },
+      {
+        label: "Item Request",
+        icon: "bi-file-earmark-plus",
+        to: "/user/requests",
+      },
       { label: "My Requests", icon: "bi-clock-history", to: "/user/history" },
       { label: "Notifications", icon: "bi-bell", to: "/user/notifications" },
     ],
@@ -35,19 +39,39 @@ const moderatorNavSections = [
     className: "main-nav",
     items: [
       { label: "Dashboard", icon: "bi-grid", to: "/staff" },
-      { label: "Requisition Management", icon: "bi-file-earmark-text", to: "/staff/requisitions" },
-      { label: "Supply & Equipment Depot", icon: "bi-box-seam", to: "/staff/supply-depot" },
-      { label: "Issuance & Returns Desk", icon: "bi-arrow-left-right", to: "/staff/issuance-returns" },
+      {
+        label: "Requisition Management",
+        icon: "bi-file-earmark-text",
+        to: "/staff/requisitions",
+      },
+      {
+        label: "Supply & Equipment Depot",
+        icon: "bi-box-seam",
+        to: "/staff/supply-depot",
+      },
+      {
+        label: "Issuance & Returns Desk",
+        icon: "bi-arrow-left-right",
+        to: "/staff/issuance-returns",
+      },
       { label: "Notifications", icon: "bi-bell", to: "/staff/notifications" },
     ],
   },
   {
     title: "Logistics & Administration",
     items: [
-      { label: "Transaction History", icon: "bi-clock-history", to: "/staff/history" },
+      {
+        label: "Transaction History",
+        icon: "bi-clock-history",
+        to: "/staff/history",
+      },
       { label: "Stock Reports", icon: "bi-bar-chart", to: "/staff/reports" },
       { label: "User Management", icon: "bi-people", to: "/staff/users" },
-      { label: "Activity & Audit Logs", icon: "bi-journal-text", to: "/staff/logs" },
+      {
+        label: "Activity & Audit Logs",
+        icon: "bi-journal-text",
+        to: "/staff/logs",
+      },
     ],
   },
 ];
@@ -59,19 +83,39 @@ const adminNavSections = [
     className: "main-nav",
     items: [
       { label: "Dashboard", icon: "bi-grid", to: "/admin" },
-      { label: "Requisition Management", icon: "bi-file-earmark-text", to: "/admin/requisitions" },
-      { label: "Supply & Equipment Depot", icon: "bi-box-seam", to: "/admin/supply-depot" },
-      { label: "Issuance & Returns Desk", icon: "bi-arrow-left-right", to: "/admin/issuance-returns" },
+      {
+        label: "Requisition Management",
+        icon: "bi-file-earmark-text",
+        to: "/admin/requisitions",
+      },
+      {
+        label: "Supply & Equipment Depot",
+        icon: "bi-box-seam",
+        to: "/admin/supply-depot",
+      },
+      {
+        label: "Issuance & Returns Desk",
+        icon: "bi-arrow-left-right",
+        to: "/admin/issuance-returns",
+      },
       { label: "Notifications", icon: "bi-bell", to: "/admin/notifications" },
     ],
   },
   {
     title: "Logistics & Administration",
     items: [
-      { label: "Transaction History", icon: "bi-clock-history", to: "/admin/history" },
+      {
+        label: "Transaction History",
+        icon: "bi-clock-history",
+        to: "/admin/history",
+      },
       { label: "Stock Reports", icon: "bi-bar-chart", to: "/admin/reports" },
       { label: "User Management", icon: "bi-people", to: "/admin/users" },
-      { label: "Activity & Audit Logs", icon: "bi-journal-text", to: "/admin/logs" },
+      {
+        label: "Activity & Audit Logs",
+        icon: "bi-journal-text",
+        to: "/admin/logs",
+      },
     ],
   },
 ];
@@ -105,7 +149,7 @@ function ProfileMenu({ trigger, base, direction = "down", onLogout }) {
       setPos(
         direction === "up"
           ? { bottom: window.innerHeight - r.top + 8, left: r.left }
-          : { top: r.bottom + 8, right: window.innerWidth - r.right }
+          : { top: r.bottom + 8, right: window.innerWidth - r.right },
       );
     }
     setOpen((o) => !o);
@@ -181,7 +225,8 @@ export default function UserLayout() {
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   // Select navigation set based on role
-  const { sections: navSections, base } = roleConfig[user?.role] || defaultConfig;
+  const { sections: navSections, base } =
+    roleConfig[user?.role] || defaultConfig;
 
   // Backend sends firstName / lastName (no `name` field)
   const displayName =
@@ -216,14 +261,18 @@ export default function UserLayout() {
                 src="/img/buksupply-sidebar-logo.png"
                 alt="BukSUPPLY"
                 className="logo-img"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
               />
             </NavLink>
             <img
               src="/img/brand-text-img.png"
               alt="BukSUPPLY Brand"
               className="brand-img"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
           </div>
 
@@ -259,31 +308,18 @@ export default function UserLayout() {
         {/* SIDEBAR FOOTER */}
         <div className="sidebar-footer">
           <hr className="sidebar-divider" />
-          <ProfileMenu
-            base={base}
-            direction="up"
-            onLogout={() => setLogoutOpen(true)}
-            trigger={({ open, toggle }) => (
-              <button
-                type="button"
-                className="user-profile"
-                onClick={toggle}
-                aria-haspopup="menu"
-                aria-expanded={open}
-              >
-                <img
-                  src={avatarSrc}
-                  alt={displayName}
-                  className="user-avatar"
-                  onError={handleAvatarError}
-                />
-                <div className="user-info">
-                  <span className="user-name">{displayName}</span>
-                  <span className="user-role">{displayRole}</span>
-                </div>
-              </button>
-            )}
-          />
+          <div className="user-profile">
+            <img
+              src={avatarSrc}
+              alt={displayName}
+              className="user-avatar"
+              onError={handleAvatarError}
+            />
+            <div className="user-info">
+              <span className="user-name">{displayName}</span>
+              <span className="user-role">{displayRole}</span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -321,7 +357,11 @@ export default function UserLayout() {
                   aria-expanded={open}
                   onClick={toggle}
                 >
-                  <img src={avatarSrc} alt={displayName} onError={handleAvatarError} />
+                  <img
+                    src={avatarSrc}
+                    alt={displayName}
+                    onError={handleAvatarError}
+                  />
                 </button>
               )}
             />

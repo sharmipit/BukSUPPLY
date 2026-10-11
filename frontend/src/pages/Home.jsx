@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import usePage from '../hooks/usePage';
-import css from '../styles/index.css?raw';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import usePage from "../hooks/usePage";
+import css from "../styles/index.css?raw";
 
 const NAV = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'about', label: 'About Us' },
-  { id: 'services', label: 'Services' },
+  { id: "overview", label: "Overview" },
+  { id: "about", label: "About Us" },
+  { id: "services", label: "Services" },
 ];
 
 const SERVICES = [
   {
-    title: 'Request Supplies',
-    category: 'Bond paper, pens, markers, and office supplies',
+    title: "Request Supplies",
+    category: "Bond paper, pens, markers, and office supplies",
     description:
-      'Look up available supplies online and submit a request in seconds. Once approved, you can pick up your items at the supply window using your digital claim slip.',
+      "Look up available supplies online and submit a request in seconds. Once approved, you can pick up your items at the supply window using your digital claim slip.",
     icon: (
       <>
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -24,10 +24,10 @@ const SERVICES = [
     ),
   },
   {
-    title: 'Borrow Equipment',
-    category: 'Projectors, laptops, cables, and other school equipment',
+    title: "Borrow Equipment",
+    category: "Projectors, laptops, cables, and other school equipment",
     description:
-      'Reserve projectors, laptops, and other school equipment ahead of time for your classes, thesis defense, or university events. Return items on schedule with ease.',
+      "Reserve projectors, laptops, and other school equipment ahead of time for your classes, thesis defense, or university events. Return items on schedule with ease.",
     icon: (
       <>
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -37,10 +37,10 @@ const SERVICES = [
     ),
   },
   {
-    title: 'Track & Manage Records',
-    category: 'History, inventory tracking, and clearance status',
+    title: "Track & Manage Records",
+    category: "History, inventory tracking, and clearance status",
     description:
-      'Keep a clear record of all your requests and borrowed items. Staff can manage live inventory, while students and faculty ensure their semester clearance stays clear.',
+      "Keep a clear record of all your requests and borrowed items. Staff can manage live inventory, while students and faculty ensure their semester clearance stays clear.",
     icon: (
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -54,10 +54,10 @@ const SERVICES = [
 ];
 
 export default function Home() {
-  usePage(css, 'BukSUPPLY');
+  usePage(css, "BukSUPPLY");
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeId, setActiveId] = useState('overview');
+  const [activeId, setActiveId] = useState("overview");
 
   // Scrollspy (highlights the nav link of the section on screen) + scroll reveal
   useEffect(() => {
@@ -67,22 +67,24 @@ export default function Home() {
           if (entry.isIntersecting) setActiveId(entry.target.id);
         });
       },
-      { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 }
+      { root: null, rootMargin: "-20% 0px -60% 0px", threshold: 0 },
     );
-    document.querySelectorAll('section[id]').forEach((s) => sectionObserver.observe(s));
+    document
+      .querySelectorAll("section[id]")
+      .forEach((s) => sectionObserver.observe(s));
 
     const revealObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('is-visible');
+          if (entry.isIntersecting) entry.target.classList.add("is-visible");
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     document
-      .querySelectorAll('.info-card, .service-card, .section-header')
+      .querySelectorAll(".info-card, .service-card, .section-header")
       .forEach((el) => {
-        el.classList.add('reveal-on-scroll');
+        el.classList.add("reveal-on-scroll");
         revealObserver.observe(el);
       });
 
@@ -98,15 +100,19 @@ export default function Home() {
       <header className="navbar">
         <div className="container nav-container">
           <a href="#overview" className="logo">
-            <img src="/img/buksupply-brown.png" alt="BukSUPPLY" className="logo-img" />
+            <img
+              src="/img/buksupply-brown.png"
+              alt="BukSUPPLY"
+              className="logo-img"
+            />
           </a>
 
-          <nav className={`nav-menu${menuOpen ? ' active' : ''}`} id="navMenu">
+          <nav className={`nav-menu${menuOpen ? " active" : ""}`} id="navMenu">
             {NAV.map((n) => (
               <a
                 key={n.id}
                 href={`#${n.id}`}
-                className={`nav-link${activeId === n.id ? ' active' : ''}`}
+                className={`nav-link${activeId === n.id ? " active" : ""}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {n.label}
@@ -151,12 +157,17 @@ export default function Home() {
               supplies
             </h1>
             <p className="hero-subtitle">
-              Streamlined inventory claiming, equipment reservations, and automated COA
-              compliance for BukSU faculty, personnel, and students.
+              Streamlined inventory claiming, equipment reservations, and
+              automated COA compliance for BukSU faculty, personnel, and
+              students.
             </p>
             <div className="hero-buttons">
-              <Link to="/signin" className="btn btn-dark">Get Started</Link>
-              <a href="#about" className="btn btn-light">About Us</a>
+              <Link to="/signin" className="btn btn-dark">
+                Get Started
+              </Link>
+              <a href="#about" className="btn btn-light">
+                About Us
+              </a>
             </div>
           </div>
         </section>
@@ -167,15 +178,17 @@ export default function Home() {
             <div className="info-card">
               <h2 className="card-title">What is BukSUPPLY?</h2>
               <p className="card-text">
-                <strong>BukSUPPLY</strong> was made specifically for the Property and Supply
-                Management Office (PSMO) of <strong>Bukidnon State University</strong> to
-                eliminate tedious, paper-based requisition forms, unorganized inventory
-                tracking, and long physical queues at the Main Campus Bodega.
+                <strong>BukSUPPLY</strong> was made specifically for the
+                Property and Supply Management Office (PSMO) of{" "}
+                <strong>Bukidnon State University</strong> to eliminate tedious,
+                paper-based requisition forms, unorganized inventory tracking,
+                and long physical queues at the Main Campus Bodega.
               </p>
               <p className="card-text">
-                By providing an intuitive digital portal, this system connects university
-                faculty, administrative employees, custodians, and recognized student
-                leaders with the university&apos;s central supply repository in real time.
+                By providing an intuitive digital portal, this system connects
+                university faculty, administrative employees, custodians, and
+                recognized student leaders with the university&apos;s central
+                supply repository in real time.
               </p>
             </div>
           </div>
@@ -187,8 +200,8 @@ export default function Home() {
             <div className="section-header">
               <h2 className="section-title">What You Can Do with BukSUPPLY?</h2>
               <p className="section-subtitle">
-                Three simple services to help BukSU students, faculty, and staff request
-                supplies, borrow equipment, and keep track of items
+                Three simple services to help BukSU students, faculty, and staff
+                request supplies, borrow equipment, and keep track of items
               </p>
             </div>
 
@@ -222,7 +235,11 @@ export default function Home() {
       <footer className="footer">
         <div className="container footer-container">
           <div className="footer-logo">
-            <img src="/img/buksupply-white.png" alt="BukSUPPLY" className="footer-logo-img" />
+            <img
+              src="/img/buksupply-white.png"
+              alt="BukSUPPLY"
+              className="footer-logo-img"
+            />
           </div>
           <p className="copyright">© 2026 BukSUPPLY. All rights reserved.</p>
         </div>
