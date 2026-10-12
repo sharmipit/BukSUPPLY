@@ -283,17 +283,21 @@ button {
   flex-direction: column;
 }
 
+/* Transparent on every page. A light blur keeps the icons readable
+   when page content scrolls underneath. */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--page-bg);
+  background: transparent;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   height: 78px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(217, 211, 203, 0.6);
   gap: 16px;
 }
 
@@ -343,6 +347,18 @@ button {
 
 .content {
   flex: 1;
+}
+
+/* ---------- Profile route only: no gap under the top bar ---------- */
+/* Frosted tint so the bar reads clearly over the banner photo */
+.main.profile-route .topbar {
+  background: rgba(255, 255, 255, 0.25);
+  border-bottom-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Pull the page up so the banner sits behind the transparent top bar */
+.main.profile-route .content {
+  margin-top: -78px;
 }
 
 /* ---------- Profile Menu (dropdown) ---------- */
@@ -446,19 +462,6 @@ button {
 
 .profile-menu-btn.logout {
   background: #dc2626;
-}
-
-/* ---------- Transparent top bar (Profile page only) ---------- */
-.topbar.transparent {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-bottom-color: rgba(255, 255, 255, 0.35);
-}
-
-/* Pull the page up so the banner sits behind the transparent top bar */
-.main.profile-route .content {
-  margin-top: -78px;
 }
 
 /* ---------- Modal Styles ---------- */

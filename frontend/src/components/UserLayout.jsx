@@ -74,6 +74,12 @@ const moderatorNavSections = [
       },
     ],
   },
+  {
+    title: "Account",
+    items: [
+      { label: "Profile", icon: "bi-person-gear", to: "/staff/profile" },
+    ],
+  },
 ];
 
 // Navigation configuration for Administrators
@@ -116,6 +122,12 @@ const adminNavSections = [
         icon: "bi-journal-text",
         to: "/admin/logs",
       },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { label: "Profile", icon: "bi-person-gear", to: "/admin/profile" },
     ],
   },
 ];
@@ -245,7 +257,9 @@ export default function UserLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // Top bar is transparent only on the Profile page (/user/profile, /staff/profile, /admin/profile)
+  // Profile page only (/user/profile, /staff/profile, /admin/profile):
+  // the content is pulled up so the banner sits behind the top bar (no gap).
+  // The top bar itself is transparent on every page.
   const isProfilePage = /\/profile\/?$/.test(pathname);
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -355,7 +369,7 @@ export default function UserLayout() {
 
       {/* MAIN CONTENT AREA */}
       <div className={`main${isProfilePage ? " profile-route" : ""}`}>
-        <header className={`topbar${isProfilePage ? " transparent" : ""}`}>
+        <header className="topbar">
           <button
             className="menu-btn"
             onClick={toggleSidebar}

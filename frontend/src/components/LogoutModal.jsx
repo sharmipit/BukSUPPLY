@@ -22,7 +22,7 @@ export default function LogoutModal({ isOpen, onClose }) {
         <h2 className="lo-title">Log out?</h2>
         <p className="modal-description lo-desc">
           Are you sure you want to log out of <strong>BukSUPPLY</strong>?
-          You will need to sign in again to access your dashboard.
+          You will need to sign in again to access your account.
         </p>
         <div className="lo-actions">
           <button type="button" className="lo-btn lo-cancel" onClick={onClose}>

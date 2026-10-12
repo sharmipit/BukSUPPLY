@@ -80,6 +80,7 @@ export default function App() {
         <Route path="reports" element={<StockReports />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="logs" element={<ActivityAuditLogs />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       {/* Admin Shell Routes */}
