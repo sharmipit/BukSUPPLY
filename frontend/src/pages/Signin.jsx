@@ -16,6 +16,31 @@ function Banner({ banner }) {
   return <div className={`alert-banner ${banner.type}`}>{banner.message}</div>;
 }
 
+// Password input with a show/hide eye button
+function PasswordInput({ id, value, onChange, placeholder, visible, onToggle }) {
+  return (
+    <div className="input-icon-wrapper">
+      <input
+        type={visible ? 'text' : 'password'}
+        id={id}
+        className="form-input with-suffix"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required
+      />
+      <button
+        type="button"
+        className="toggle-password-btn"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        onClick={onToggle}
+      >
+        <i className={`bi ${visible ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+      </button>
+    </div>
+  );
+}
+
 export default function Signin() {
   usePage(css, 'BukSUPPLY | Sign In');
   const { login } = useAuth();
@@ -24,6 +49,7 @@ export default function Signin() {
   // ---------- Sign in form ----------
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [banner, setBanner] = useState(NO_BANNER);
   const [busy, setBusy] = useState(false);
   const recaptchaRef = useRef(null);
@@ -82,21 +108,20 @@ export default function Signin() {
   };
 
   // ---------- Google sign in ----------
- // ---------- Google sign in ----------
-const handleGoogle = async (credential) => {
-  setBanner(NO_BANNER);
-  try {
-    const { data } = await api.post('/auth/google', { credential });
-    completeSignIn(data);
-  } catch (err) {
-    // No account yet: new users must register (ID number + terms) on the sign-up page
-    if (err.response?.status === 428) {
-      navigate('/signup', { replace: true });
-      return;
+  const handleGoogle = async (credential) => {
+    setBanner(NO_BANNER);
+    try {
+      const { data } = await api.post('/auth/google', { credential });
+      completeSignIn(data);
+    } catch (err) {
+      // No account yet: new users must register (ID number + terms) on the sign-up page
+      if (err.response?.status === 428) {
+        navigate('/signup', { replace: true });
+        return;
+      }
+      setBanner({ message: errMsg(err), type: 'error' });
     }
-    setBanner({ message: errMsg(err), type: 'error' });
-  }
-};
+  };
 
   // ---------- Forgot / reset password modal ----------
   const [modalOpen, setModalOpen] = useState(false);
@@ -105,6 +130,8 @@ const handleGoogle = async (credential) => {
   const [otp, setOtp] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [alert1, setAlert1] = useState(NO_BANNER);
   const [alert2, setAlert2] = useState(NO_BANNER);
   const [modalBusy, setModalBusy] = useState(false);
@@ -116,6 +143,8 @@ const handleGoogle = async (credential) => {
     setOtp('');
     setNewPass('');
     setConfirmPass('');
+    setShowNewPass(false);
+    setShowConfirmPass(false);
     setAlert1(NO_BANNER);
     setAlert2(NO_BANNER);
     setModalOpen(true);
@@ -211,14 +240,13 @@ const handleGoogle = async (credential) => {
               <label htmlFor="password" className="form-label">
                 <i className="bi bi-lock-fill"></i> Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="password"
-                className="form-input"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setBanner(NO_BANNER); }}
-                required
+                visible={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
               />
               <div className="forgot-wrapper">
                 <a href="#" className="forgot-link" id="openForgotModal" onClick={openModal}>
@@ -358,14 +386,13 @@ const handleGoogle = async (credential) => {
                   <label htmlFor="newPassword" className="form-label">
                     <i className="bi bi-lock-fill"></i> New Password
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     id="newPassword"
-                    className="form-input"
                     placeholder="Enter new password"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
-                    required
+                    visible={showNewPass}
+                    onToggle={() => setShowNewPass((v) => !v)}
                   />
                 </div>
 
@@ -373,14 +400,13 @@ const handleGoogle = async (credential) => {
                   <label htmlFor="confirmNewPassword" className="form-label">
                     <i className="bi bi-lock-fill"></i> Confirm New Password
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     id="confirmNewPassword"
-                    className="form-input"
                     placeholder="Confirm new password"
                     value={confirmPass}
                     onChange={(e) => setConfirmPass(e.target.value)}
-                    required
+                    visible={showConfirmPass}
+                    onToggle={() => setShowConfirmPass((v) => !v)}
                   />
                 </div>
 

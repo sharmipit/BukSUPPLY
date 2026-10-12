@@ -140,6 +140,39 @@ body {
   background-color: #FFFFFF;
 }
 
+/* Password input with eye toggle */
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-wrapper .form-input {
+  width: 100%;
+}
+
+.form-input.with-suffix {
+  padding-right: 48px;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: #8C7C72;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--text-dark);
+}
+
 /* Forgot Password Link */
 .forgot-wrapper {
   text-align: right;

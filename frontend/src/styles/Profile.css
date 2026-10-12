@@ -3,7 +3,8 @@
 .profile-page {
   --p-brown: #8b5a3c;
   --p-brown-dark: #6b4129;
-  --p-name: #7d6a5f;
+  --p-ink: #2c1a14;
+  --p-text: #594d46;
   --p-muted: #7a6a5f;
   --p-border: #d9d3cb;
   --p-cream: #faf7f2;
@@ -15,11 +16,10 @@
 }
 
 /* ---------- Banner ----------
-   The image (src/assets/BUKSU.jpg) is set from Profile.jsx.
-   Brown shows only while it loads. The transparent top bar (78px)
-   sits on top of this banner. */
+   Image (src/assets/BUKSU.jpg) is set from Profile.jsx.
+   The transparent top bar (78px) sits on top of it. */
 .profile-banner {
-  height: 320px;
+  height: 295px;
   background-color: #4a2c1c;
   background-position: center;
   background-size: cover;
@@ -28,48 +28,35 @@
 
 .profile-wrap {
   position: relative;
-  max-width: 900px;
-  margin: -100px auto 0;
+  max-width: 760px;
+  margin: -88px auto 0;
   padding: 0 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 22px;
 }
 
 /* ---------- Cards ---------- */
 .profile-card {
   background: #fff;
   border: 1px solid var(--p-border);
-  border-radius: 14px;
+  border-radius: 20px;
 }
 
 /* ---------- Identity card ---------- */
 .profile-main {
   position: relative;
-  padding: 92px 24px 0;
+  padding: 92px 24px 26px;
   text-align: center;
-}
-
-.profile-role-tag {
-  position: absolute;
-  top: 16px;
-  left: 18px;
-  padding: 3px 14px;
-  border: 1px solid #555;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #222;
 }
 
 .profile-avatar {
   position: absolute;
-  top: -80px;
+  top: -76px;
   left: 50%;
   transform: translateX(-50%);
-  width: 160px;
-  height: 160px;
+  width: 152px;
+  height: 152px;
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
@@ -77,88 +64,178 @@
 }
 
 .profile-name {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--p-name);
+  font-size: 2.1rem;
+  font-weight: 700;
   line-height: 1.2;
+  color: var(--p-ink);
+  overflow-wrap: anywhere;
 }
 
-.profile-name-line {
-  width: 120px;
-  margin: 12px auto 12px;
-  border: 0;
-  border-top: 3px solid var(--p-name);
-  opacity: 0.85;
-}
-
-.profile-id {
-  font-size: 0.72rem;
-  color: var(--p-muted);
-  margin-bottom: 28px;
-}
-
-/* Brown footer bar with Terms | Privacy */
-.profile-links {
+.profile-meta {
+  margin-top: 12px;
   display: flex;
-  align-items: stretch;
-  margin: 0 -25px -1px;
-  background: var(--p-brown);
-  border-radius: 0 0 14px 14px;
-}
-
-.profile-links button {
-  flex: 1;
-  padding: 14px 10px;
-  font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff;
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.profile-links button:first-child {
-  border-bottom-left-radius: 14px;
-}
-
-.profile-links button:last-child {
-  border-bottom-right-radius: 14px;
-}
-
-.profile-links button:hover {
-  background: var(--p-brown-dark);
-}
-
-.profile-links-sep {
-  width: 1px;
-  margin: 10px 0;
-  background: rgba(255, 255, 255, 0.55);
-}
-
-/* ---------- Settings & Security ---------- */
-.profile-settings {
-  padding: 18px 24px 24px;
-  display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-.profile-settings-title {
-  font-size: 0.82rem;
+.profile-role-tag {
+  padding: 4px 18px;
+  border-radius: 8px;
+  background: var(--p-brown);
+  color: #fff;
+  font-size: 0.75rem;
   font-weight: 600;
+}
+
+.profile-id {
+  font-size: 0.75rem;
   color: var(--p-muted);
-  margin-bottom: 4px;
+}
+
+/* ---------- Sections ---------- */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--p-ink);
+}
+
+/* ---------- Personal information form ---------- */
+.profile-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 56px;
+  padding: 28px 32px 26px;
+}
+
+.pf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pf-field label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--p-ink);
+}
+
+.pf-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--p-border);
+  border-radius: 12px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--p-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pf-input::placeholder {
+  color: #b3a89f;
+}
+
+/* View mode: looks like a value, not an editable field */
+.pf-input[readonly] {
+  cursor: default;
+}
+
+.pf-input:not([readonly]):not(:disabled):focus {
+  border-color: var(--p-brown);
+  box-shadow: 0 0 0 3px rgba(139, 90, 60, 0.15);
+}
+
+.pf-input:disabled {
+  background: #f6f2ec;
+  color: #9a8d84;
+  cursor: not-allowed;
+}
+
+.pf-input.invalid {
+  border-color: #dc2626;
+}
+
+.pf-error {
+  font-size: 0.7rem;
+  color: #dc2626;
+}
+
+.pf-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+}
+
+.pf-btn:active {
+  transform: scale(0.98);
+}
+
+.pf-btn.brown {
+  background: var(--p-brown);
+  color: #fff;
+}
+
+.pf-btn.brown:hover {
+  background: var(--p-brown-dark);
+}
+
+.pf-btn.outline {
+  background: #fff;
+  color: var(--p-ink);
+  border: 1px solid var(--p-border);
+}
+
+.pf-btn.outline:hover {
+  background: #f5efe6;
+}
+
+/* ---------- More settings ---------- */
+.profile-settings {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 24px 44px;
+  padding: 26px 24px;
 }
 
 .profile-btn {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 220px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #fff;
-  text-align: center;
   transition: filter 0.15s ease, transform 0.1s ease;
 }
 
@@ -178,7 +255,28 @@
   background: #dc2626;
 }
 
-/* Notice */
+/* ---------- Legal links ---------- */
+.profile-legal-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--p-muted);
+}
+
+.profile-legal-links button {
+  font-size: inherit;
+  color: var(--p-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.profile-legal-links button:hover {
+  color: var(--p-brown);
+}
+
+/* ---------- Toast ---------- */
 .profile-notice {
   position: fixed;
   right: 24px;
@@ -204,15 +302,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@media (max-width: 560px) {
-  .profile-notice {
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    max-width: none;
   }
 }
 
@@ -410,14 +499,34 @@
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .profile-banner {
-    height: 280px;
+    height: 260px;
+  }
+  .profile-wrap {
+    padding: 0 14px;
   }
   .profile-name {
     font-size: 1.6rem;
   }
-  .profile-wrap {
-    padding: 0 14px;
+  .profile-form {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 22px 18px;
+  }
+  .pf-actions {
+    justify-content: stretch;
+  }
+  .pf-actions .pf-btn {
+    flex: 1;
+  }
+  .profile-btn {
+    width: 100%;
+  }
+  .profile-notice {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    max-width: none;
   }
 }

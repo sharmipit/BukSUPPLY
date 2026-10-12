@@ -7,6 +7,9 @@ import "../styles/Profile.css";
 
 const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/a/default-user";
 
+// Accepts 09XXXXXXXXX or +639XXXXXXXXX
+const PH_MOBILE = /^(09|\+639)\d{9}$/;
+
 const LEGAL = {
   terms: {
     title: "Terms & Conditions",
@@ -32,7 +35,7 @@ const LEGAL = {
   },
 };
 
-// Small confirm dialog used by Reset Password / Deactivate Account
+// Small confirm dialog used by Change Password / Deactivate Account
 function ConfirmModal({ open, icon, title, message, confirmText, danger, onConfirm, onClose }) {
   if (!open) return null;
   return (
@@ -115,14 +118,35 @@ function LegalModal({ type, onClose }) {
   );
 }
 
+// Builds the editable values from the logged-in user
+const getInitialValues = (user) => ({
+  firstName: user?.firstName || user?.name || "",
+  lastName: user?.lastName || "",
+  contactNumber: user?.contactNumber || user?.phone || "",
+});
+
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUser, setUser } = useAuth();
+
+  // Saved values (what the page shows) and draft values (while editing)
+  const [values, setValues] = useState(() => getInitialValues(user));
+  const [draft, setDraft] = useState(values);
+  const [errors, setErrors] = useState({});
+  const [editing, setEditing] = useState(false);
 
   const [resetOpen, setResetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(null); // 'terms' | 'privacy' | null
   const [notice, setNotice] = useState(null);
+
+  // Keep in sync if the user loads/changes (but never overwrite an edit in progress)
+  useEffect(() => {
+    if (editing) return;
+    const next = getInitialValues(user);
+    setValues(next);
+    setDraft(next);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-hide the toast after 5 seconds
   useEffect(() => {
@@ -132,7 +156,7 @@ export default function Profile() {
   }, [notice]);
 
   const displayName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    [values.firstName, values.lastName].filter(Boolean).join(" ") ||
     user?.name ||
     "User";
 
@@ -140,9 +164,78 @@ export default function Profile() {
     ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
     : "Member";
 
+  // Administrators and Moderators cannot deactivate their own account
+  const canDeactivate = !["administrator", "moderator"].includes(
+    user?.role?.toLowerCase(),
+  );
+
   const idNumber = user?.idNumber || user?.studentId || user?.id || "N/A";
   const avatarSrc = user?.avatar || DEFAULT_AVATAR;
+  const email = user?.email || "";
 
+  /* ---------- Edit profile ---------- */
+  const startEdit = () => {
+    setDraft(values);
+    setErrors({});
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setDraft(values);
+    setErrors({});
+    setEditing(false);
+  };
+
+  const handleChange = (field) => (e) => {
+    let value = e.target.value;
+    if (field === "contactNumber") value = value.replace(/[^\d+]/g, "");
+    setDraft((d) => ({ ...d, [field]: value }));
+    if (errors[field]) setErrors((er) => ({ ...er, [field]: undefined }));
+  };
+
+  const validate = () => {
+    const next = {};
+    if (!draft.firstName.trim()) next.firstName = "First name is required.";
+    if (!draft.lastName.trim()) next.lastName = "Last name is required.";
+    if (draft.contactNumber && !PH_MOBILE.test(draft.contactNumber)) {
+      next.contactNumber = "Use a valid PH number, e.g. 09123456789.";
+    }
+    return next;
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    const found = validate();
+    if (Object.keys(found).length) {
+      setErrors(found);
+      return;
+    }
+
+    const cleaned = {
+      firstName: draft.firstName.trim(),
+      lastName: draft.lastName.trim(),
+      contactNumber: draft.contactNumber.trim(),
+    };
+
+    // BACKEND DEV NOTE: PUT /api/user/profile with
+    // { firstName, lastName, contactNumber } (email is not editable),
+    // then refresh the user in AuthContext so the sidebar/top bar update too.
+    setValues(cleaned);
+
+    // Update the shared user in AuthContext so the sidebar footer, the
+    // top-bar dropdown and this page all show the new name right away.
+    if (typeof updateUser === "function") {
+      updateUser(cleaned);
+    } else if (typeof setUser === "function") {
+      setUser({ ...user, ...cleaned });
+    }
+
+    setEditing(false);
+    setErrors({});
+    setNotice({ type: "success", text: "Your profile has been updated." });
+  };
+
+  /* ---------- Other actions ---------- */
   const handleResetConfirm = () => {
     // BACKEND DEV NOTE: POST /api/auth/forgot-password with { email: user.email }
     setResetOpen(false);
@@ -161,6 +254,29 @@ export default function Profile() {
     });
   };
 
+  const current = editing ? draft : values;
+
+  const field = (id, label, key, props = {}) => (
+    <div className="pf-field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        className={`pf-input${errors[key] ? " invalid" : ""}`}
+        value={current[key]}
+        onChange={handleChange(key)}
+        readOnly={!editing}
+        aria-invalid={Boolean(errors[key])}
+        aria-describedby={errors[key] ? `${id}-error` : undefined}
+        {...props}
+      />
+      {errors[key] && (
+        <span className="pf-error" id={`${id}-error`}>
+          {errors[key]}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div className="profile-page">
       {/* Campus banner (the top bar sits transparently over it) */}
@@ -172,8 +288,6 @@ export default function Profile() {
       <div className="profile-wrap">
         {/* Identity card */}
         <section className="profile-card profile-main">
-          <span className="profile-role-tag">{roleText}</span>
-
           <img
             src={avatarSrc}
             alt={displayName}
@@ -185,47 +299,100 @@ export default function Profile() {
           />
 
           <h1 className="profile-name">{displayName}</h1>
-          <hr className="profile-name-line" />
-          <p className="profile-id">ID Number: {idNumber}</p>
-
-          <div className="profile-links">
-            <button type="button" onClick={() => setLegalOpen("terms")}>
-              Terms &amp; Conditions
-            </button>
-            <span className="profile-links-sep" />
-            <button type="button" onClick={() => setLegalOpen("privacy")}>
-              Privacy Policy
-            </button>
+          <div className="profile-meta">
+            <span className="profile-role-tag">{roleText}</span>
+            <span className="profile-id">ID Number: {idNumber}</span>
           </div>
         </section>
 
-        {/* Settings & Security */}
-        <section className="profile-card profile-settings">
-          <h2 className="profile-settings-title">Settings &amp; Security</h2>
+        {/* Personal information (inline edit) */}
+        <section className="profile-section">
+          <h2 className="profile-section-label">Personal Information</h2>
+          <form className="profile-card profile-form" onSubmit={handleSave} noValidate>
+            {field("pf-first", "First Name", "firstName", {
+              autoComplete: "given-name",
+            })}
+            {field("pf-last", "Last Name", "lastName", {
+              autoComplete: "family-name",
+            })}
 
+            <div className="pf-field">
+              <label htmlFor="pf-email">
+                Email Account{editing ? " (Cannot be changed)" : ""}
+              </label>
+              <input
+                id="pf-email"
+                className="pf-input"
+                type="email"
+                value={email}
+                disabled={editing}
+                readOnly
+              />
+            </div>
 
-          <button
-            type="button"
-            className="profile-btn brown"
-            onClick={() => setResetOpen(true)}
-          >
-            Reset Password
-          </button>
-          <button
-            type="button"
-            className="profile-btn brown"
-            onClick={() => setDeactivateOpen(true)}
-          >
-            Deactivate Account
-          </button>
-          <button
-            type="button"
-            className="profile-btn red"
-            onClick={() => setLogoutOpen(true)}
-          >
-            Logout
-          </button>
+            {field("pf-contact", "Contact Number", "contactNumber", {
+              type: "tel",
+              inputMode: "tel",
+              maxLength: 13,
+              placeholder: "09XXXXXXXXX",
+              autoComplete: "tel",
+            })}
+
+            <div className="pf-actions">
+              {editing ? (
+                <>
+                  <button type="button" className="pf-btn outline" onClick={cancelEdit}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="pf-btn brown">
+                    Save Changes
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="pf-btn brown" onClick={startEdit}>
+                  <i className="bi bi-pencil"></i>
+                  Edit Profile
+                </button>
+              )}
+            </div>
+          </form>
         </section>
+
+        {/* More settings */}
+        <section className="profile-section">
+          <h2 className="profile-section-label">More Settings</h2>
+          <div className="profile-card profile-settings">
+            <button
+              type="button"
+              className="profile-btn brown"
+              onClick={() => setResetOpen(true)}
+            >
+              <i className="bi bi-arrow-counterclockwise"></i>
+              Change Password
+            </button>
+            {canDeactivate && (
+              <button
+                type="button"
+                className="profile-btn red"
+                onClick={() => setDeactivateOpen(true)}
+              >
+                <i className="bi bi-slash-circle"></i>
+                Deactivate Account
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Legal links */}
+        <div className="profile-legal-links">
+          <button type="button" onClick={() => setLegalOpen("terms")}>
+            Terms &amp; Conditions
+          </button>
+          <span aria-hidden="true">·</span>
+          <button type="button" onClick={() => setLegalOpen("privacy")}>
+            Privacy Policy
+          </button>
+        </div>
       </div>
 
       {/* Toast: bottom-right, disappears after 5 seconds */}
@@ -254,7 +421,7 @@ export default function Profile() {
       <ConfirmModal
         open={resetOpen}
         icon="bi-key"
-        title="Reset Password?"
+        title="Change Password?"
         message="We will send a password reset link to your institutional email address."
         confirmText="Send Link"
         onConfirm={handleResetConfirm}
@@ -262,7 +429,7 @@ export default function Profile() {
       />
 
       <ConfirmModal
-        open={deactivateOpen}
+        open={canDeactivate && deactivateOpen}
         icon="bi-person-x"
         title="Deactivate Account?"
         message="Your account will be disabled and you will no longer be able to file requisition slips. This action should only be done if you are sure."
