@@ -37,8 +37,24 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Merge changes (e.g. after editing the profile) into the shared user,
+  // so the sidebar, top bar and Profile page update immediately and
+  // the new values survive a refresh.
+  const updateUser = (patch) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      try {
+        sessionStorage.setItem('user', JSON.stringify(next));
+      } catch {
+        // storage unavailable: keep the in-memory update
+      }
+      return next;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
