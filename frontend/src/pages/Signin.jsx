@@ -42,7 +42,7 @@ function PasswordInput({ id, value, onChange, placeholder, visible, onToggle }) 
 }
 
 export default function Signin() {
-  usePage(css, 'BukSUPPLY | Sign In');
+  usePage(css, 'Sign In | BukSUPPLY');
   const { login } = useAuth();
   const navigate = useNavigate();
 

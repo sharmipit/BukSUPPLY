@@ -77,7 +77,7 @@ function Field({ id, label, icon, full, error, children }) {
 }
 
 export default function Signup() {
-  usePage(css, 'BukSUPPLY | Create Account');
+  usePage(css, 'Create Account | BukSUPPLY');
   const navigate = useNavigate();
 
   const [values, setValues] = useState(INITIAL);

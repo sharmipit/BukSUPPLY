@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import ClearNotificationsModal from '../../components/ClearNotificationsModal';
 import '../../styles/user/Notifications.css';
 
 export default function Notifications() {
+  useEffect(() => {
+    document.title = 'Notifications | BukSUPPLY';
+  }, []);
+
   const { user } = useAuth();
 
   // Dummy notifications state matching BukSUPPLY system events
@@ -14,7 +18,7 @@ export default function Notifications() {
       message: 'Your requisition slip REQ-2026-092 for "Markers replenishment" has been approved by the moderator. Please proceed to Property Window 1 for pickup.',
       date: '2026-10-09 10:30 AM',
       read: false,
-      type: 'success', // success, info, warning
+      type: 'success',
       link: '/user/requests'
     },
     {
@@ -46,7 +50,7 @@ export default function Notifications() {
     }
   ]);
 
-  const [filterTab, setFilterTab] = useState('All'); // 'All' or 'Unread'
+  const [filterTab, setFilterTab] = useState('All');
   const [clearModalOpen, setClearModalOpen] = useState(false);
 
   // Filter logic
@@ -58,23 +62,19 @@ export default function Notifications() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleMarkAsRead = (id) => {
-    // BACKEND DEV NOTE: Make API PUT call to mark single notification as read: PUT /api/user/notifications/:id/read
     setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
   const handleMarkAllAsRead = () => {
-    // BACKEND DEV NOTE: Make API PUT call to mark all notifications as read: PUT /api/user/notifications/read-all
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
   const handleDeleteNotification = (e, id) => {
     e.stopPropagation(); 
-    // BACKEND DEV NOTE: Make API DELETE call: DELETE /api/user/notifications/:id
     setNotifications(notifications.filter(n => n.id !== id));
   };
 
   const handleConfirmClearAll = () => {
-    // BACKEND DEV NOTE: Make API DELETE call: DELETE /api/user/notifications
     setNotifications([]);
     setClearModalOpen(false);
   };

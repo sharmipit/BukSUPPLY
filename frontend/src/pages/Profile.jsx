@@ -131,6 +131,10 @@ const getInitialValues = (user) => ({
 });
 
 export default function Profile() {
+  useEffect(() => {
+    document.title = "Profile | BukSUPPLY";
+  }, []);
+
   const { user, updateUser, setUser, logout } = useAuth();
 
   // Saved values (what the page shows) and draft values (while editing)
