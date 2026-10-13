@@ -58,10 +58,6 @@
   font-size: 1.1rem;
 }
 
-/* --------------------------------------------------------------------------
-   Modal card: fixed shell. Only the body scrolls, so the scrollbar stays
-   INSIDE the card instead of on its outer edge.
-   -------------------------------------------------------------------------- */
 .req-modal-card {
   background-color: #FFFFFF;
   border-radius: 24px;
@@ -70,7 +66,7 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* clips content to the rounded corners */
+  overflow: hidden;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   transform: translateY(20px);
   transition: transform 0.3s ease;
@@ -86,7 +82,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  flex-shrink: 0; /* header stays visible while the body scrolls */
+  flex-shrink: 0;
 }
 
 .req-modal-title {
@@ -115,32 +111,31 @@
   color: #2C1A14;
 }
 
-/* Scrollable area (the form) */
+/* Scrollable area with generous spacing between form groups */
 .req-modal-body {
-  padding: 28px 32px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
   flex: 1 1 auto;
-  min-height: 0;          /* required so a flex child can actually scroll */
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* Custom slim scrollbar, sitting inside the modal (Chrome / Edge / Safari) */
 .req-modal-body::-webkit-scrollbar {
   width: 14px;
 }
 
 .req-modal-body::-webkit-scrollbar-track {
   background: transparent;
-  margin: 10px 0; /* keeps the bar away from the header line and bottom corners */
+  margin: 10px 0;
 }
 
 .req-modal-body::-webkit-scrollbar-thumb {
   background-color: #DFD8CC;
   border-radius: 50px;
-  border: 4px solid transparent; /* creates breathing room around the thumb */
+  border: 4px solid transparent;
   background-clip: padding-box;
 }
 
@@ -149,16 +144,14 @@
   background-clip: padding-box;
 }
 
-/* Firefox only (Chrome would ignore the webkit rules above if this applied to it) */
-@supports not selector(::-webkit-scrollbar) {
-  .req-modal-body {
-    scrollbar-width: thin;
-    scrollbar-color: #DFD8CC transparent;
-  }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .form-label {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #2C1A14;
   display: block;
@@ -172,22 +165,20 @@
 .custom-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border: 1px solid #DFD8CC;
-  border-radius: 10px;
-  font-size: 0.92rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
   font-family: inherit;
   color: #2C1A14;
   background-color: #FAF7F2;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Purpose textarea: can grow, but can no longer be shrunk until the
-   text / placeholder is covered */
 textarea.custom-input {
   resize: vertical;
-  min-height: 96px;   /* about 3 rows, always fully visible */
-  max-height: 200px;
+  min-height: 104px;
+  max-height: 220px;
 }
 
 .custom-input:focus {
@@ -197,24 +188,26 @@ textarea.custom-input {
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
-/* Items Section */
+/* Items Section with wide gaps */
 .items-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 20px;
 }
 
 .item-row-card {
   background-color: #FAF7F2;
   border: 1px solid #DFD8CC;
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .item-main-inputs {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 
@@ -224,21 +217,22 @@ textarea.custom-input {
 }
 
 .qty-input-wrapper {
-  width: 90px;
+  width: 100px;
 }
 
 .btn-remove-item {
   background: none;
   border: 1px solid #E5E7EB;
   color: #9CA3AF;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-remove-item:hover:not(:disabled) {
@@ -252,7 +246,6 @@ textarea.custom-input {
   cursor: not-allowed;
 }
 
-/* Inventory Dropdown */
 .inventory-dropdown {
   position: absolute;
   top: 100%;
@@ -260,21 +253,21 @@ textarea.custom-input {
   width: 100%;
   background-color: #FFFFFF;
   border: 1px solid #DFD8CC;
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.12);
   z-index: 100;
-  margin-top: 4px;
-  max-height: 160px;
+  margin-top: 6px;
+  max-height: 180px;
   overflow-y: auto;
 }
 
 .inventory-dropdown-item {
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   border-bottom: 1px solid #FAF7F2;
   transition: background-color 0.15s ease;
 }
@@ -284,8 +277,8 @@ textarea.custom-input {
 }
 
 .inventory-dropdown-empty {
-  padding: 12px 14px;
-  font-size: 0.85rem;
+  padding: 14px 16px;
+  font-size: 0.88rem;
   color: #786B63;
   text-align: center;
   display: flex;
@@ -298,39 +291,43 @@ textarea.custom-input {
   font-size: 0.78rem;
   color: #065F46;
   background-color: #D1FAE5;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 50px;
   font-weight: 600;
 }
 
-/* Justification warning box */
 .warning-banner {
   background-color: #FEF3C7;
   color: #92400E;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 500;
 }
 
+.reason-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .btn-add-item-row {
   background-color: #FFFFFF;
-  border: 1px dashed #8C5839;
+  border: 1.5px dashed #8C5839;
   color: #8C5839;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 0.85rem;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   transition: all 0.2s ease;
-  margin-top: 4px;
 }
 
 .btn-add-item-row:hover {
@@ -340,14 +337,14 @@ textarea.custom-input {
 .req-modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 16px;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 24px;
   border-top: 1px solid #DFD8CC;
 }
 
 .btn-modal-cancel {
-  padding: 10px 22px;
+  padding: 12px 24px;
   border-radius: 50px;
   border: 1px solid #DFD8CC;
   background-color: #FFFFFF;
@@ -357,7 +354,7 @@ textarea.custom-input {
 }
 
 .btn-modal-save {
-  padding: 10px 24px;
+  padding: 12px 28px;
   border-radius: 50px;
   border: none;
   background-color: #2C1A14;

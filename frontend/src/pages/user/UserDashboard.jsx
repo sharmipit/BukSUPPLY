@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeleteModal from '../../components/DeleteModal';
 import EditRequisitionModal from '../../components/EditRequisitionModal';
-import ClearHistoryModal from '../../components/ClearHistoryModal';
+import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import '../../styles/user/UserDashboard.css';
 
 export default function UserDashboard() {
@@ -11,20 +11,22 @@ export default function UserDashboard() {
 
   // Dummy statistics indicators for regular users (Students / Regular Staff)
   const stats = [
-    { title: 'Total Requests', count: 5, icon: 'bi-file-earmark-text', colorClass: 'stat-total' },
+    { title: 'Total Requests', count: 6, icon: 'bi-file-earmark-text', colorClass: 'stat-total' },
     { title: 'Accepted', count: 2, icon: 'bi-check-circle', colorClass: 'stat-accepted' },
-    { title: 'Pending', count: 2, icon: 'bi-clock-history', colorClass: 'stat-pending' },
-    { title: 'Denied', count: 1, icon: 'bi-x-circle', colorClass: 'stat-denied' },
+    { title: 'Pending', count: 1, icon: 'bi-clock-history', colorClass: 'stat-pending' },
+    { title: 'Processing / Purchasing', count: 2, icon: 'bi-arrow-repeat', colorClass: 'stat-processing' },
   ];
 
   // Dummy recent requests (Action Queue / Active items) with state for deletion & editing
   const [recentRequests, setRecentRequests] = useState([
-    { id: 'REQ-2026-089', item: 'Standard Bond Paper (2 Reams), Ballpoint Pens (1 Box)', date: '2026-10-05', status: 'Pending', department: 'College of Technologies', title: 'Term 2 supplies', purpose: 'Monthly office supplies for the department.' },
-    { id: 'REQ-2026-092', item: 'Whiteboard Marker (Black - 3pcs)', date: '2026-10-08', status: 'Accepted', department: 'College of Technologies', title: 'Markers replenishment', purpose: 'Classroom discussion boards.' },
+    { id: 'REQ-2026-089', item: 'Standard Bond Paper (2 Reams)', date: '2026-10-05', status: 'Pending', department: 'College of Technologies', title: 'Term 2 supplies', purpose: 'Monthly office supplies for the department.' },
+    { id: 'REQ-2026-090', item: 'Laboratory Projectors (2pcs)', date: '2026-10-06', status: 'Processing', department: 'College of Technologies', title: 'Midterm Projection', purpose: 'Classroom presentations.' },
+    { id: 'REQ-2026-091', item: 'Specialty 3D Filament (5 rolls)', date: '2026-10-07', status: 'Purchasing', department: 'College of Technologies', title: 'Maker Lab Restock', purpose: 'Out of stock in bodega; undergoing university procurement.' },
   ]);
 
-  // Dummy request history with state for clearing & pagination support
+  // Dummy request history with state for pagination support (includes pending, approved, denied)
   const [requestHistory, setRequestHistory] = useState([
+    { id: 'REQ-2026-089', item: 'Standard Bond Paper (2 Reams)', date: '2026-10-05', status: 'Pending', remarks: 'Awaiting admin review.' },
     { id: 'REQ-2026-045', item: 'Calculator (Scientific)', date: '2026-09-12', status: 'Denied', remarks: 'Out of stock inventory category' },
     { id: 'REQ-2026-012', item: 'Index Folders (10pcs)', date: '2026-08-20', status: 'Accepted', remarks: 'Claimed at Window 1' },
   ]);
@@ -37,12 +39,15 @@ export default function UserDashboard() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedReqId, setSelectedReqId] = useState(null);
 
-  // Edit Modal State Management
+  // Edit / Create Modal State Management
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [selectedEditReq, setSelectedEditReq] = useState(null);
 
-  // Clear History Modal State Management
-  const [clearModalOpen, setClearModalOpen] = useState(false);
+  // Requisition Details Modal State Management
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedDetailsReq, setSelectedDetailsReq] = useState(null);
 
   // Calculate sliced data for the current page view
   const indexOfLastItem = historyPage * itemsPerPage;
@@ -50,13 +55,33 @@ export default function UserDashboard() {
   const currentHistoryItems = requestHistory.slice(indexOfFirstItem, indexOfLastItem);
 
   const handleEdit = (req) => {
+    setIsCreateMode(false);
     setSelectedEditReq(req);
     setEditModalOpen(true);
+  };
+
+  const handleCreateNewClick = () => {
+    setIsCreateMode(true);
+    setSelectedEditReq({
+      id: `REQ-2026-${Math.floor(100 + Math.random() * 900)}`,
+      department: user?.department || 'College of Technologies',
+      title: '',
+      purpose: '',
+      itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
+      purchaseItems: []
+    });
+    setCreateModalOpen(true);
   };
 
   const handleSaveEditedReq = (updatedReq) => {
     // BACKEND DEV NOTE: Make an API call to update requisition: PUT /api/user/requisitions/:id
     setRecentRequests(recentRequests.map(r => r.id === updatedReq.id ? updatedReq : r));
+  };
+
+  const handleCreateNewReq = (newReq) => {
+    // BACKEND DEV NOTE: Make an API call to create requisition: POST /api/user/requisitions
+    setRecentRequests([newReq, ...recentRequests]);
+    setRequestHistory([newReq, ...requestHistory]);
   };
 
   const handleDeleteClick = (id) => {
@@ -67,19 +92,16 @@ export default function UserDashboard() {
   const handleConfirmDelete = () => {
     if (selectedReqId) {
       // BACKEND DEV NOTE: Make an API call to cancel or delete the active requisition.
-      // Example: axios.delete(`/api/user/requisitions/${selectedReqId}`, { headers: { Authorization: `Bearer ${token}` } })
       setRecentRequests(recentRequests.filter(req => req.id !== selectedReqId));
+      setRequestHistory(requestHistory.filter(req => req.id !== selectedReqId));
     }
     setDeleteModalOpen(false);
     setSelectedReqId(null);
   };
 
-  const handleConfirmClearHistory = () => {
-    // BACKEND DEV NOTE: Make an API call to delete or archive history records for the user.
-    // Example: axios.delete('/api/user/requisitions/history', { headers: { Authorization: `Bearer ${token}` } })
-    setRequestHistory([]);
-    setHistoryPage(1);
-    setClearModalOpen(false);
+  const handleRowClick = (req) => {
+    setSelectedDetailsReq(req);
+    setDetailsModalOpen(true);
   };
 
   return (
@@ -117,9 +139,9 @@ export default function UserDashboard() {
             <h3 className="section-card-title">Recent Requisition Slip</h3>
             <p className="section-card-desc">Overview of your latest submitted requisition slips and their current progress.</p>
           </div>
-          <Link to="/user/requests" className="btn-file-slip text-decoration-none">
+          <button onClick={handleCreateNewClick} className="btn-file-slip text-decoration-none border-0">
             <i className="bi bi-plus-lg"></i> File Requisition Slip
-          </Link>
+          </button>
         </div>
 
         <div className="table-responsive-wrapper">
@@ -137,51 +159,60 @@ export default function UserDashboard() {
               {/* 
                 BACKEND DEVELOPER INTEGRATION GUIDE (Active Requests):
                 1. Fetch active requests from endpoint: GET /api/user/requisitions/active
-                2. Connect handleDeleteClick to trigger the confirmation modal, then DELETE /api/user/requisitions/:id endpoint upon confirmation.
               */}
               {recentRequests.length > 0 ? (
-                recentRequests.map((req) => (
-                  <tr key={req.id}>
-                    <td className="fw-semibold">{req.id}</td>
-                    <td>{req.item}</td>
-                    <td>{req.date}</td>
-                    <td>
-                      <span className={`badge-status ${req.status.toLowerCase()}`}>
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="text-end align-middle">
-                      <div className="action-buttons">
-                        {req.status === 'Pending' && (
-                          <>
-                            <button 
-                              className="btn-action btn-edit" 
-                              onClick={() => handleEdit(req)}
-                              title="Edit Requisition"
-                            >
-                              <i className="bi bi-pencil-square"></i> Edit
-                            </button>
-                            <button 
-                              className="btn-action btn-delete" 
-                              onClick={() => handleDeleteClick(req.id)}
-                              title="Delete Requisition"
-                            >
-                              <i className="bi bi-trash3"></i> Delete
-                            </button>
-                          </>
-                        )}
-                        {req.status === 'Accepted' && (
-                          <span className="locked-badge-pill">
-                            <i className="bi bi-check-circle-fill text-success"></i> Locked (Approved)
-                          </span>
-                        )}
-                        {req.status === 'Denied' && (
-                          <span className="text-muted small">Requires new filing</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                recentRequests.map((req) => {
+                  const isPending = req.status === 'Pending';
+                  const isProcessingOrPurchasing = req.status === 'Processing' || req.status === 'Purchasing';
+
+                  return (
+                    <tr key={req.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(req)}>
+                      <td className="fw-semibold">{req.id}</td>
+                      <td>{req.item}</td>
+                      <td>{req.date}</td>
+                      <td>
+                        <span className={`badge-status ${req.status.toLowerCase()}`}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="text-end align-middle" onClick={(e) => e.stopPropagation()}>
+                        <div className="action-buttons">
+                          {isPending && (
+                            <>
+                              <button 
+                                className="btn-action btn-edit" 
+                                onClick={() => handleEdit(req)}
+                                title="Edit Requisition"
+                              >
+                                <i className="bi bi-pencil-square"></i> Edit
+                              </button>
+                              <button 
+                                className="btn-action btn-delete" 
+                                onClick={() => handleDeleteClick(req.id)}
+                                title="Delete Requisition"
+                              >
+                                <i className="bi bi-trash3"></i> Delete
+                              </button>
+                            </>
+                          )}
+                          {isProcessingOrPurchasing && (
+                            <span className="locked-badge-pill text-muted small">
+                              <i className="bi bi-lock-fill"></i> Locked ({req.status})
+                            </span>
+                          )}
+                          {req.status === 'Accepted' && (
+                            <span className="locked-badge-pill">
+                              <i className="bi bi-check-circle-fill text-success"></i> Locked (Approved)
+                            </span>
+                          )}
+                          {req.status === 'Denied' && (
+                            <span className="text-muted small">Denied</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="empty-state-cell">
@@ -207,22 +238,13 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* 4. Request History Table with Clear History, Pagination, and Full History Link */}
+      {/* 4. Request History Table with Pagination and Full History Link (Clear History Modal removed per instructions) */}
       <div className="dashboard-section-card mt-4">
         <div className="section-card-header">
           <div>
             <h3 className="section-card-title">Transaction & Request History</h3>
-            <p className="section-card-desc">Archive of completed, closed, or processed requisitions.</p>
+            <p className="section-card-desc">Audit archive of pending, completed, or processed requisitions.</p>
           </div>
-          {requestHistory.length > 0 && (
-            <button 
-              className="btn-clear-history text-decoration-none" 
-              onClick={() => setClearModalOpen(true)}
-              title="Clear entire transaction history"
-            >
-              <i className="bi bi-trash3"></i> Clear History
-            </button>
-          )}
         </div>
 
         <div className="table-responsive-wrapper">
@@ -240,12 +262,10 @@ export default function UserDashboard() {
               {/* 
                 BACKEND DEVELOPER INTEGRATION GUIDE (History Table):
                 1. Fetch history data from endpoint: GET /api/user/requisitions/history?page=${historyPage}&limit=${itemsPerPage}
-                2. Implement pagination controls by updating `historyPage` state on button clicks.
-                3. Connect handleConfirmClearHistory to DELETE /api/user/requisitions/history endpoint to clear logs server-side.
               */}
               {currentHistoryItems.length > 0 ? (
                 currentHistoryItems.map((hist) => (
-                  <tr key={hist.id}>
+                  <tr key={hist.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(hist)}>
                     <td className="fw-semibold text-muted">{hist.id}</td>
                     <td>{hist.item}</td>
                     <td>{hist.date}</td>
@@ -265,7 +285,7 @@ export default function UserDashboard() {
                         <i className="bi bi-clock-history"></i>
                       </div>
                       <h4>No Transaction History</h4>
-                      <p>You have no past or archived requisition slips at the moment. Completed requests will show up here.</p>
+                      <p>You have no past or archived requisition slips at the moment.</p>
                     </div>
                   </td>
                 </tr>
@@ -309,21 +329,23 @@ export default function UserDashboard() {
         onClose={() => setDeleteModalOpen(false)}
       />
 
-      {/* Edit Requisition Modal */}
+      {/* Edit / Create Requisition Modal */}
       <EditRequisitionModal 
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
+        isOpen={editModalOpen || createModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setCreateModalOpen(false);
+        }}
         requisitionData={selectedEditReq}
-        onSave={handleSaveEditedReq}
+        onSave={isCreateMode ? handleCreateNewReq : handleSaveEditedReq}
+        isCreateMode={isCreateMode}
       />
 
-      {/* Clear History Confirmation Modal */}
-      <ClearHistoryModal 
-        isOpen={clearModalOpen}
-        title="Clear History Archive?"
-        message="Are you sure you want to clear your complete transaction history? This action cannot be undone and all logs will be removed."
-        onConfirm={handleConfirmClearHistory}
-        onClose={() => setClearModalOpen(false)}
+      {/* Requisition Details Modal */}
+      <RequisitionDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        requisition={selectedDetailsReq}
       />
     </div>
   );
