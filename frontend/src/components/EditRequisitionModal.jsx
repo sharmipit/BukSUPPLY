@@ -20,8 +20,10 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchIndex, setActiveSearchIndex] = useState(null);
   
-  // Toast state notification
+  // Toast state notifications & validation error state
   const [showToast, setShowToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const PURPOSE_MAX_LENGTH = 250;
 
@@ -40,6 +42,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       }
 
       setPurchaseItems(requisitionData.purchaseItems || []);
+      setErrorMessage('');
+      setShowErrorToast(false);
     }
   }, [requisitionData, isOpen]);
 
@@ -84,6 +88,25 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Error handling: Verify that at least one item or purchase item is validly specified
+    const hasValidBodegaItem = items.some(i => i.name && i.name.trim() !== '');
+    const hasValidPurchaseItem = purchaseItems.some(p => p.name && p.name.trim() !== '');
+
+    if (!hasValidBodegaItem && !hasValidPurchaseItem) {
+      setErrorMessage('Please specify at least one requested item or external purchase item.');
+      setShowErrorToast(true);
+      setTimeout(() => {
+        setShowErrorToast(false);
+      }, 3000);
+      return;
+    }
+
+    setShowErrorToast(false);
+    setErrorMessage('');
+
+    const currentDate = new Date().toISOString().split('T')[0];
+
     const updatedRequisition = {
       ...requisitionData,
       department,
@@ -91,7 +114,11 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       purpose,
       itemsList: items,
       purchaseItems: purchaseItems,
-      item: items.map(i => `${i.name || 'Item'} (${i.qty})`).join(', ')
+      item: items.filter(i => i.name && i.name.trim() !== '').map(i => `${i.name} (${i.qty})`).join(', ') || 
+            purchaseItems.filter(p => p.name && p.name.trim() !== '').map(p => `${p.name} (${p.qty})`).join(', '),
+      date: requisitionData?.date || currentDate,
+      status: requisitionData?.status || 'Pending',
+      remarks: requisitionData?.remarks || 'Awaiting admin review.'
     };
 
     // Trigger parent save handler
@@ -106,7 +133,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   return (
     <div className={`req-modal-overlay ${isOpen ? 'active' : ''}`}>
-      {/* Differentiated Toast Notification Container */}
+      {/* Success Toast Notification */}
       <div className={`req-toast-notification ${showToast ? 'show' : ''}`}>
         <i className="bi bi-check-circle-fill"></i>
         <span>
@@ -114,6 +141,12 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
             ? "Requisition successfully filed!" 
             : `Changes successfully saved for Requisition #${requisitionData?.id}!`}
         </span>
+      </div>
+
+      {/* Error Toast Notification */}
+      <div className={`req-toast-notification req-toast-error ${showErrorToast ? 'show' : ''}`}>
+        <i className="bi bi-exclamation-octagon-fill" style={{ color: '#EF4444' }}></i>
+        <span>{errorMessage}</span>
       </div>
 
       <div className="req-modal-card">

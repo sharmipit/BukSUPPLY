@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import ClearHistoryModal from '../../components/ClearHistoryModal';
+import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import '../../styles/user/RequestHistory.css';
 
 export default function RequestHistory() {
   const { user } = useAuth();
 
-  // Dummy full transaction history dataset for the user
+  // Dummy full transaction history dataset for the user (including pending, accepted, and denied records)
   const [historyRecords, setHistoryRecords] = useState([
+    { 
+      id: 'REQ-2026-089', 
+      department: 'College of Technologies',
+      title: 'Term 2 supplies', 
+      purpose: 'Monthly office supplies for the department.', 
+      item: 'Standard Bond Paper (2 Reams)', 
+      dateFiled: '2026-10-05', 
+      dateProcessed: 'Pending',
+      status: 'Pending', 
+      remarks: 'Awaiting moderator review.',
+      itemsList: [{ id: '1', name: 'A4 bond paper (ream)', qty: 2, reason: '', maxNormal: 10 }],
+      purchaseItems: []
+    },
     { 
       id: 'REQ-2026-045', 
       department: 'College of Technologies',
@@ -18,7 +31,9 @@ export default function RequestHistory() {
       dateFiled: '2026-09-12', 
       dateProcessed: '2026-09-14',
       status: 'Denied', 
-      remarks: 'Out of stock inventory category for current semester.' 
+      remarks: 'Out of stock inventory category for current semester.',
+      itemsList: [],
+      purchaseItems: []
     },
     { 
       id: 'REQ-2026-012', 
@@ -29,7 +44,9 @@ export default function RequestHistory() {
       dateFiled: '2026-08-20', 
       dateProcessed: '2026-08-22',
       status: 'Accepted', 
-      remarks: 'Claimed at Property Window 1 by requester.' 
+      remarks: 'Claimed at Property Window 1 by requester.',
+      itemsList: [],
+      purchaseItems: []
     },
     { 
       id: 'REQ-2026-003', 
@@ -40,18 +57,9 @@ export default function RequestHistory() {
       dateFiled: '2026-08-01', 
       dateProcessed: '2026-08-03',
       status: 'Accepted', 
-      remarks: 'Successfully issued and signed.' 
-    },
-    { 
-      id: 'REQ-2025-998', 
-      department: 'College of Technologies',
-      title: 'End of Term Cleanup', 
-      purpose: 'General cleaning and office management supplies.', 
-      item: 'Whiteboard Marker (Black) (2pcs)', 
-      dateFiled: '2025-12-10', 
-      dateProcessed: '2025-12-12',
-      status: 'Accepted', 
-      remarks: 'Claimed at Window 2.' 
+      remarks: 'Successfully issued and signed.',
+      itemsList: [],
+      purchaseItems: []
     },
     { 
       id: 'REQ-2025-870', 
@@ -62,7 +70,9 @@ export default function RequestHistory() {
       dateFiled: '2025-11-04', 
       dateProcessed: '2025-11-06',
       status: 'Denied', 
-      remarks: 'Exceeded departmental quarterly quota limits.' 
+      remarks: 'Exceeded departmental quarterly quota limits.',
+      itemsList: [],
+      purchaseItems: []
     }
   ]);
 
@@ -72,8 +82,9 @@ export default function RequestHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Clear History Modal State Management
-  const [clearModalOpen, setClearModalOpen] = useState(false);
+  // Details Modal State
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedDetailsReq, setSelectedDetailsReq] = useState(null);
 
   // Filter logic for history records
   const filteredHistory = historyRecords.filter(record => {
@@ -92,11 +103,9 @@ export default function RequestHistory() {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentHistoryItems = filteredHistory.slice(indexOfFirst, indexOfLast);
 
-  const handleConfirmClearHistory = () => {
-    // BACKEND DEV NOTE: Make DELETE API call: DELETE /api/user/requisitions/history
-    setHistoryRecords([]);
-    setCurrentPage(1);
-    setClearModalOpen(false);
+  const handleRowClick = (record) => {
+    setSelectedDetailsReq(record);
+    setDetailsModalOpen(true);
   };
 
   return (
@@ -106,18 +115,9 @@ export default function RequestHistory() {
         <div>
           <h1 className="hub-title">Request History & Archives</h1>
           <p className="hub-subtitle">
-            Complete audit trail of all processed, approved, and archived requisitions submitted under your account.
+            Complete audit trail of all pending, processed, approved, and archived requisitions submitted under your account.
           </p>
         </div>
-        {historyRecords.length > 0 && (
-          <button 
-            className="btn-clear-history"
-            onClick={() => setClearModalOpen(true)}
-            title="Clear history archive"
-          >
-            <i className="bi bi-trash3"></i> Clear History
-          </button>
-        )}
       </div>
 
       {/* Filters and Search Bar Section */}
@@ -137,7 +137,7 @@ export default function RequestHistory() {
         </div>
 
         <div className="status-filter-tabs">
-          {['All', 'Accepted', 'Denied'].map((status) => (
+          {['All', 'Pending', 'Accepted', 'Denied'].map((status) => (
             <button
               key={status}
               className={`filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
@@ -159,7 +159,7 @@ export default function RequestHistory() {
                 <th className="col-title">Title & Purpose</th>
                 <th className="col-items">Item & Description</th>
                 <th className="col-date">Date Filed</th>
-                <th className="col-status">Final Status</th>
+                <th className="col-status">Status</th>
                 <th className="col-remarks">Remarks / Window Notes</th>
               </tr>
             </thead>
@@ -171,7 +171,7 @@ export default function RequestHistory() {
               */}
               {currentHistoryItems.length > 0 ? (
                 currentHistoryItems.map((record) => (
-                  <tr key={record.id}>
+                  <tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(record)}>
                     <td className="fw-semibold align-middle nowrap-cell">{record.id}</td>
                     <td className="align-middle">
                       <div className="req-title-text cell-clamp" title={record.title}>{record.title}</div>
@@ -231,13 +231,11 @@ export default function RequestHistory() {
         </div>
       </div>
 
-      {/* Clear History Confirmation Modal */}
-      <ClearHistoryModal 
-        isOpen={clearModalOpen}
-        title="Clear History Archive?"
-        message="Are you sure you want to clear your complete transaction history? This action cannot be undone and all logs will be removed."
-        onConfirm={handleConfirmClearHistory}
-        onClose={() => setClearModalOpen(false)}
+      {/* Requisition Details Modal */}
+      <RequisitionDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        requisition={selectedDetailsReq}
       />
     </div>
   );
