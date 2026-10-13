@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import '../../styles/user/RequestHistory.css';
 
 export default function RequestHistory() {
+  useEffect(() => {
+    document.title = 'My Requests | BukSUPPLY';
+  }, []);
+
   const { user } = useAuth();
 
   // Dummy full transaction history dataset for the user (including pending, accepted, and denied records)
@@ -164,11 +168,6 @@ export default function RequestHistory() {
               </tr>
             </thead>
             <tbody>
-              {/* 
-                BACKEND DEVELOPER INTEGRATION GUIDE (Request History):
-                1. Fetch paginated records from endpoint: GET /api/user/requisitions/history?page=${currentPage}&limit=${itemsPerPage}&status=${statusFilter}&search=${searchTerm}
-                2. Ensure database model returns processed timestamps and moderator remarks.
-              */}
               {currentHistoryItems.length > 0 ? (
                 currentHistoryItems.map((record) => (
                   <tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(record)}>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../../styles/user/HelpSupport.css";
 
@@ -133,7 +133,6 @@ const FAQS = [
   },
 ];
 
-// Plain-text version of each answer, used by the search box
 const SEARCH_TEXT = {
   1: "BukSUPPLY is an online supply request and management platform for Bukidnon State University. authorized student organizations staff teaching non-teaching office academic event supplies supply office",
   2: "University Staff teaching faculty non-teaching department operations class instruction Student Organizations Representatives student leaders recognized school events projects",
@@ -250,6 +249,10 @@ function FAQ() {
 }
 
 export default function HelpSupport() {
+  useEffect(() => {
+    document.title = 'Help & Support | BukSUPPLY';
+  }, []);
+
   return (
     <div>
       <FAQ />

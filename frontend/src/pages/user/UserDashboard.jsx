@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeleteModal from '../../components/DeleteModal';
@@ -7,6 +7,10 @@ import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import '../../styles/user/UserDashboard.css';
 
 export default function UserDashboard() {
+  useEffect(() => {
+    document.title = 'Dashboard | BukSUPPLY';
+  }, []);
+
   const { user } = useAuth();
 
   // Dummy statistics indicators for regular users (Students / Regular Staff)
@@ -77,12 +81,10 @@ export default function UserDashboard() {
   };
 
   const handleSaveEditedReq = (updatedReq) => {
-    // BACKEND DEV NOTE: Make an API call to update requisition: PUT /api/user/requisitions/:id
     setRecentRequests(recentRequests.map(r => r.id === updatedReq.id ? updatedReq : r));
   };
 
   const handleCreateNewReq = (newReq) => {
-    // BACKEND DEV NOTE: Make an API call to create requisition: POST /api/user/requisitions
     const formattedReq = {
       ...newReq,
       date: newReq.date || new Date().toISOString().split('T')[0],
@@ -100,7 +102,6 @@ export default function UserDashboard() {
 
   const handleConfirmDelete = () => {
     if (selectedReqId) {
-      // BACKEND DEV NOTE: Make an API call to cancel or delete the active requisition.
       setRecentRequests(recentRequests.filter(req => req.id !== selectedReqId));
       setRequestHistory(requestHistory.filter(req => req.id !== selectedReqId));
     }
@@ -285,13 +286,11 @@ export default function UserDashboard() {
               ) : (
                 <tr>
                   <td colSpan="5" className="empty-state-cell">
-                    <div className="empty-state-content">
-                      <div className="empty-icon-circle">
-                        <i className="bi bi-clock-history"></i>
-                      </div>
-                      <h4>No Transaction History</h4>
-                      <p>You have no past or archived requisition slips at the moment.</p>
+                    <div className="empty-icon-circle">
+                      <i className="bi bi-clock-history"></i>
                     </div>
+                    <h4>No Transaction History</h4>
+                    <p>You have no past or archived requisition slips at the moment.</p>
                   </td>
                 </tr>
               )}

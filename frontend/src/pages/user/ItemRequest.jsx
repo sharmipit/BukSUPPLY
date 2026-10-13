@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeleteModal from '../../components/DeleteModal';
@@ -7,6 +7,10 @@ import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import '../../styles/user/ItemRequest.css';
 
 export default function ItemRequest() {
+  useEffect(() => {
+    document.title = 'Item Request | BukSUPPLY';
+  }, []);
+
   const { user } = useAuth();
 
   // Full list of user requisitions (Hub view showing more entries)
@@ -60,7 +64,6 @@ export default function ItemRequest() {
   };
 
   const handleSaveEditedReq = (updatedReq) => {
-    // BACKEND DEV NOTE: Make API PUT call: PUT /api/user/requisitions/:id
     setRequisitions(requisitions.map(r => r.id === updatedReq.id ? updatedReq : r));
   };
 
@@ -71,7 +74,6 @@ export default function ItemRequest() {
 
   const handleConfirmDelete = () => {
     if (selectedReqId) {
-      // BACKEND DEV NOTE: Make API DELETE call: DELETE /api/user/requisitions/:id
       setRequisitions(requisitions.filter(r => r.id !== selectedReqId));
     }
     setDeleteModalOpen(false);
@@ -79,7 +81,6 @@ export default function ItemRequest() {
   };
 
   const handleCreateNew = (newReqData) => {
-    // BACKEND DEV NOTE: Make API POST call: POST /api/user/requisitions
     const newEntry = {
       ...newReqData,
       id: `REQ-2026-${Math.floor(100 + Math.random() * 900)}`,
@@ -89,7 +90,6 @@ export default function ItemRequest() {
     setRequisitions([newEntry, ...requisitions]);
   };
 
-  // Re-file a denied request by opening the create modal pre-filled with denied data
   const handleRequestAgain = (req) => {
     setIsCreateMode(true);
     setSelectedEditReq({
@@ -181,10 +181,6 @@ export default function ItemRequest() {
               </tr>
             </thead>
             <tbody>
-              {/* 
-                BACKEND DEVELOPER INTEGRATION GUIDE (Requisitions Hub):
-                1. Fetch paginated records from endpoint: GET /api/user/requisitions?page=${currentPage}&limit=${itemsPerPage}&status=${statusFilter}&search=${searchTerm}
-              */}
               {currentItems.length > 0 ? (
                 currentItems.map((req) => {
                   const isPending = req.status === 'Pending';
