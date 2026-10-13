@@ -42,26 +42,26 @@
   margin-bottom: 28px;
 }
 
-/* 2. Indicator Cards Grid */
+/* 2. Indicator Cards Grid (Robust responsive grid to prevent sidebar toggle breaking) */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .stat-card {
   background-color: var(--card-bg, #FFFFFF);
   border: 1px solid var(--card-border, #DFD8CC);
   border-radius: 20px;
-  padding: 24px;
+  padding: 20px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 4px 16px rgba(44, 26, 20, 0.02);
   transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  min-width: 0; /* prevents flex child overflow */
 }
 
-/* Light brown hover effect on indicators */
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 24px rgba(140, 88, 57, 0.12);
@@ -69,30 +69,40 @@
   border-color: #8C5839;
 }
 
+.stat-info {
+  min-width: 0;
+  flex: 1;
+}
+
 .stat-title {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-body, #594D46);
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-count {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--text-dark, #2C1A14);
 }
 
 .stat-icon-circle {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background-color: #8C5839;
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-left: 10px;
   transition: background-color 0.2s ease;
 }
 
@@ -195,11 +205,22 @@
   font-size: 0.82rem;
   font-weight: 600;
   display: inline-block;
+  white-space: nowrap;
 }
 
 .badge-status.pending {
   background-color: #FEF3C7;
   color: #92400E;
+}
+
+.badge-status.processing {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.badge-status.purchasing {
+  background-color: #FEF3C7;
+  color: #B45309;
 }
 
 .badge-status.accepted {
@@ -339,9 +360,9 @@
 }
 
 /* Responsive queries */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

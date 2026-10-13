@@ -11,11 +11,12 @@ const MOCK_INVENTORY = [
   { id: '6', name: 'Whiteboard Marker (Black)', available: 45, maxNormal: 5 },
 ];
 
-export default function EditRequisitionModal({ isOpen, onClose, requisitionData, onSave }) {
+export default function EditRequisitionModal({ isOpen, onClose, requisitionData, onSave, isCreateMode }) {
   const [department, setDepartment] = useState('');
   const [title, setTitle] = useState('');
   const [purpose, setPurpose] = useState('');
   const [items, setItems] = useState([]);
+  const [purchaseItems, setPurchaseItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchIndex, setActiveSearchIndex] = useState(null);
   
@@ -37,6 +38,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
           { id: '1', name: 'A4 bond paper (ream)', qty: 2, reason: '', maxNormal: 10 }
         ]);
       }
+
+      setPurchaseItems(requisitionData.purchaseItems || []);
     }
   }, [requisitionData, isOpen]);
 
@@ -56,6 +59,20 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
     setItems(updated);
   };
 
+  const handleAddPurchaseItem = () => {
+    setPurchaseItems([...purchaseItems, { id: Date.now().toString(), name: '', qty: 1, reason: '' }]);
+  };
+
+  const handleRemovePurchaseItem = (index) => {
+    setPurchaseItems(purchaseItems.filter((_, i) => i !== index));
+  };
+
+  const handlePurchaseItemChange = (index, field, value) => {
+    const updated = [...purchaseItems];
+    updated[index][field] = value;
+    setPurchaseItems(updated);
+  };
+
   const handleSelectItem = (index, selectedProduct) => {
     const updated = [...items];
     updated[index].name = selectedProduct.name;
@@ -73,6 +90,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       title,
       purpose,
       itemsList: items,
+      purchaseItems: purchaseItems,
       item: items.map(i => `${i.name || 'Item'} (${i.qty})`).join(', ')
     };
 
@@ -88,19 +106,28 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   return (
     <div className={`req-modal-overlay ${isOpen ? 'active' : ''}`}>
-      {/* Toast Notification Container positioned at top of viewport */}
+      {/* Differentiated Toast Notification Container */}
       <div className={`req-toast-notification ${showToast ? 'show' : ''}`}>
         <i className="bi bi-check-circle-fill"></i>
-        <span>Changes successfully saved for Requisition #{requisitionData?.id}!</span>
+        <span>
+          {isCreateMode 
+            ? "Requisition successfully filed!" 
+            : `Changes successfully saved for Requisition #${requisitionData?.id}!`}
+        </span>
       </div>
 
       <div className="req-modal-card">
         <div className="req-modal-header">
           <div>
             <h3 className="req-modal-title">
-              Edit Requisition Slip <span className="text-accent">#{requisitionData?.id}</span>
+              {isCreateMode ? "File New Requisition Slip" : `Edit Requisition Slip`} 
+              {!isCreateMode && <span className="text-accent"> #{requisitionData?.id}</span>}
             </h3>
-            <p className="req-modal-subtitle">Update your requested items or requisition details before moderator approval.</p>
+            <p className="req-modal-subtitle">
+              {isCreateMode 
+                ? "Submit a new departmental request for bodega stock or external purchasing." 
+                : "Update your requested items or requisition details before moderator approval."}
+            </p>
           </div>
           <button className="req-modal-close-btn" onClick={onClose} type="button">
             <i className="bi bi-x-lg"></i>
@@ -127,6 +154,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               type="text" 
               className="form-control custom-input" 
               value={title} 
+              placeholder="e.g. Midterm Lab Supplies"
               onChange={(e) => setTitle(e.target.value)} 
               required 
             />
@@ -150,9 +178,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
             />
           </div>
 
-          {/* Items Section */}
+          {/* Items Section (Bodega Stock) */}
           <div className="items-section">
-            <label className="form-label font-bold">Requested Items</label>
+            <label className="form-label font-bold">Requested Items (Bodega Stock)</label>
 
             {items.map((item, index) => {
               const needsReason = item.qty > (item.maxNormal || 10);
@@ -217,7 +245,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                       className="btn-remove-item"
                       onClick={() => handleRemoveItem(index)}
                       title="Remove item"
-                      disabled={items.length === 1}
+                      disabled={items.length === 1 && purchaseItems.length === 0}
                     >
                       <i className="bi bi-x-lg"></i>
                     </button>
@@ -248,7 +276,66 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               className="btn-add-item-row" 
               onClick={handleAddItem}
             >
-              <i className="bi bi-plus-lg"></i> Add another item
+              <i className="bi bi-plus-lg"></i> Add bodega item
+            </button>
+          </div>
+
+          {/* External Purchase / Out-of-Stock Items Section */}
+          <div className="items-section mt-4 pt-3 border-top">
+            <label className="form-label font-bold text-warning-dark">External Purchase / Out-of-Stock Items</label>
+            <p className="small text-muted mb-2">Use this section if items are not available in the bodega and need university purchasing.</p>
+
+            {purchaseItems.map((pItem, index) => (
+              <div key={index} className="item-row-card border-warning">
+                <div className="item-main-inputs">
+                  <div className="search-input-wrapper">
+                    <input 
+                      type="text" 
+                      className="form-control custom-input"
+                      placeholder="Enter unlisted item name..."
+                      value={pItem.name}
+                      onChange={(e) => handlePurchaseItemChange(index, 'name', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="qty-input-wrapper">
+                    <input 
+                      type="number" 
+                      min="1" 
+                      className="form-control custom-input text-center" 
+                      value={pItem.qty} 
+                      onChange={(e) => handlePurchaseItemChange(index, 'qty', parseInt(e.target.value) || 1)}
+                      required
+                    />
+                  </div>
+
+                  <button 
+                    type="button" 
+                    className="btn-remove-item"
+                    onClick={() => handleRemovePurchaseItem(index)}
+                    title="Remove purchase item"
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+                <input 
+                  type="text" 
+                  className="form-control custom-input mt-2"
+                  placeholder="Justification or specification for purchase..."
+                  value={pItem.reason || ''}
+                  onChange={(e) => handlePurchaseItemChange(index, 'reason', e.target.value)}
+                  required
+                />
+              </div>
+            ))}
+
+            <button 
+              type="button" 
+              className="btn-add-item-row border-warning text-warning-dark" 
+              onClick={handleAddPurchaseItem}
+            >
+              <i className="bi bi-plus-lg"></i> Add item for university purchase
             </button>
           </div>
 
@@ -257,7 +344,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               Cancel
             </button>
             <button type="submit" className="btn-modal-save">
-              Save Changes
+              {isCreateMode ? "Submit Requisition" : "Save Changes"}
             </button>
           </div>
         </form>
