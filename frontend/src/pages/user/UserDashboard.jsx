@@ -68,7 +68,10 @@ export default function UserDashboard() {
       title: '',
       purpose: '',
       itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
-      purchaseItems: []
+      purchaseItems: [],
+      date: new Date().toISOString().split('T')[0],
+      status: 'Pending',
+      remarks: 'Awaiting admin review.'
     });
     setCreateModalOpen(true);
   };
@@ -80,8 +83,14 @@ export default function UserDashboard() {
 
   const handleCreateNewReq = (newReq) => {
     // BACKEND DEV NOTE: Make an API call to create requisition: POST /api/user/requisitions
-    setRecentRequests([newReq, ...recentRequests]);
-    setRequestHistory([newReq, ...requestHistory]);
+    const formattedReq = {
+      ...newReq,
+      date: newReq.date || new Date().toISOString().split('T')[0],
+      status: newReq.status || 'Pending',
+      remarks: newReq.remarks || 'Awaiting admin review.'
+    };
+    setRecentRequests([formattedReq, ...recentRequests]);
+    setRequestHistory([formattedReq, ...requestHistory]);
   };
 
   const handleDeleteClick = (id) => {
@@ -109,7 +118,7 @@ export default function UserDashboard() {
       {/* 1. Welcome Greeting Card */}
       <div className="welcome-card">
         <h1 className="welcome-title">
-          Good day! <span className="text-accent">{user?.name || 'James Abobo'}</span>
+          Good day! <span style={{ color: '#8C5839' }}>{user?.name || 'James Abobo'}</span>
         </h1>
         <p className="welcome-subtitle">
           Here is your daily operational summary for <strong>BukSU Supply & Property Management</strong>. Review your departmental requisition slips, check window issuance updates, or file new requests below.
@@ -156,14 +165,11 @@ export default function UserDashboard() {
               </tr>
             </thead>
             <tbody>
-              {/* 
-                BACKEND DEVELOPER INTEGRATION GUIDE (Active Requests):
-                1. Fetch active requests from endpoint: GET /api/user/requisitions/active
-              */}
               {recentRequests.length > 0 ? (
                 recentRequests.map((req) => {
-                  const isPending = req.status === 'Pending';
-                  const isProcessingOrPurchasing = req.status === 'Processing' || req.status === 'Purchasing';
+                  const statusStr = req.status || 'Pending';
+                  const isPending = statusStr === 'Pending';
+                  const isProcessingOrPurchasing = statusStr === 'Processing' || statusStr === 'Purchasing';
 
                   return (
                     <tr key={req.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(req)}>
@@ -171,8 +177,8 @@ export default function UserDashboard() {
                       <td>{req.item}</td>
                       <td>{req.date}</td>
                       <td>
-                        <span className={`badge-status ${req.status.toLowerCase()}`}>
-                          {req.status}
+                        <span className={`badge-status ${statusStr.toLowerCase()}`}>
+                          {statusStr}
                         </span>
                       </td>
                       <td className="text-end align-middle" onClick={(e) => e.stopPropagation()}>
@@ -197,15 +203,15 @@ export default function UserDashboard() {
                           )}
                           {isProcessingOrPurchasing && (
                             <span className="locked-badge-pill text-muted small">
-                              <i className="bi bi-lock-fill"></i> Locked ({req.status})
+                              <i className="bi bi-lock-fill"></i> Locked ({statusStr})
                             </span>
                           )}
-                          {req.status === 'Accepted' && (
+                          {statusStr === 'Accepted' && (
                             <span className="locked-badge-pill">
                               <i className="bi bi-check-circle-fill text-success"></i> Locked (Approved)
                             </span>
                           )}
-                          {req.status === 'Denied' && (
+                          {statusStr === 'Denied' && (
                             <span className="text-muted small">Denied</span>
                           )}
                         </div>
@@ -238,7 +244,7 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* 4. Request History Table with Pagination and Full History Link (Clear History Modal removed per instructions) */}
+      {/* 4. Request History Table with Pagination and Full History Link */}
       <div className="dashboard-section-card mt-4">
         <div className="section-card-header">
           <div>
@@ -259,24 +265,23 @@ export default function UserDashboard() {
               </tr>
             </thead>
             <tbody>
-              {/* 
-                BACKEND DEVELOPER INTEGRATION GUIDE (History Table):
-                1. Fetch history data from endpoint: GET /api/user/requisitions/history?page=${historyPage}&limit=${itemsPerPage}
-              */}
               {currentHistoryItems.length > 0 ? (
-                currentHistoryItems.map((hist) => (
-                  <tr key={hist.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(hist)}>
-                    <td className="fw-semibold text-muted">{hist.id}</td>
-                    <td>{hist.item}</td>
-                    <td>{hist.date}</td>
-                    <td>
-                      <span className={`badge-status ${hist.status.toLowerCase()}`}>
-                        {hist.status}
-                      </span>
-                    </td>
-                    <td className="text-body-secondary small">{hist.remarks}</td>
-                  </tr>
-                ))
+                currentHistoryItems.map((hist) => {
+                  const histStatus = hist.status || 'Pending';
+                  return (
+                    <tr key={hist.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(hist)}>
+                      <td className="fw-semibold text-muted">{hist.id}</td>
+                      <td>{hist.item}</td>
+                      <td>{hist.date}</td>
+                      <td>
+                        <span className={`badge-status ${histStatus.toLowerCase()}`}>
+                          {histStatus}
+                        </span>
+                      </td>
+                      <td className="text-body-secondary small">{hist.remarks}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="empty-state-cell">
