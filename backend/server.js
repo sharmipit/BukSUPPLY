@@ -37,7 +37,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // PATCH added
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -49,6 +49,7 @@ app.use(cookieParser());
 // --- API Routes ---
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
+app.use("/api/admin/users", require("./routes/adminUserRoutes")); // new
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "buksupply-backend" });

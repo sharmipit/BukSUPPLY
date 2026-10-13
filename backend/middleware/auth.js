@@ -23,3 +23,16 @@ exports.protect = async (req, res, next) => {
     res.status(401).json({ message: "Invalid or expired token." });
   }
 };
+
+// Usage: router.use(protect, restrictTo("Administrator"))
+// Must run AFTER protect, since it reads req.user.
+exports.restrictTo =
+  (...roles) =>
+  (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to do this." });
+    }
+    next();
+  };
