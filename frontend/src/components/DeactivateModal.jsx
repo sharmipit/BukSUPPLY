@@ -12,8 +12,7 @@ export default function DeactivateModal({ isOpen, onClose, onConfirm, busy = fal
         <h2 className="lo-title">Deactivate account?</h2>
         <p className="modal-description lo-desc">
           Your <strong>BukSUPPLY</strong> account will be disabled and you will no
-          longer be able to access your account. You will be logged out right away.
-          Only deactivate if you are sure.
+          longer be able to access your account. <strong>To reactivate your account, you will need to contact support.</strong>
         </p>
         <div className="lo-actions">
           <button
