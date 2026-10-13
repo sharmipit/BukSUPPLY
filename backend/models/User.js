@@ -35,6 +35,18 @@ const UserSchema = new mongoose.Schema(
         "ID number is required",
       ],
     },
+    // Optional PH mobile number, editable from the Profile page (empty string allowed)
+    contactNumber: {
+      type: String,
+      trim: true,
+      default: "",
+      match: [
+        /^((09|\+639)\d{9})?$/,
+        "Use a valid PH mobile number, e.g. 09123456789.",
+      ],
+    },
+    // Profile photo URL (e.g. the Google picture saved at Google sign-in)
+    avatar: { type: String, trim: true, default: "" },
     password: {
       type: String,
       select: false,

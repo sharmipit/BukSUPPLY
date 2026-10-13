@@ -6,7 +6,8 @@ const { sendOtpEmail } = require("../utils/sendEmail");
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const STUDENT_DOMAIN = "@student.buksu.edu.ph";
-const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
+const OTP_EXPIRES_MINUTES =
+  Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
 const OTP_MAX_ATTEMPTS = 5;
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -42,11 +43,14 @@ const verifyRecaptcha = async (token, ip) => {
   });
   if (ip) params.append("remoteip", ip);
 
-  const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
-  });
+  const response = await fetch(
+    "https://www.google.com/recaptcha/api/siteverify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params,
+    },
+  );
   const data = await response.json();
   return data.success === true;
 };
@@ -60,7 +64,8 @@ const GOOGLE_ONLY_MESSAGE =
  * the code after OTP_MAX_ATTEMPTS. The user must have been loaded with
  * OTP_SELECT.
  */
-const OTP_SELECT = "+resetPasswordOtp +resetPasswordOtpExpires +resetPasswordOtpAttempts";
+const OTP_SELECT =
+  "+resetPasswordOtp +resetPasswordOtpExpires +resetPasswordOtpAttempts";
 
 const checkOtp = async (user, otp) => {
   if (
@@ -78,7 +83,8 @@ const checkOtp = async (user, otp) => {
 
   const stored = Buffer.from(user.resetPasswordOtp, "hex");
   const given = Buffer.from(hashOtp(otp), "hex");
-  const match = stored.length === given.length && crypto.timingSafeEqual(stored, given);
+  const match =
+    stored.length === given.length && crypto.timingSafeEqual(stored, given);
 
   if (!match) {
     user.resetPasswordOtpAttempts = attempts + 1;
@@ -94,9 +100,11 @@ const publicUser = (user) => ({
   lastName: user.lastName,
   email: user.email,
   idNumber: user.idNumber || null,
+  contactNumber: user.contactNumber || "",
   role: user.role,
   accountStatus: user.accountStatus,
   profileComplete: Boolean(user.idNumber),
+  avatar: user.avatar || "",
 });
 
 // --- Controllers ---------------------------------------------------------
@@ -117,10 +125,16 @@ exports.signUp = async (req, res) => {
 
     // reCAPTCHA check (bots get stopped before touching the database)
     if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
-      return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+      return res
+        .status(400)
+        .json({ message: "reCAPTCHA verification failed. Please try again." });
     }
 
-    if (![firstName, lastName, email, idNumber, password, confirmPassword].every(isString)) {
+    if (
+      ![firstName, lastName, email, idNumber, password, confirmPassword].every(
+        isString,
+      )
+    ) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
@@ -140,7 +154,9 @@ exports.signUp = async (req, res) => {
     if (password.length < MIN_PASSWORD_LENGTH) {
       return res
         .status(400)
-        .json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+        .json({
+          message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+        });
     }
 
     if (password !== confirmPassword) {
@@ -150,19 +166,26 @@ exports.signUp = async (req, res) => {
     if (termsAgreement !== true) {
       return res
         .status(400)
-        .json({ message: "You must agree to the Terms and Conditions and Privacy Policy." });
+        .json({
+          message:
+            "You must agree to the Terms and Conditions and Privacy Policy.",
+        });
     }
 
     const role = resolveRoleFromEmail(cleanEmail);
     if (!role) {
       return res
         .status(400)
-        .json({ message: "Please use a valid BukSU institutional email address." });
+        .json({
+          message: "Please use a valid BukSU institutional email address.",
+        });
     }
 
     const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
-      return res.status(409).json({ message: "An account with this email already exists." });
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists." });
     }
 
     const user = new User({
@@ -182,14 +205,20 @@ exports.signUp = async (req, res) => {
     return res.status(201).json({ message: "Account created successfully!" });
   } catch (err) {
     if (err.name === "ValidationError") {
-      return res.status(400).json({ message: Object.values(err.errors)[0].message });
+      return res
+        .status(400)
+        .json({ message: Object.values(err.errors)[0].message });
     }
     if (err.code === 11000) {
       // Duplicate ID number vs duplicate email
       if (err.keyPattern && err.keyPattern.idNumber) {
-        return res.status(409).json({ message: "This ID number is already registered." });
+        return res
+          .status(409)
+          .json({ message: "This ID number is already registered." });
       }
-      return res.status(409).json({ message: "An account with this email already exists." });
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists." });
     }
     console.error("signUp error:", err);
     return res.status(500).json(SERVER_ERROR);
@@ -203,14 +232,20 @@ exports.signIn = async (req, res) => {
 
     // reCAPTCHA check (bots get stopped before touching the database)
     if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
-      return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+      return res
+        .status(400)
+        .json({ message: "reCAPTCHA verification failed. Please try again." });
     }
 
     if (!isString(email) || !isString(password) || !email.trim() || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
     }
 
-    const user = await User.findOne({ email: normalizeEmail(email) }).select("+password");
+    const user = await User.findOne({ email: normalizeEmail(email) }).select(
+      "+password",
+    );
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
@@ -224,7 +259,9 @@ exports.signIn = async (req, res) => {
     }
 
     if (user.accountStatus === "Deactivated") {
-      return res.status(403).json({ message: "Your account has been deactivated." });
+      return res
+        .status(403)
+        .json({ message: "Your account has been deactivated." });
     }
 
     return res.status(200).json({
@@ -265,7 +302,9 @@ exports.googleSignIn = async (req, res) => {
     }
 
     if (!payload || !payload.email || !payload.email_verified) {
-      return res.status(403).json({ message: "Google account email is not verified." });
+      return res
+        .status(403)
+        .json({ message: "Google account email is not verified." });
     }
 
     const email = normalizeEmail(payload.email);
@@ -275,55 +314,71 @@ exports.googleSignIn = async (req, res) => {
     if (!role) {
       return res
         .status(403)
-        .json({ message: "Please use a valid BukSU institutional Google account." });
+        .json({
+          message: "Please use a valid BukSU institutional Google account.",
+        });
     }
 
     let user = await User.findOne({ email }).select("+googleId");
-    let isNewUser = false; // true only when this request creates the account
+    let isNewUser = false;
 
     if (user && user.accountStatus === "Deactivated") {
-      return res.status(403).json({ message: "Your account has been deactivated." });
+      return res
+        .status(403)
+        .json({ message: "Your account has been deactivated." });
     }
 
     if (!user) {
-      // First time this email has signed in: terms + ID number are required
       if (agreedToTerms !== true) {
         return res.status(428).json({
           requiresTerms: true,
           requiresIdNumber: true,
-          email, // lets the frontend pick the right ID label (Student / Employee)
-          message: "Please agree to the Terms and Conditions and Privacy Policy to continue.",
+          email,
+          message:
+            "Please agree to the Terms and Conditions and Privacy Policy to continue.",
         });
       }
 
       const cleanId = isString(idNumber) ? idNumber.trim() : "";
       if (!cleanId) {
-        return res.status(400).json({ message: "ID number is required.", field: "idNumber" });
+        return res
+          .status(400)
+          .json({ message: "ID number is required.", field: "idNumber" });
       }
       if (cleanId.length > 30) {
-        return res.status(400).json({ message: "ID number is too long.", field: "idNumber" });
+        return res
+          .status(400)
+          .json({ message: "ID number is too long.", field: "idNumber" });
       }
 
       user = new User({
         firstName: payload.given_name || payload.name || "Unknown",
-        lastName: payload.family_name || "-", // schema requires a non-empty last name
+        lastName: payload.family_name || "-",
         email,
         idNumber: cleanId,
         role,
         authProvider: "google",
         googleId: payload.sub,
+        avatar: payload.picture || "", // NEW
         agreedToTerms: true,
       });
       await user.save();
       isNewUser = true;
     } else if (!user.googleId) {
-      // Existing account signing in with Google for the first time:
-      // link the Google identity to it.
       user.googleId = payload.sub;
       await user.save();
     } else if (user.googleId !== payload.sub) {
-      // Same email but a different Google account: refuse
-      return res.status(403).json({ message: "This email is linked to a different Google account." });
+      return res
+        .status(403)
+        .json({
+          message: "This email is linked to a different Google account.",
+        });
+    }
+
+    // NEW: keep the Google profile picture current on every Google sign-in
+    if (payload.picture && user.avatar !== payload.picture) {
+      user.avatar = payload.picture;
+      await user.save();
     }
 
     return res.status(200).json({
@@ -341,13 +396,17 @@ exports.googleSignIn = async (req, res) => {
       });
     }
     if (err.code === 11000) {
-      // Duplicate ID number vs duplicate email
       if (err.keyPattern && err.keyPattern.idNumber) {
         return res
           .status(409)
-          .json({ message: "This ID number is already registered.", field: "idNumber" });
+          .json({
+            message: "This ID number is already registered.",
+            field: "idNumber",
+          });
       }
-      return res.status(409).json({ message: "An account with this email already exists." });
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists." });
     }
     console.error("googleSignIn error:", err);
     return res.status(500).json(SERVER_ERROR);
@@ -365,18 +424,25 @@ exports.requestOtp = async (req, res) => {
 
     // Same response whether or not the account exists (no email enumeration)
     const genericResponse = {
-      message: "If that email is registered, a verification code has been sent.",
+      message:
+        "If that email is registered, a verification code has been sent.",
     };
 
     const user = await User.findOne({ email: normalizeEmail(email) });
-    if (!user || user.accountStatus === "Deactivated" || user.authProvider === "google") {
+    if (
+      !user ||
+      user.accountStatus === "Deactivated" ||
+      user.authProvider === "google"
+    ) {
       return res.status(200).json(genericResponse);
     }
 
     const otp = generateOtp();
 
     user.resetPasswordOtp = hashOtp(otp);
-    user.resetPasswordOtpExpires = new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000);
+    user.resetPasswordOtpExpires = new Date(
+      Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000,
+    );
     user.resetPasswordOtpUsed = false;
     user.resetPasswordOtpAttempts = 0;
     await user.save();
@@ -395,14 +461,24 @@ exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    if (!isString(email) || !email.trim() || !(isString(otp) || typeof otp === "number")) {
-      return res.status(400).json({ message: "Email and verification code are required." });
+    if (
+      !isString(email) ||
+      !email.trim() ||
+      !(isString(otp) || typeof otp === "number")
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Email and verification code are required." });
     }
 
-    const user = await User.findOne({ email: normalizeEmail(email) }).select(OTP_SELECT);
+    const user = await User.findOne({ email: normalizeEmail(email) }).select(
+      OTP_SELECT,
+    );
 
     if (!(await checkOtp(user, otp))) {
-      return res.status(400).json({ message: "Invalid or expired verification code." });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired verification code." });
     }
 
     return res.status(200).json({ message: "Verification code confirmed." });
@@ -432,7 +508,9 @@ exports.resetPassword = async (req, res) => {
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       return res
         .status(400)
-        .json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+        .json({
+          message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+        });
     }
 
     if (newPassword !== confirmPassword) {
@@ -440,11 +518,13 @@ exports.resetPassword = async (req, res) => {
     }
 
     const user = await User.findOne({ email: normalizeEmail(email) }).select(
-      `${OTP_SELECT} +password`
+      `${OTP_SELECT} +password`,
     );
 
     if (!(await checkOtp(user, otp))) {
-      return res.status(400).json({ message: "Invalid or expired verification code." });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired verification code." });
     }
 
     // Assigning triggers the pre-save bcrypt hook. Never use
@@ -456,7 +536,9 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordOtpAttempts = 0;
     await user.save();
 
-    return res.status(200).json({ message: "Password reset successful! You may now sign in." });
+    return res
+      .status(200)
+      .json({ message: "Password reset successful! You may now sign in." });
   } catch (err) {
     console.error("resetPassword error:", err);
     return res.status(500).json(SERVER_ERROR);
