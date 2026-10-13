@@ -5,7 +5,7 @@ import usePage from "../hooks/usePage";
 import menuCss from "../styles/menu.css?raw";
 import LogoutModal from "../components/LogoutModal"; // adjust path if needed
 
-const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/a/default-user";
+import { DEFAULT_AVATAR, getAvatar } from "../utils/avatar";
 
 // Navigation configuration for Regular Users (Student / Regular Staff)
 const userNavSections = [
@@ -76,9 +76,7 @@ const moderatorNavSections = [
   },
   {
     title: "Account",
-    items: [
-      { label: "Profile", icon: "bi-person-gear", to: "/staff/profile" },
-    ],
+    items: [{ label: "Profile", icon: "bi-person-gear", to: "/staff/profile" }],
   },
 ];
 
@@ -126,9 +124,7 @@ const adminNavSections = [
   },
   {
     title: "Account",
-    items: [
-      { label: "Profile", icon: "bi-person-gear", to: "/admin/profile" },
-    ],
+    items: [{ label: "Profile", icon: "bi-person-gear", to: "/admin/profile" }],
   },
 ];
 
@@ -211,6 +207,7 @@ function ProfileMenu({
               src={avatar}
               alt={name}
               className="profile-menu-avatar"
+              referrerPolicy="no-referrer"
               onError={onAvatarError}
             />
             <div className="profile-menu-info">
@@ -271,14 +268,16 @@ export default function UserLayout() {
   const { sections: navSections, base } =
     roleConfig[user?.role] || defaultConfig;
 
-  // Backend sends firstName / lastName (no `name` field)
+  // Backend sends firstName / lastName (no `name` field).
+  // Re-computed on every render, so a profile update in AuthContext
+  // refreshes the sidebar footer, top bar and dropdown right away.
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.name ||
     "User";
   const displayRole =
     roleLabels[user?.role?.toLowerCase()] || user?.role || "Member";
-  const avatarSrc = user?.avatar || DEFAULT_AVATAR;
+  const avatarSrc = getAvatar(user);
 
   const handleAvatarError = (e) => {
     e.currentTarget.onerror = null;
@@ -357,6 +356,7 @@ export default function UserLayout() {
               src={avatarSrc}
               alt={displayName}
               className="user-avatar"
+              referrerPolicy="no-referrer"
               onError={handleAvatarError}
             />
             <div className="user-info">
@@ -408,6 +408,7 @@ export default function UserLayout() {
                   <img
                     src={avatarSrc}
                     alt={displayName}
+                    referrerPolicy="no-referrer"
                     onError={handleAvatarError}
                   />
                 </button>

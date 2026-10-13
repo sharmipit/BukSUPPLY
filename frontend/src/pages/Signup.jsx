@@ -59,7 +59,7 @@ const idTexts = (kind) => ({
     : 'ID Number',
   placeholder:
     kind === 'Student' ? 'e.g. 2400000000 (Student ID)'
-    : kind === 'Regular Staff' ? 'e.g. 2024-1234 (Employee ID)'
+    : kind === 'Regular Staff' ? 'e.g. P-0000 (Employee ID)'
     : 'Student ID or Personnel ID Number',
 });
 

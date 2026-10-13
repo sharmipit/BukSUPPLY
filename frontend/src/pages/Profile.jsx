@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "../components/LogoutModal";
+import DeactivateModal from "../components/DeactivateModal";
+import { saveProfile, deactivateAccount } from "../api/user";
 import bannerImg from "../assets/BUKSU.jpg";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/Profile.css";
 
-const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/a/default-user";
+import { DEFAULT_AVATAR, getAvatar } from "../utils/avatar";
 
 // Accepts 09XXXXXXXXX or +639XXXXXXXXX
 const PH_MOBILE = /^(09|\+639)\d{9}$/;
@@ -71,52 +73,6 @@ const LEGAL = {
   },
 };
 
-// Small confirm dialog used by Deactivate Account
-function ConfirmModal({
-  open,
-  icon,
-  title,
-  message,
-  confirmText,
-  danger,
-  onConfirm,
-  onClose,
-}) {
-  if (!open) return null;
-  return (
-    <div className="pf-overlay" onClick={onClose}>
-      <div
-        className="pf-modal"
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="pf-modal-icon">
-          <i className={`bi ${icon}`}></i>
-        </div>
-        <h3 className="pf-modal-title">{title}</h3>
-        <p className="pf-modal-desc">{message}</p>
-        <div className="pf-modal-actions">
-          <button
-            type="button"
-            className="pf-modal-btn cancel"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={`pf-modal-btn confirm ${danger ? "danger" : ""}`}
-            onClick={onConfirm}
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Terms & Conditions / Privacy Policy dialog
 function LegalModal({ type, onClose }) {
   useEffect(() => {
@@ -175,13 +131,15 @@ const getInitialValues = (user) => ({
 });
 
 export default function Profile() {
-  const { user, updateUser, setUser } = useAuth();
+  const { user, updateUser, setUser, logout } = useAuth();
 
   // Saved values (what the page shows) and draft values (while editing)
   const [values, setValues] = useState(() => getInitialValues(user));
   const [draft, setDraft] = useState(values);
   const [errors, setErrors] = useState({});
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -215,8 +173,8 @@ export default function Profile() {
   // Administrators cannot deactivate their own account
   const canDeactivate = !["administrator"].includes(user?.role?.toLowerCase());
 
-  const idNumber = user?.idNumber || user?.studentId || user?.id || "N/A";
-  const avatarSrc = user?.avatar || DEFAULT_AVATAR;
+  const idNumber = user?.idNumber || user?.studentId || "N/A";
+  const avatarSrc = getAvatar(user);
   const email = user?.email || "";
 
   /* ---------- Edit profile ---------- */
@@ -249,7 +207,7 @@ export default function Profile() {
     return next;
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const found = validate();
     if (Object.keys(found).length) {
@@ -263,32 +221,48 @@ export default function Profile() {
       contactNumber: draft.contactNumber.trim(),
     };
 
-    // BACKEND DEV NOTE: PUT /api/user/profile with
-    // { firstName, lastName, contactNumber } (email is not editable),
-    // then refresh the user in AuthContext so the sidebar/top bar update too.
-    setValues(cleaned);
+    setSaving(true);
+    try {
+      const { user: saved } = await saveProfile(cleaned);
 
-    // Update the shared user in AuthContext so the sidebar footer, the
-    // top-bar dropdown and this page all show the new name right away.
-    if (typeof updateUser === "function") {
-      updateUser(cleaned);
-    } else if (typeof setUser === "function") {
-      setUser({ ...user, ...cleaned });
+      const next = getInitialValues(saved);
+      setValues(next);
+      setDraft(next);
+
+      // Update the shared user so the sidebar footer, the top-bar dropdown
+      // and this page all show the new name right away.
+      if (typeof updateUser === "function") {
+        updateUser(saved);
+      } else if (typeof setUser === "function") {
+        setUser({ ...user, ...saved });
+      }
+
+      setEditing(false);
+      setErrors({});
+      setNotice({ type: "success", text: "Your profile has been updated." });
+    } catch (err) {
+      if (err.fieldErrors) setErrors(err.fieldErrors);
+      setNotice({ type: "error", text: err.message });
+    } finally {
+      setSaving(false);
     }
-
-    setEditing(false);
-    setErrors({});
-    setNotice({ type: "success", text: "Your profile has been updated." });
   };
 
   /* ---------- Other actions ---------- */
-  const handleDeactivateConfirm = () => {
-    // BACKEND DEV NOTE: PUT /api/user/deactivate, then log the user out
-    setDeactivateOpen(false);
-    setNotice({
-      type: "error",
-      text: "Your deactivation request has been submitted.",
-    });
+  const handleDeactivateConfirm = async () => {
+    if (deactivating) return;
+    setDeactivating(true);
+    try {
+      await deactivateAccount();
+      setDeactivateOpen(false);
+      setNotice({ type: "error", text: "Your account has been deactivated." });
+      // Stays locked on success: the user is being logged out
+      setTimeout(() => logout?.(), 1500);
+    } catch (err) {
+      setDeactivateOpen(false);
+      setNotice({ type: "error", text: err.message });
+      setDeactivating(false);
+    }
   };
 
   const current = editing ? draft : values;
@@ -329,6 +303,7 @@ export default function Profile() {
             src={avatarSrc}
             alt={displayName}
             className="profile-avatar"
+            referrerPolicy="no-referrer"
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = DEFAULT_AVATAR;
@@ -386,11 +361,16 @@ export default function Profile() {
                     type="button"
                     className="pf-btn outline"
                     onClick={cancelEdit}
+                    disabled={saving}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="pf-btn brown">
-                    Save Changes
+                  <button
+                    type="submit"
+                    className="pf-btn brown"
+                    disabled={saving}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </>
               ) : (
@@ -467,15 +447,11 @@ export default function Profile() {
 
       <LegalModal type={legalOpen} onClose={() => setLegalOpen(null)} />
 
-      <ConfirmModal
-        open={canDeactivate && deactivateOpen}
-        icon="bi-person-x"
-        title="Deactivate Account?"
-        message="Your account will be disabled and you will no longer be able to file requisition slips. This action should only be done if you are sure."
-        confirmText="Deactivate"
-        danger
-        onConfirm={handleDeactivateConfirm}
+      <DeactivateModal
+        isOpen={canDeactivate && deactivateOpen}
         onClose={() => setDeactivateOpen(false)}
+        onConfirm={handleDeactivateConfirm}
+        busy={deactivating}
       />
 
       <LogoutModal isOpen={logoutOpen} onClose={() => setLogoutOpen(false)} />
