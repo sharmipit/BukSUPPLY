@@ -165,7 +165,6 @@ function FAQ() {
       {/* Header Banner */}
       <header className="faq-header">
         <div className="faq-header-inner">
-          <span className="faq-badge">Help Center</span>
           <h1>Frequently Asked Questions</h1>
           <p>
             Everything you need to know about requesting in-stock and special
@@ -177,7 +176,7 @@ function FAQ() {
             <i className="bi bi-search" />
             <input
               type="text"
-              placeholder="Search questions (e.g., 'In-stock', 'Justification')..."
+              placeholder="Search for a question"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

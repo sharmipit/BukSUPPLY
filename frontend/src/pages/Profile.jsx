@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import LogoutModal from "../components/LogoutModal";
 import DeactivateModal from "../components/DeactivateModal";
 import { saveProfile, deactivateAccount } from "../api/user";
-import bannerImg from "../assets/BUKSU.jpg";
+import bannerImg from "../assets/buksu-museum.jpg";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/Profile.css";
 
@@ -73,7 +73,7 @@ const LEGAL = {
   },
 };
 
-// Terms & Conditions / Privacy Policy dialog
+// Terms & Conditions / Privacy Policy dialog matched to application modal standards
 function LegalModal({ type, onClose }) {
   useEffect(() => {
     if (!type) return;
@@ -86,19 +86,22 @@ function LegalModal({ type, onClose }) {
   const doc = LEGAL[type];
 
   return (
-    <div className="pf-overlay" onClick={onClose}>
+    <div className="pf-overlay active" onClick={onClose}>
       <div
-        className="pf-modal pf-legal"
+        className="req-modal-card pf-legal-card"
         role="dialog"
         aria-modal="true"
         aria-label={doc.title}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="pf-legal-header">
-          <h3 className="pf-legal-title">{doc.title}</h3>
+        <div className="req-modal-header">
+          <div>
+            <h3 className="req-modal-title">{doc.title}</h3>
+            <p className="req-modal-subtitle">BukSU Supply & Property Management Office guidelines.</p>
+          </div>
           <button
             type="button"
-            className="pf-legal-x"
+            className="req-modal-close-btn"
             onClick={onClose}
             aria-label="Close"
           >
@@ -106,7 +109,7 @@ function LegalModal({ type, onClose }) {
           </button>
         </div>
 
-        <div className="pf-legal-body">
+        <div className="req-modal-body">
           {doc.sections.map(([heading, text]) => (
             <div className="pf-legal-section" key={heading}>
               <h4>{heading}</h4>
@@ -115,9 +118,11 @@ function LegalModal({ type, onClose }) {
           ))}
         </div>
 
-        <button type="button" className="pf-legal-close" onClick={onClose}>
-          Close
-        </button>
+        <div className="details-modal-footer">
+          <button type="button" className="btn-modal-cancel" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -416,12 +421,12 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* Legal links */}
+        {/* Legal links upgraded to prominent buttons */}
         <div className="profile-legal-links">
           <button type="button" onClick={() => setLegalOpen("terms")}>
             Terms &amp; Conditions
           </button>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true">•</span>
           <button type="button" onClick={() => setLegalOpen("privacy")}>
             Privacy Policy
           </button>
