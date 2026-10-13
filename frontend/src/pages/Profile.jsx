@@ -14,29 +14,74 @@ const LEGAL = {
   terms: {
     title: "Terms & Conditions",
     sections: [
-      ["1. Acceptance of Terms", "By creating a BukSUPPLY account, you agree to follow these terms and all applicable BukSU policies."],
-      ["2. Eligibility", "Accounts are limited to currently enrolled students and active BukSU personnel with a valid institutional email address."],
-      ["3. Account Responsibility", "You are responsible for keeping your password confidential and for all activity under your account. Report unauthorized use to PSMO immediately."],
-      ["4. Requisitions & Reservations", "Requests must be accurate and made for official university purposes only. PSMO may approve, modify, or decline any request."],
-      ["5. Acceptable Use", "You may not misuse the system, submit false information, or attempt to access data or accounts that are not yours."],
-      ["6. Suspension", "PSMO may suspend or terminate accounts that violate these terms."],
+      [
+        "1. Acceptance of Terms",
+        "By creating a BukSUPPLY account, you agree to follow these terms and all applicable BukSU policies.",
+      ],
+      [
+        "2. Eligibility",
+        "Accounts are limited to currently enrolled students and active BukSU personnel with a valid institutional email address.",
+      ],
+      [
+        "3. Account Responsibility",
+        "You are responsible for keeping your password confidential and for all activity under your account. Report unauthorized use to PSMO immediately.",
+      ],
+      [
+        "4. Requisitions & Reservations",
+        "Requests must be accurate and made for official university purposes only. PSMO may approve, modify, or decline any request.",
+      ],
+      [
+        "5. Acceptable Use",
+        "You may not misuse the system, submit false information, or attempt to access data or accounts that are not yours.",
+      ],
+      [
+        "6. Suspension",
+        "PSMO may suspend or terminate accounts that violate these terms.",
+      ],
     ],
   },
   privacy: {
     title: "Privacy Policy",
     sections: [
-      ["1. Information We Collect", "Your name, institutional email, ID number, and records of your requisitions and reservations."],
-      ["2. How We Use It", "To verify your identity, process requests, and keep records for inventory and audit purposes."],
-      ["3. Google Sign-In", "If you sign up with Google, we receive your name and email from Google. We do not receive your Google password."],
-      ["4. Data Sharing", "Your data is shared only with authorized BukSU offices and is never sold to third parties."],
-      ["5. Your Rights", "Under the Data Privacy Act of 2012 (RA 10173), you may access, correct, or request deletion of your personal data by contacting PSMO."],
-      ["6. Security", "We apply reasonable technical and organizational safeguards, but no system is completely secure."],
+      [
+        "1. Information We Collect",
+        "Your name, institutional email, ID number, and records of your requisitions and reservations.",
+      ],
+      [
+        "2. How We Use It",
+        "To verify your identity, process requests, and keep records for inventory and audit purposes.",
+      ],
+      [
+        "3. Google Sign-In",
+        "If you sign up with Google, we receive your name and email from Google. We do not receive your Google password.",
+      ],
+      [
+        "4. Data Sharing",
+        "Your data is shared only with authorized BukSU offices and is never sold to third parties.",
+      ],
+      [
+        "5. Your Rights",
+        "Under the Data Privacy Act of 2012 (RA 10173), you may access, correct, or request deletion of your personal data by contacting PSMO.",
+      ],
+      [
+        "6. Security",
+        "We apply reasonable technical and organizational safeguards, but no system is completely secure.",
+      ],
     ],
   },
 };
 
-// Small confirm dialog used by Change Password / Deactivate Account
-function ConfirmModal({ open, icon, title, message, confirmText, danger, onConfirm, onClose }) {
+// Small confirm dialog used by Deactivate Account
+function ConfirmModal({
+  open,
+  icon,
+  title,
+  message,
+  confirmText,
+  danger,
+  onConfirm,
+  onClose,
+}) {
   if (!open) return null;
   return (
     <div className="pf-overlay" onClick={onClose}>
@@ -52,7 +97,11 @@ function ConfirmModal({ open, icon, title, message, confirmText, danger, onConfi
         <h3 className="pf-modal-title">{title}</h3>
         <p className="pf-modal-desc">{message}</p>
         <div className="pf-modal-actions">
-          <button type="button" className="pf-modal-btn cancel" onClick={onClose}>
+          <button
+            type="button"
+            className="pf-modal-btn cancel"
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button
@@ -134,7 +183,6 @@ export default function Profile() {
   const [errors, setErrors] = useState({});
   const [editing, setEditing] = useState(false);
 
-  const [resetOpen, setResetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(null); // 'terms' | 'privacy' | null
@@ -164,10 +212,8 @@ export default function Profile() {
     ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
     : "Member";
 
-  // Administrators and Moderators cannot deactivate their own account
-  const canDeactivate = !["administrator", "moderator"].includes(
-    user?.role?.toLowerCase(),
-  );
+  // Administrators cannot deactivate their own account
+  const canDeactivate = !["administrator"].includes(user?.role?.toLowerCase());
 
   const idNumber = user?.idNumber || user?.studentId || user?.id || "N/A";
   const avatarSrc = user?.avatar || DEFAULT_AVATAR;
@@ -236,15 +282,6 @@ export default function Profile() {
   };
 
   /* ---------- Other actions ---------- */
-  const handleResetConfirm = () => {
-    // BACKEND DEV NOTE: POST /api/auth/forgot-password with { email: user.email }
-    setResetOpen(false);
-    setNotice({
-      type: "success",
-      text: "A password reset link has been sent to your institutional email.",
-    });
-  };
-
   const handleDeactivateConfirm = () => {
     // BACKEND DEV NOTE: PUT /api/user/deactivate, then log the user out
     setDeactivateOpen(false);
@@ -308,7 +345,11 @@ export default function Profile() {
         {/* Personal information (inline edit) */}
         <section className="profile-section">
           <h2 className="profile-section-label">Personal Information</h2>
-          <form className="profile-card profile-form" onSubmit={handleSave} noValidate>
+          <form
+            className="profile-card profile-form"
+            onSubmit={handleSave}
+            noValidate
+          >
             {field("pf-first", "First Name", "firstName", {
               autoComplete: "given-name",
             })}
@@ -341,7 +382,11 @@ export default function Profile() {
             <div className="pf-actions">
               {editing ? (
                 <>
-                  <button type="button" className="pf-btn outline" onClick={cancelEdit}>
+                  <button
+                    type="button"
+                    className="pf-btn outline"
+                    onClick={cancelEdit}
+                  >
                     Cancel
                   </button>
                   <button type="submit" className="pf-btn brown">
@@ -349,7 +394,11 @@ export default function Profile() {
                   </button>
                 </>
               ) : (
-                <button type="button" className="pf-btn brown" onClick={startEdit}>
+                <button
+                  type="button"
+                  className="pf-btn brown"
+                  onClick={startEdit}
+                >
                   <i className="bi bi-pencil"></i>
                   Edit Profile
                 </button>
@@ -362,24 +411,24 @@ export default function Profile() {
         <section className="profile-section">
           <h2 className="profile-section-label">More Settings</h2>
           <div className="profile-card profile-settings">
-            <button
-              type="button"
-              className="profile-btn brown"
-              onClick={() => setResetOpen(true)}
-            >
-              <i className="bi bi-arrow-counterclockwise"></i>
-              Change Password
-            </button>
             {canDeactivate && (
               <button
                 type="button"
-                className="profile-btn red"
+                className="profile-btn brown"
                 onClick={() => setDeactivateOpen(true)}
               >
                 <i className="bi bi-slash-circle"></i>
                 Deactivate Account
               </button>
             )}
+            <button
+              type="button"
+              className="profile-btn red"
+              onClick={() => setLogoutOpen(true)}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+              Logout
+            </button>
           </div>
         </section>
 
@@ -417,16 +466,6 @@ export default function Profile() {
       )}
 
       <LegalModal type={legalOpen} onClose={() => setLegalOpen(null)} />
-
-      <ConfirmModal
-        open={resetOpen}
-        icon="bi-key"
-        title="Change Password?"
-        message="We will send a password reset link to your institutional email address."
-        confirmText="Send Link"
-        onConfirm={handleResetConfirm}
-        onClose={() => setResetOpen(false)}
-      />
 
       <ConfirmModal
         open={canDeactivate && deactivateOpen}
