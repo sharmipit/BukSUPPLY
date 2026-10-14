@@ -4,11 +4,11 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import usePage from "../hooks/usePage";
 import menuCss from "../styles/menu.css?raw";
-import LogoutModal from "../components/LogoutModal"; // adjust path if needed
+import LogoutModal from "../components/LogoutModal";
 
 import { DEFAULT_AVATAR, getAvatar } from "../utils/avatar";
 
-// Must match the max-width used in menu.css (@media (max-width: 768px))
+// Media query for mobile screens (used in JS to match CSS breakpoints)
 const MOBILE_QUERY = "(max-width: 768px)";
 
 // Navigation configuration for Regular Users (Student / Regular Staff)
@@ -146,10 +146,6 @@ const roleLabels = {
   student: "Student Account",
 };
 
-/**
- * Short display name: first word of the first name + the last name.
- * "Sharmagne Faith" + "Gamboa"  ->  "Sharmagne Gamboa"
- */
 function getShortName(user) {
   const first = (user?.firstName || "").trim().split(/\s+/)[0] || "";
   const last = (user?.lastName || "").trim();
@@ -181,9 +177,6 @@ function useMediaQuery(query) {
 
 /**
  * Dropdown shown when clicking a profile trigger.
- * Rendered in a portal on document.body with position: fixed, so it is never
- * clipped by the sidebar's overflow or offset by the top bar's blur filter.
- * direction: "up" (opens above the trigger) | "down" (opens below it)
  */
 function ProfileMenu({
   trigger,
