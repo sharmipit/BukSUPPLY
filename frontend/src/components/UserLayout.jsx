@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import usePage from "../hooks/usePage";
@@ -6,6 +7,9 @@ import menuCss from "../styles/menu.css?raw";
 import LogoutModal from "../components/LogoutModal"; // adjust path if needed
 
 import { DEFAULT_AVATAR, getAvatar } from "../utils/avatar";
+
+// Must match the max-width used in menu.css (@media (max-width: 768px))
+const MOBILE_QUERY = "(max-width: 768px)";
 
 // Navigation configuration for Regular Users (Student / Regular Staff)
 const userNavSections = [
@@ -143,8 +147,42 @@ const roleLabels = {
 };
 
 /**
+ * Short display name: first word of the first name + the last name.
+ * "Sharmagne Faith" + "Gamboa"  ->  "Sharmagne Gamboa"
+ */
+function getShortName(user) {
+  const first = (user?.firstName || "").trim().split(/\s+/)[0] || "";
+  const last = (user?.lastName || "").trim();
+  const joined = [first, last].filter(Boolean).join(" ");
+  if (joined) return joined;
+
+  // Fallback when only a single `name` string exists
+  const parts = (user?.name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0]} ${parts[parts.length - 1]}`;
+  return parts[0] || "User";
+}
+
+/** Tracks a CSS media query so JS and CSS breakpoints stay in sync. */
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches,
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    setMatches(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+
+  return matches;
+}
+
+/**
  * Dropdown shown when clicking a profile trigger.
- * Uses position: fixed so it is never clipped by the sidebar's overflow.
+ * Rendered in a portal on document.body with position: fixed, so it is never
+ * clipped by the sidebar's overflow or offset by the top bar's blur filter.
  * direction: "up" (opens above the trigger) | "down" (opens below it)
  */
 function ProfileMenu({
@@ -154,12 +192,11 @@ function ProfileMenu({
   onLogout,
   name,
   roleLabel,
-  avatar,
-  onAvatarError,
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({});
   const wrapRef = useRef(null);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
 
   const toggle = () => {
@@ -168,7 +205,10 @@ function ProfileMenu({
       setPos(
         direction === "up"
           ? { bottom: window.innerHeight - r.top + 8, left: r.left }
-          : { top: r.bottom + 8, right: window.innerWidth - r.right },
+          : {
+              top: r.bottom + 8,
+              right: document.documentElement.clientWidth - r.right,
+            },
       );
     }
     setOpen((o) => !o);
@@ -179,7 +219,9 @@ function ProfileMenu({
     if (!open) return;
     const close = () => setOpen(false);
     const onMouseDown = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) close();
+      const inTrigger = wrapRef.current && wrapRef.current.contains(e.target);
+      const inMenu = menuRef.current && menuRef.current.contains(e.target);
+      if (!inTrigger && !inMenu) close();
     };
     const onKey = (e) => e.key === "Escape" && close();
 
@@ -199,50 +241,43 @@ function ProfileMenu({
     <div className="profile-menu-wrap" ref={wrapRef}>
       {trigger({ open, toggle })}
 
-      {open && (
-        <div className="profile-menu" style={pos} role="menu">
-          {/* Account header (same as the institutional account) */}
-          <div className="profile-menu-header">
-            <img
-              src={avatar}
-              alt={name}
-              className="profile-menu-avatar"
-              referrerPolicy="no-referrer"
-              onError={onAvatarError}
-            />
-            <div className="profile-menu-info">
-              <span className="profile-menu-name">{name}</span>
-              <span className="profile-menu-role">{roleLabel}</span>
-            </div>
-          </div>
+      {open &&
+        createPortal(
+          <div className="profile-menu" style={pos} role="menu" ref={menuRef}>
+            <span className="profile-menu-label">Signed in as</span>
+            <span className="profile-menu-name" title={name}>
+              {name}
+            </span>
+            <span className="profile-menu-role">{roleLabel}</span>
 
-          <hr className="profile-menu-divider" />
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu-item profile"
+              onClick={() => {
+                setOpen(false);
+                navigate(`${base}/profile`);
+              }}
+            >
+              <i className="bi bi-person"></i>
+              <span>My Profile</span>
+            </button>
 
-          <button
-            type="button"
-            role="menuitem"
-            className="profile-menu-btn edit"
-            onClick={() => {
-              setOpen(false);
-              navigate(`${base}/profile`);
-            }}
-          >
-            Edit Profile
-          </button>
-
-          <button
-            type="button"
-            role="menuitem"
-            className="profile-menu-btn logout"
-            onClick={() => {
-              setOpen(false);
-              onLogout();
-            }}
-          >
-            Logout
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu-item signout"
+              onClick={() => {
+                setOpen(false);
+                onLogout();
+              }}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -259,22 +294,24 @@ export default function UserLayout() {
   // The top bar itself is transparent on every page.
   const isProfilePage = /\/profile\/?$/.test(pathname);
 
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
   });
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  const menuBtnRef = useRef(null);
+  const mobileNavRef = useRef(null);
 
   // Select navigation set based on role
   const { sections: navSections, base } =
     roleConfig[user?.role] || defaultConfig;
 
-  // Backend sends firstName / lastName (no `name` field).
   // Re-computed on every render, so a profile update in AuthContext
   // refreshes the sidebar footer, top bar and dropdown right away.
-  const displayName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-    user?.name ||
-    "User";
+  const displayName = getShortName(user);
   const displayRole =
     roleLabels[user?.role?.toLowerCase()] || user?.role || "Member";
   const avatarSrc = getAvatar(user);
@@ -292,14 +329,59 @@ export default function UserLayout() {
     });
   };
 
+  // Hamburger: dropdown on small screens, collapse/expand sidebar on desktop
+  const handleMenuClick = () => {
+    if (isMobile) setMobileOpen((o) => !o);
+    else toggleSidebar();
+  };
+
+  // Close the mobile dropdown when the route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Close it when the screen grows back to desktop size
+  useEffect(() => {
+    if (!isMobile) setMobileOpen(false);
+  }, [isMobile]);
+
+  // Close it on outside click or Escape
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onMouseDown = (e) => {
+      const inPanel =
+        mobileNavRef.current && mobileNavRef.current.contains(e.target);
+      const inButton =
+        menuBtnRef.current && menuBtnRef.current.contains(e.target);
+      if (!inPanel && !inButton) setMobileOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMobileOpen(false);
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
+  const menuExpanded = isMobile ? mobileOpen : !collapsed;
+
   return (
     <div className={`layout ${collapsed ? "collapsed" : ""}`} id="layout">
-      {/* SIDEBAR */}
+      {/* SIDEBAR (hidden by CSS on small screens) */}
       <aside className="sidebar" id="sidebar">
         <div className="sidebar-top">
-          {/* BRAND */}
-          <div className="brand">
-            <NavLink to={base} className="logo">
+          {/* BRAND: the whole logo (icon + text) toggles the sidebar */}
+          <button
+            type="button"
+            className="brand"
+            onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
+            aria-expanded={!collapsed}
+            title="Toggle sidebar"
+          >
+            <span className="logo">
               <img
                 src="/img/buksupply-sidebar-logo.png"
                 alt="BukSUPPLY"
@@ -308,7 +390,7 @@ export default function UserLayout() {
                   e.currentTarget.style.display = "none";
                 }}
               />
-            </NavLink>
+            </span>
             <img
               src="/img/brand-text-img.png"
               alt="BukSUPPLY Brand"
@@ -317,7 +399,7 @@ export default function UserLayout() {
                 e.currentTarget.style.display = "none";
               }}
             />
-          </div>
+          </button>
 
           {/* NAVIGATION */}
           <nav className="nav">
@@ -371,12 +453,15 @@ export default function UserLayout() {
       <div className={`main${isProfilePage ? " profile-route" : ""}`}>
         <header className="topbar">
           <button
+            ref={menuBtnRef}
             className="menu-btn"
-            onClick={toggleSidebar}
-            aria-label="Toggle sidebar"
-            aria-expanded={!collapsed}
+            onClick={handleMenuClick}
+            aria-label={isMobile ? "Toggle navigation menu" : "Toggle sidebar"}
+            aria-expanded={menuExpanded}
           >
-            <i className="bi bi-list"></i>
+            <i
+              className={`bi ${isMobile && mobileOpen ? "bi-x-lg" : "bi-list"}`}
+            ></i>
           </button>
 
           <div className="topbar-right">
@@ -393,8 +478,6 @@ export default function UserLayout() {
               direction="down"
               name={displayName}
               roleLabel={displayRole}
-              avatar={avatarSrc}
-              onAvatarError={handleAvatarError}
               onLogout={() => setLogoutOpen(true)}
               trigger={({ open, toggle }) => (
                 <button
@@ -415,6 +498,37 @@ export default function UserLayout() {
               )}
             />
           </div>
+
+          {/* MOBILE DROPDOWN NAV (small screens only) */}
+          {isMobile && mobileOpen && (
+            <nav
+              className="mobile-nav"
+              ref={mobileNavRef}
+              aria-label="Main navigation"
+            >
+              {navSections.map((section, idx) => (
+                <React.Fragment key={idx}>
+                  <h3 className="mobile-nav-title">{section.title}</h3>
+                  <ul className="mobile-nav-list">
+                    {section.items.map((item, itemIdx) => (
+                      <li key={itemIdx}>
+                        <NavLink
+                          to={item.to}
+                          end={item.to === base}
+                          className={({ isActive }) =>
+                            `mobile-nav-link${isActive ? " active" : ""}`
+                          }
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          {item.label}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
         </header>
 
         <main className="content" id="content">
