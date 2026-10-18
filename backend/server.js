@@ -50,6 +50,8 @@ app.use(cookieParser());
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/admin/users", require("./routes/adminUserRoutes")); // new
+app.use("/api/requisitions", require("./routes/requisitionRoutes")); //for requisitions
+app.use("/api/notifications", require("./routes/notificationRoutes")); //for notifications
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "buksupply-backend" });
