@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import api, { errMsg } from '../../api/client';
 import ClearNotificationsModal from '../../components/ClearNotificationsModal';
 import '../../styles/user/Notifications.css';
 
@@ -8,75 +8,50 @@ export default function Notifications() {
     document.title = 'Notifications | BukSUPPLY';
   }, []);
 
-  const { user } = useAuth();
-
-  // Dummy notifications state matching BukSUPPLY system events
-  const [notifications, setNotifications] = useState([
-    {
-      id: 'NOTIF-01',
-      title: 'Requisition Approved & Ready',
-      message: 'Your requisition slip REQ-2026-092 for "Markers replenishment" has been approved by the moderator. Please proceed to Property Window 1 for pickup.',
-      date: '2026-10-09 10:30 AM',
-      read: false,
-      type: 'success',
-      link: '/user/requests'
-    },
-    {
-      id: 'NOTIF-02',
-      title: 'New Status Update: Pending',
-      message: 'Your requisition slip REQ-2026-089 has been successfully submitted and is currently awaiting moderator review.',
-      date: '2026-10-05 02:15 PM',
-      read: false,
-      type: 'info',
-      link: '/user/requests'
-    },
-    {
-      id: 'NOTIF-03',
-      title: 'Requisition Denied',
-      message: 'Your requisition slip REQ-2026-061 was denied. Reason: Out of stock inventory category. You can click "Request Again" in the Requisition Hub.',
-      date: '2026-09-15 04:00 PM',
-      read: true,
-      type: 'warning',
-      link: '/user/requests'
-    },
-    {
-      id: 'NOTIF-04',
-      title: 'Item Issued Successfully',
-      message: 'Requisition slip REQ-2026-012 has been marked as claimed and archived to your request history.',
-      date: '2026-08-22 11:00 AM',
-      read: true,
-      type: 'success',
-      link: '/user/history'
-    }
-  ]);
+  // Real notifications from the API (replaces the old hardcoded array)
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const [filterTab, setFilterTab] = useState('All');
   const [clearModalOpen, setClearModalOpen] = useState(false);
 
+  useEffect(() => {
+    api.get('/notifications')
+      .then((res) => setNotifications(res.data.notifications))
+      .catch((err) => setError(errMsg(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
   // Filter logic
-  const filteredNotifications = notifications.filter(notif => {
+  const filteredNotifications = notifications.filter((notif) => {
     if (filterTab === 'Unread') return !notif.read;
     return true;
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // The screen updates immediately; the server call saves it in the background
   const handleMarkAsRead = (id) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications((list) => list.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    api.patch(`/notifications/${id}/read`).catch(() => {});
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    setNotifications((list) => list.map((n) => ({ ...n, read: true })));
+    api.patch('/notifications/read-all').catch(() => {});
   };
 
   const handleDeleteNotification = (e, id) => {
-    e.stopPropagation(); 
-    setNotifications(notifications.filter(n => n.id !== id));
+    e.stopPropagation();
+    setNotifications((list) => list.filter((n) => n.id !== id));
+    api.delete(`/notifications/${id}`).catch(() => {});
   };
 
   const handleConfirmClearAll = () => {
     setNotifications([]);
     setClearModalOpen(false);
+    api.delete('/notifications').catch(() => {});
   };
 
   return (
@@ -86,14 +61,14 @@ export default function Notifications() {
         <div>
           <h1 className="hub-title">Notifications</h1>
           <p className="hub-subtitle">
-            Stay updated with real-time alerts regarding your requisition approvals, window pickups, 
-            <br/>
+            Stay updated with real-time alerts regarding your requisition approvals, window pickups,
+            <br />
             and administrative announcements.
           </p>
         </div>
         <div className="header-actions-group">
           {unreadCount > 0 && (
-            <button 
+            <button
               className="btn-mark-all"
               onClick={handleMarkAllAsRead}
               title="Mark all notifications as read"
@@ -102,7 +77,7 @@ export default function Notifications() {
             </button>
           )}
           {notifications.length > 0 && (
-            <button 
+            <button
               className="btn-clear-notifs"
               onClick={() => setClearModalOpen(true)}
               title="Clear all notifications"
@@ -134,12 +109,28 @@ export default function Notifications() {
       {/* Notifications List Card */}
       <div className="dashboard-section-card">
         <div className="notifications-list-wrapper">
-          {filteredNotifications.length > 0 ? (
+          {loading ? (
+            <div className="empty-state-container">
+              <div className="empty-icon-circle">
+                <i className="bi bi-hourglass-split"></i>
+              </div>
+              <h4>Loading...</h4>
+              <p>Fetching your notifications.</p>
+            </div>
+          ) : error ? (
+            <div className="empty-state-container">
+              <div className="empty-icon-circle">
+                <i className="bi bi-exclamation-circle"></i>
+              </div>
+              <h4>Could not load notifications</h4>
+              <p>{error}</p>
+            </div>
+          ) : filteredNotifications.length > 0 ? (
             filteredNotifications.map((notif) => (
-              <div 
-                key={notif.id} 
+              <div
+                key={notif.id}
                 className={`notification-item-card ${notif.read ? 'read' : 'unread'}`}
-                onClick={() => handleMarkAsRead(notif.id)}
+                onClick={() => !notif.read && handleMarkAsRead(notif.id)}
               >
                 <div className={`notif-icon-badge ${notif.type}`}>
                   {notif.type === 'success' && <i className="bi bi-check-circle-fill"></i>}
@@ -160,16 +151,16 @@ export default function Notifications() {
 
                 <div className="notif-actions">
                   {!notif.read && (
-                    <button 
-                      className="btn-icon-action" 
+                    <button
+                      className="btn-icon-action"
                       onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notif.id); }}
                       title="Mark as read"
                     >
                       <i className="bi bi-check"></i>
                     </button>
                   )}
-                  <button 
-                    className="btn-icon-action delete" 
+                  <button
+                    className="btn-icon-action delete"
                     onClick={(e) => handleDeleteNotification(e, notif.id)}
                     title="Delete notification"
                   >
@@ -191,7 +182,7 @@ export default function Notifications() {
       </div>
 
       {/* Clear All Notifications Confirmation Modal */}
-      <ClearNotificationsModal 
+      <ClearNotificationsModal
         isOpen={clearModalOpen}
         title="Clear All Notifications?"
         message="Are you sure you want to delete all your notifications? This action cannot be undone."
