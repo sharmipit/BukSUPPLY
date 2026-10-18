@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useRequisitions from '../../hooks/useRequisitions';
+import { errMsg } from '../../api/client';
 import DeleteModal from '../../components/DeleteModal';
 import EditRequisitionModal from '../../components/EditRequisitionModal';
 import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
@@ -13,14 +15,8 @@ export default function ItemRequest() {
 
   const { user } = useAuth();
 
-  // Full list of user requisitions (Hub view showing more entries)
-  const [requisitions, setRequisitions] = useState([
-    { id: 'REQ-2026-089', department: 'College of Technologies', title: 'Term 2 supplies', purpose: 'Monthly office supplies for the department.', item: 'Standard Bond Paper (2 Reams)', date: '2026-10-05', status: 'Pending', itemsList: [{ id: '1', name: 'A4 bond paper (ream)', qty: 2, reason: '', maxNormal: 10 }], purchaseItems: [] },
-    { id: 'REQ-2026-090', department: 'College of Technologies', title: 'Markers replenishment', purpose: 'Classroom discussion boards.', item: 'Whiteboard Marker (Black - 3pcs)', date: '2026-10-08', status: 'Processing', itemsList: [{ id: '6', name: 'Whiteboard Marker (Black)', qty: 3, reason: '', maxNormal: 5 }], purchaseItems: [] },
-    { id: 'REQ-2026-091', department: 'College of Technologies', title: 'Specialty Filament', purpose: '3D printing lab.', item: '3D Filament (5 rolls)', date: '2026-10-09', status: 'Purchasing', itemsList: [], purchaseItems: [{ name: '3D Filament', qty: 5, reason: 'Special lab requirement' }] },
-    { id: 'REQ-2026-075', department: 'College of Technologies', title: 'Laboratory Refill', purpose: 'Midterm exams requirement.', item: 'Long bond paper (5 Reams)', date: '2026-09-28', status: 'Accepted', itemsList: [{ id: '2', name: 'Long bond paper (ream)', qty: 5, reason: '', maxNormal: 10 }], purchaseItems: [] },
-    { id: 'REQ-2026-061', department: 'College of Technologies', title: 'Office Essentials', purpose: 'Daily administrative tasks.', item: 'Pencil (10pcs)', date: '2026-09-15', status: 'Denied', itemsList: [{ id: '5', name: 'Pencil', qty: 10, reason: '', maxNormal: 30 }], purchaseItems: [] }
-  ]);
+  // Real data from the API (replaces the old hardcoded array)
+  const { requisitions, loading, error, create, update, remove } = useRequisitions();
 
   // Filtering and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,13 +37,14 @@ export default function ItemRequest() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedDetailsReq, setSelectedDetailsReq] = useState(null);
 
-  // Filter logic 
-  const filteredRequests = requisitions.filter(req => {
+  // Filter logic
+  const filteredRequests = requisitions.filter((req) => {
     const query = searchTerm.toLowerCase().trim();
-    const matchesSearch = query === '' ||
-                          req.id.toLowerCase().includes(query) ||
-                          req.title.toLowerCase().includes(query) ||
-                          req.item.toLowerCase().includes(query);
+    const matchesSearch =
+      query === '' ||
+      req.id.toLowerCase().includes(query) ||
+      req.title.toLowerCase().includes(query) ||
+      req.item.toLowerCase().includes(query);
     const matchesStatus = statusFilter === 'All' || req.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -63,42 +60,42 @@ export default function ItemRequest() {
     setEditModalOpen(true);
   };
 
-  const handleSaveEditedReq = (updatedReq) => {
-    setRequisitions(requisitions.map(r => r.id === updatedReq.id ? updatedReq : r));
-  };
-
   const handleDeleteClick = (id) => {
     setSelectedReqId(id);
     setDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedReqId) {
-      setRequisitions(requisitions.filter(r => r.id !== selectedReqId));
+  const handleConfirmDelete = async () => {
+    try {
+      await remove(selectedReqId);
+    } catch (err) {
+      alert(errMsg(err));
     }
     setDeleteModalOpen(false);
     setSelectedReqId(null);
   };
 
-  const handleCreateNew = (newReqData) => {
-    const newEntry = {
-      ...newReqData,
-      id: `REQ-2026-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Pending'
-    };
-    setRequisitions([newEntry, ...requisitions]);
-  };
-
+  // Opens the modal pre-filled from a denied slip. Saving it calls create().
   const handleRequestAgain = (req) => {
     setIsCreateMode(true);
     setSelectedEditReq({
-      id: `REQ-2026-${Math.floor(100 + Math.random() * 900)}`,
       department: req.department,
       title: `${req.title} (Re-filed)`,
       purpose: req.purpose,
       itemsList: req.itemsList || [],
-      purchaseItems: req.purchaseItems || []
+      purchaseItems: req.purchaseItems || [],
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleFileNew = () => {
+    setIsCreateMode(true);
+    setSelectedEditReq({
+      department: user?.department || 'College of Technologies',
+      title: '',
+      purpose: '',
+      itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
+      purchaseItems: [],
     });
     setCreateModalOpen(true);
   };
@@ -107,6 +104,21 @@ export default function ItemRequest() {
     setSelectedDetailsReq(req);
     setDetailsModalOpen(true);
   };
+
+  // One helper for the loading / error / empty rows
+  const messageRow = (icon, title, text) => (
+    <tr>
+      <td colSpan="6" className="empty-state-cell">
+        <div className="empty-state-content">
+          <div className="empty-icon-circle">
+            <i className={`bi ${icon}`}></i>
+          </div>
+          <h4>{title}</h4>
+          <p>{text}</p>
+        </div>
+      </td>
+    </tr>
+  );
 
   return (
     <div className="item-request-container">
@@ -118,21 +130,7 @@ export default function ItemRequest() {
             Manage, search, file, and track all your departmental property and supply requisitions in one place.
           </p>
         </div>
-        <button
-          className="btn-file-new-slip border-0"
-          onClick={() => {
-            setIsCreateMode(true);
-            setSelectedEditReq({
-              id: `REQ-2026-${Math.floor(100 + Math.random() * 900)}`,
-              department: user?.department || 'College of Technologies',
-              title: '',
-              purpose: '',
-              itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
-              purchaseItems: []
-            });
-            setCreateModalOpen(true);
-          }}
-        >
+        <button className="btn-file-new-slip border-0" onClick={handleFileNew}>
           <i className="bi bi-plus-lg"></i> File New Requisition
         </button>
       </div>
@@ -181,7 +179,11 @@ export default function ItemRequest() {
               </tr>
             </thead>
             <tbody>
-              {currentItems.length > 0 ? (
+              {loading ? (
+                messageRow('bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
+              ) : error ? (
+                messageRow('bi-exclamation-circle', 'Could not load requisitions', error)
+              ) : currentItems.length > 0 ? (
                 currentItems.map((req) => {
                   const isPending = req.status === 'Pending';
                   const isProcessingOrPurchasing = req.status === 'Processing' || req.status === 'Purchasing';
@@ -247,17 +249,11 @@ export default function ItemRequest() {
                   );
                 })
               ) : (
-                <tr>
-                  <td colSpan="6" className="empty-state-cell">
-                    <div className="empty-state-content">
-                      <div className="empty-icon-circle">
-                        <i className="bi bi-folder2-open"></i>
-                      </div>
-                      <h4>No Requisitions Found</h4>
-                      <p>No requisition slips match your current search or status filter criteria.</p>
-                    </div>
-                  </td>
-                </tr>
+                messageRow(
+                  'bi-folder2-open',
+                  'No Requisitions Found',
+                  'No requisition slips match your current search or status filter criteria.'
+                )
               )}
             </tbody>
           </table>
@@ -269,7 +265,7 @@ export default function ItemRequest() {
           <div className="pagination-controls-wrapper">
             <button
               className="btn-action btn-edit"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -277,7 +273,7 @@ export default function ItemRequest() {
             <span className="pagination-indicator">Page {currentPage}</span>
             <button
               className="btn-action btn-edit"
-              onClick={() => setCurrentPage(prev => prev + 1)}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
               disabled={indexOfLast >= filteredRequests.length}
             >
               Next
@@ -303,7 +299,7 @@ export default function ItemRequest() {
           setCreateModalOpen(false);
         }}
         requisitionData={selectedEditReq}
-        onSave={isCreateMode ? handleCreateNew : handleSaveEditedReq}
+        onSave={isCreateMode ? create : update}
         isCreateMode={isCreateMode}
       />
 

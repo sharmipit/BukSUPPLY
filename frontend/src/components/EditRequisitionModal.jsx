@@ -19,31 +19,34 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchIndex, setActiveSearchIndex] = useState(null);
-  
+
   // Toast state notifications & validation error state
   const [showToast, setShowToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const PURPOSE_MAX_LENGTH = 250;
 
   useEffect(() => {
     if (requisitionData) {
       setDepartment(requisitionData.department || 'College of Technologies');
-      setTitle(requisitionData.title || requisitionData.id || '');
-      setPurpose(requisitionData.purpose || 'Departmental office supplies requisition');
-      
+      setTitle(requisitionData.title || '');
+      setPurpose(requisitionData.purpose || '');
+
+      // Copy the rows so editing here never changes the table's data until the save actually succeeds
       if (requisitionData.itemsList && requisitionData.itemsList.length > 0) {
-        setItems(requisitionData.itemsList);
+        setItems(requisitionData.itemsList.map((i) => ({ ...i })));
       } else {
         setItems([
-          { id: '1', name: 'A4 bond paper (ream)', qty: 2, reason: '', maxNormal: 10 }
+          { id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }
         ]);
       }
 
-      setPurchaseItems(requisitionData.purchaseItems || []);
+      setPurchaseItems((requisitionData.purchaseItems || []).map((p) => ({ ...p })));
       setErrorMessage('');
       setShowErrorToast(false);
+      setSaving(false);
     }
   }, [requisitionData, isOpen]);
 
@@ -59,7 +62,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   const handleItemChange = (index, field, value) => {
     const updated = [...items];
-    updated[index][field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     setItems(updated);
   };
 
@@ -73,32 +76,39 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   const handlePurchaseItemChange = (index, field, value) => {
     const updated = [...purchaseItems];
-    updated[index][field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     setPurchaseItems(updated);
   };
 
   const handleSelectItem = (index, selectedProduct) => {
     const updated = [...items];
-    updated[index].name = selectedProduct.name;
-    updated[index].maxNormal = selectedProduct.maxNormal;
+    updated[index] = {
+      ...updated[index],
+      name: selectedProduct.name,
+      maxNormal: selectedProduct.maxNormal,
+    };
     setItems(updated);
     setActiveSearchIndex(null);
     setSearchTerm('');
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const showError = (message) => {
+    setErrorMessage(message);
+    setShowErrorToast(true);
+    setTimeout(() => setShowErrorToast(false), 3500);
+  };
 
-    // Error handling: Verify that at least one item or purchase item is validly specified
+  // async, waits for the server before showing success
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (saving) return; // ignore double clicks
+
+    // Verify that at least one item or purchase item is validly specified
     const hasValidBodegaItem = items.some(i => i.name && i.name.trim() !== '');
     const hasValidPurchaseItem = purchaseItems.some(p => p.name && p.name.trim() !== '');
 
     if (!hasValidBodegaItem && !hasValidPurchaseItem) {
-      setErrorMessage('Please specify at least one requested item or external purchase item.');
-      setShowErrorToast(true);
-      setTimeout(() => {
-        setShowErrorToast(false);
-      }, 3000);
+      showError('Please specify at least one requested item or external purchase item.');
       return;
     }
 
@@ -107,23 +117,33 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
     const currentDate = new Date().toISOString().split('T')[0];
 
-    const updatedRequisition = {
+    // The server decides id, date, status and remarks and ignores the extra fields, but other pages that reuse this modal may still read them.
+    const payload = {
       ...requisitionData,
       department,
       title,
       purpose,
       itemsList: items,
       purchaseItems: purchaseItems,
-      item: items.filter(i => i.name && i.name.trim() !== '').map(i => `${i.name} (${i.qty})`).join(', ') || 
+      item: items.filter(i => i.name && i.name.trim() !== '').map(i => `${i.name} (${i.qty})`).join(', ') ||
             purchaseItems.filter(p => p.name && p.name.trim() !== '').map(p => `${p.name} (${p.qty})`).join(', '),
       date: requisitionData?.date || currentDate,
       status: requisitionData?.status || 'Pending',
       remarks: requisitionData?.remarks || 'Awaiting admin review.'
     };
 
-    // Trigger parent save handler
-    onSave(updatedRequisition);
+    setSaving(true);
+    try {
+      // Waits for the API call.
+      await onSave(payload);
+    } catch (err) {
+      showError(err?.response?.data?.message || 'Could not save. Please try again.');
+      setSaving(false);
+      return; // keep the modal open so nothing the user typed is lost
+    }
+    setSaving(false);
 
+    // Only reached when the save really succeeded
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -137,8 +157,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       <div className={`req-toast-notification ${showToast ? 'show' : ''}`}>
         <i className="bi bi-check-circle-fill"></i>
         <span>
-          {isCreateMode 
-            ? "Requisition successfully filed!" 
+          {isCreateMode
+            ? "Requisition successfully filed!"
             : `Changes successfully saved for Requisition #${requisitionData?.id}!`}
         </span>
       </div>
@@ -153,12 +173,12 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
         <div className="req-modal-header">
           <div>
             <h3 className="req-modal-title">
-              {isCreateMode ? "File New Requisition Slip" : `Edit Requisition Slip`} 
+              {isCreateMode ? "File New Requisition Slip" : `Edit Requisition Slip`}
               {!isCreateMode && <span className="text-accent"> #{requisitionData?.id}</span>}
             </h3>
             <p className="req-modal-subtitle">
-              {isCreateMode 
-                ? "Submit a new departmental request for bodega stock or external purchasing." 
+              {isCreateMode
+                ? "Submit a new departmental request for bodega stock or external purchasing."
                 : "Update your requested items or requisition details before moderator approval."}
             </p>
           </div>
@@ -171,25 +191,25 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
           {/* Department / Organization */}
           <div className="form-group">
             <label className="form-label">Department or Organization</label>
-            <input 
-              type="text" 
-              className="form-control custom-input" 
-              value={department} 
-              onChange={(e) => setDepartment(e.target.value)} 
-              required 
+            <input
+              type="text"
+              className="form-control custom-input"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              required
             />
           </div>
 
           {/* Request Title */}
           <div className="form-group">
             <label className="form-label">Request Title</label>
-            <input 
-              type="text" 
-              className="form-control custom-input" 
-              value={title} 
+            <input
+              type="text"
+              className="form-control custom-input"
+              value={title}
               placeholder="e.g. Midterm Lab Supplies"
-              onChange={(e) => setTitle(e.target.value)} 
-              required 
+              onChange={(e) => setTitle(e.target.value)}
+              required
             />
           </div>
 
@@ -201,13 +221,13 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                 {purpose.length}/{PURPOSE_MAX_LENGTH}
               </span>
             </div>
-            <textarea 
-              className="form-control custom-input mt-1" 
-              rows="3" 
+            <textarea
+              className="form-control custom-input mt-1"
+              rows="3"
               maxLength={PURPOSE_MAX_LENGTH}
-              value={purpose} 
-              onChange={(e) => setPurpose(e.target.value)} 
-              required 
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              required
             />
           </div>
 
@@ -217,7 +237,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
             {items.map((item, index) => {
               const needsReason = item.qty > (item.maxNormal || 10);
-              const filteredProducts = MOCK_INVENTORY.filter(p => 
+              const filteredProducts = MOCK_INVENTORY.filter(p =>
                 p.name.toLowerCase().includes(searchTerm.toLowerCase())
               );
 
@@ -225,8 +245,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                 <div key={index} className="item-row-card">
                   <div className="item-main-inputs">
                     <div className="search-input-wrapper">
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         className="form-control custom-input"
                         placeholder="Search item by name..."
                         value={activeSearchIndex === index ? searchTerm : item.name}
@@ -245,8 +265,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                         <div className="inventory-dropdown">
                           {filteredProducts.length > 0 ? (
                             filteredProducts.map(product => (
-                              <div 
-                                key={product.id} 
+                              <div
+                                key={product.id}
                                 className="inventory-dropdown-item"
                                 onClick={() => handleSelectItem(index, product)}
                               >
@@ -264,17 +284,17 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                     </div>
 
                     <div className="qty-input-wrapper">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        className="form-control custom-input text-center" 
-                        value={item.qty} 
+                      <input
+                        type="number"
+                        min="1"
+                        className="form-control custom-input text-center"
+                        value={item.qty}
                         onChange={(e) => handleItemChange(index, 'qty', parseInt(e.target.value) || 1)}
                       />
                     </div>
 
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="btn-remove-item"
                       onClick={() => handleRemoveItem(index)}
                       title="Remove item"
@@ -290,8 +310,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                         <i className="bi bi-exclamation-triangle"></i>
                         <span>Maximum {item.maxNormal || 10} per request. Please provide a justification.</span>
                       </div>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         className="form-control custom-input mt-2"
                         placeholder="Explain why you need this quantity..."
                         value={item.reason || ''}
@@ -304,9 +324,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               );
             })}
 
-            <button 
-              type="button" 
-              className="btn-add-item-row" 
+            <button
+              type="button"
+              className="btn-add-item-row"
               onClick={handleAddItem}
             >
               <i className="bi bi-plus-lg"></i> Add bodega item
@@ -322,8 +342,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               <div key={index} className="item-row-card border-warning">
                 <div className="item-main-inputs">
                   <div className="search-input-wrapper">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="form-control custom-input"
                       placeholder="Enter unlisted item name..."
                       value={pItem.name}
@@ -333,18 +353,18 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                   </div>
 
                   <div className="qty-input-wrapper">
-                    <input 
-                      type="number" 
-                      min="1" 
-                      className="form-control custom-input text-center" 
-                      value={pItem.qty} 
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control custom-input text-center"
+                      value={pItem.qty}
                       onChange={(e) => handlePurchaseItemChange(index, 'qty', parseInt(e.target.value) || 1)}
                       required
                     />
                   </div>
 
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="btn-remove-item"
                     onClick={() => handleRemovePurchaseItem(index)}
                     title="Remove purchase item"
@@ -352,8 +372,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                     <i className="bi bi-x-lg"></i>
                   </button>
                 </div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control custom-input mt-2"
                   placeholder="Justification or specification for purchase..."
                   value={pItem.reason || ''}
@@ -363,9 +383,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               </div>
             ))}
 
-            <button 
-              type="button" 
-              className="btn-add-item-row border-warning text-warning-dark" 
+            <button
+              type="button"
+              className="btn-add-item-row border-warning text-warning-dark"
               onClick={handleAddPurchaseItem}
             >
               <i className="bi bi-plus-lg"></i> Add item for university purchase
@@ -376,8 +396,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
             <button type="button" className="btn-modal-cancel" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-modal-save">
-              {isCreateMode ? "Submit Requisition" : "Save Changes"}
+            <button type="submit" className="btn-modal-save" disabled={saving}>
+              {saving ? 'Saving...' : isCreateMode ? 'Submit Requisition' : 'Save Changes'}
             </button>
           </div>
         </form>
