@@ -1,14 +1,28 @@
 const Requisition = require("../models/Requisition");
 const Notification = require("../models/Notification");
 
-const fmtDate = (d) => d.toISOString().split("T")[0];
+const SERVER_ERROR = { message: "Something went wrong. Please try again." };
 
-// Shapes a DB document into what React pages already expect
+// YYYY-MM-DD in Philippine time (toISOString would use UTC and show the wrong day)
+const fmtDate = (d) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+
+// Shapes a DB document into what the React pages expect
 const toClient = (r) => {
   const parts = [
     ...r.itemsList.map((i) => `${i.name} (${i.qty})`),
     ...r.purchaseItems.map((i) => `${i.name} (${i.qty})`),
   ];
+
+  // Only present when the requester was populated (staff views)
+  const requester =
+    r.requester && r.requester.firstName
+      ? {
+          name: [r.requester.firstName, r.requester.lastName].filter((n) => n && n !== "-").join(" "),
+          email: r.requester.email,
+          idNumber: r.requester.idNumber || null,
+        }
+      : undefined;
+
   return {
     id: r.slipNumber,
     department: r.department,
@@ -22,6 +36,7 @@ const toClient = (r) => {
     remarks: r.remarks || (r.status === "Pending" ? "Awaiting moderator review." : ""),
     itemsList: r.itemsList,
     purchaseItems: r.purchaseItems,
+    requester,
   };
 };
 
@@ -54,8 +69,26 @@ const parseBody = (body) => {
 
 /** GET /api/requisitions: the logged-in user's own slips */
 exports.list = async (req, res) => {
-  const docs = await Requisition.find({ requester: req.user._id }).sort({ createdAt: -1 });
-  res.json({ requisitions: docs.map(toClient) });
+  try {
+    const docs = await Requisition.find({ requester: req.user._id }).sort({ createdAt: -1 });
+    res.json({ requisitions: docs.map(toClient) });
+  } catch (err) {
+    console.error("list requisitions error:", err);
+    res.status(500).json(SERVER_ERROR);
+  }
+};
+
+/** GET /api/requisitions/all: every slip (Moderator / Administrator only) */
+exports.listAll = async (req, res) => {
+  try {
+    const docs = await Requisition.find()
+      .sort({ createdAt: -1 })
+      .populate("requester", "firstName lastName email idNumber");
+    res.json({ requisitions: docs.map(toClient) });
+  } catch (err) {
+    console.error("listAll requisitions error:", err);
+    res.status(500).json(SERVER_ERROR);
+  }
 };
 
 /** POST /api/requisitions */
@@ -82,7 +115,7 @@ exports.create = async (req, res) => {
     res.status(201).json({ requisition: toClient(doc) });
   } catch (err) {
     console.error("create requisition error:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again." });
+    res.status(500).json(SERVER_ERROR);
   }
 };
 
@@ -103,7 +136,7 @@ exports.update = async (req, res) => {
     res.json({ requisition: toClient(doc) });
   } catch (err) {
     console.error("update requisition error:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again." });
+    res.status(500).json(SERVER_ERROR);
   }
 };
 
@@ -119,6 +152,48 @@ exports.remove = async (req, res) => {
     res.json({ message: "Requisition deleted." });
   } catch (err) {
     console.error("delete requisition error:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again." });
+    res.status(500).json(SERVER_ERROR);
+  }
+};
+
+// What the student is told for each status change
+const STATUS_NOTIF = {
+  Processing: { type: "info", text: "is now being processed." },
+  Purchasing: { type: "info", text: "has been forwarded for purchasing." },
+  Accepted: { type: "success", text: "has been approved. Please proceed to the Property Window for pickup." },
+  Denied: { type: "warning", text: "was denied." },
+};
+
+/** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
+exports.setStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const remarks = String(req.body.remarks || "").trim();
+
+    if (!STATUS_NOTIF[status]) {
+      return res.status(400).json({ message: "Invalid status." });
+    }
+
+    const doc = await Requisition.findOne({ slipNumber: req.params.slip });
+    if (!doc) return res.status(404).json({ message: "Requisition not found." });
+
+    doc.status = status;
+    doc.remarks = remarks;
+    if (status === "Accepted" || status === "Denied") doc.processedAt = new Date();
+    await doc.save();
+
+    const n = STATUS_NOTIF[status];
+    await Notification.create({
+      user: doc.requester,
+      title: `Requisition ${status}`,
+      message: `Your requisition slip ${doc.slipNumber} ${n.text}${remarks ? ` Remarks: ${remarks}` : ""}`,
+      type: n.type,
+      link: "/user/requests",
+    });
+
+    res.json({ requisition: toClient(doc) });
+  } catch (err) {
+    console.error("setStatus error:", err);
+    res.status(500).json(SERVER_ERROR);
   }
 };
