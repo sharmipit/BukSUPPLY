@@ -36,7 +36,7 @@ const userNavSections = [
   },
 ];
 
-// Navigation configuration for Moderators (Staff)
+// Navigation configuration for Moderators (Inventory & Processing Staff)
 const moderatorNavSections = [
   {
     title: "Main Navigation",
@@ -44,38 +44,17 @@ const moderatorNavSections = [
     items: [
       { label: "Dashboard", icon: "bi-grid", to: "/staff" },
       {
-        label: "Requisition Management",
+        label: "Requests",
         icon: "bi-file-earmark-text",
-        to: "/staff/requisitions",
+        to: "/staff/requests",
       },
+      { label: "Inventory", icon: "bi-box-seam", to: "/staff/inventory" },
       {
-        label: "Supply & Equipment Depot",
-        icon: "bi-box-seam",
-        to: "/staff/supply-depot",
-      },
-      {
-        label: "Issuance & Returns Desk",
-        icon: "bi-arrow-left-right",
-        to: "/staff/issuance-returns",
+        label: "Reports & Logs",
+        icon: "bi-bar-chart",
+        to: "/staff/reports-logs",
       },
       { label: "Notifications", icon: "bi-bell", to: "/staff/notifications" },
-    ],
-  },
-  {
-    title: "Logistics & Administration",
-    items: [
-      {
-        label: "Transaction History",
-        icon: "bi-clock-history",
-        to: "/staff/history",
-      },
-      { label: "Stock Reports", icon: "bi-bar-chart", to: "/staff/reports" },
-      { label: "User Management", icon: "bi-people", to: "/staff/users" },
-      {
-        label: "Activity & Audit Logs",
-        icon: "bi-journal-text",
-        to: "/staff/logs",
-      },
     ],
   },
   {
@@ -92,37 +71,23 @@ const adminNavSections = [
     items: [
       { label: "Dashboard", icon: "bi-grid", to: "/admin" },
       {
-        label: "Requisition Management",
+        label: "Requests",
         icon: "bi-file-earmark-text",
-        to: "/admin/requisitions",
+        to: "/admin/requests",
       },
-      {
-        label: "Supply & Equipment Depot",
-        icon: "bi-box-seam",
-        to: "/admin/supply-depot",
-      },
-      {
-        label: "Issuance & Returns Desk",
-        icon: "bi-arrow-left-right",
-        to: "/admin/issuance-returns",
-      },
+      { label: "Inventory", icon: "bi-box-seam", to: "/admin/inventory" },
       { label: "Notifications", icon: "bi-bell", to: "/admin/notifications" },
     ],
   },
   {
-    title: "Logistics & Administration",
+    title: "Administration",
     items: [
-      {
-        label: "Transaction History",
-        icon: "bi-clock-history",
-        to: "/admin/history",
-      },
-      { label: "Stock Reports", icon: "bi-bar-chart", to: "/admin/reports" },
       { label: "User Management", icon: "bi-people", to: "/admin/users" },
+      { label: "System Settings", icon: "bi-gear", to: "/admin/settings" },
       {
-        label: "Activity & Audit Logs",
-        icon: "bi-journal-text",
-        to: "/admin/logs",
+        label: "Reports & Logs",
+        icon: "bi-bar-chart",
+        to: "/admin/reports-logs",
       },
     ],
   },
@@ -133,8 +98,11 @@ const adminNavSections = [
 ];
 
 // Role -> nav sections + base path
+const adminConfig = { sections: adminNavSections, base: "/admin" };
+
 const roleConfig = {
-  Administrator: { sections: adminNavSections, base: "/admin" },
+  Administrator: adminConfig,
+  Admin: adminConfig,
   Moderator: { sections: moderatorNavSections, base: "/staff" },
 };
 const defaultConfig = { sections: userNavSections, base: "/user" };
@@ -142,6 +110,7 @@ const defaultConfig = { sections: userNavSections, base: "/user" };
 // Friendly labels shown under the name (lowercase keys; lookup ignores case)
 const roleLabels = {
   administrator: "Administrator Account",
+  admin: "Administrator Account",
   moderator: "Moderator Account",
   student: "Student Account",
 };
