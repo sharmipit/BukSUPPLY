@@ -195,6 +195,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               type="text"
               className="form-control custom-input"
               value={department}
+              placeholder="e.g. College of Technologies"
               onChange={(e) => setDepartment(e.target.value)}
               required
             />
