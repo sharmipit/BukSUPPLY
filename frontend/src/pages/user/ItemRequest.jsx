@@ -91,7 +91,7 @@ export default function ItemRequest() {
   const handleFileNew = () => {
     setIsCreateMode(true);
     setSelectedEditReq({
-      department: user?.department || 'College of Technologies',
+      department: '',
       title: '',
       purpose: '',
       itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
