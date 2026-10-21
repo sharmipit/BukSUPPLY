@@ -30,7 +30,8 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
   useEffect(() => {
     if (requisitionData) {
-      setDepartment(requisitionData.department || 'College of Technologies');
+      // No hardcoded fallback: empty stays empty so the placeholder shows
+      setDepartment(requisitionData.department || '');
       setTitle(requisitionData.title || '');
       setPurpose(requisitionData.purpose || '');
 
@@ -227,6 +228,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               rows="3"
               maxLength={PURPOSE_MAX_LENGTH}
               value={purpose}
+              placeholder="e.g. For the midterm laboratory activity"
               onChange={(e) => setPurpose(e.target.value)}
               required
             />
