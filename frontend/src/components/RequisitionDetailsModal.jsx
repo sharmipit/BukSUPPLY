@@ -27,7 +27,7 @@ export default function RequisitionDetailsModal({ isOpen, onClose, requisition }
             </div>
             <div className="detail-item">
               <span className="detail-label">Department</span>
-              <span className="detail-value">{requisition.department || 'College of Technologies'}</span>
+              <span className="detail-value">{requisition.department || '-'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Date Filed</span>
