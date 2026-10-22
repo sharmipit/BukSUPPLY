@@ -51,7 +51,6 @@ const norm = (s) =>
     .trim()
     .toLowerCase();
 
-// What is stopping this request from being accepted (empty list = nothing)
 const getBlockers = (check, status) => [
   ...check.lines
     .filter((l) => !l.enough)
@@ -69,15 +68,6 @@ const getBlockers = (check, status) => [
     ),
 ];
 
-// Stock items that are fine (enough on hand)
-const getAvailable = (check) =>
-  check.lines
-    .filter((l) => l.enough)
-    .map(
-      (l) => `${l.name || l.inv.name}: ${l.qty} requested, ${l.inv.quantity} ${l.inv.unit} on hand.`
-    );
-
-// Which buttons make sense for this request right now
 const getActions = (req, check) => {
   const none = {
     acknowledge: false,
@@ -93,7 +83,6 @@ const getActions = (req, check) => {
     return { ...none, accept: canAccept, purchasing: !canAccept, deny: true };
   }
 
-  // Purchasing always keeps Accept visible. It is only disabled while stock is missing.
   if (req.status === 'Purchasing') {
     return {
       ...none,
@@ -105,7 +94,6 @@ const getActions = (req, check) => {
   return none;
 };
 
-// One plain sentence telling staff what to do next
 const nextStepText = (req, check) => {
   const buy = hasPurchaseItems(req);
   if (req.status === 'Pending') {
@@ -130,7 +118,6 @@ const nextStepText = (req, check) => {
   return '';
 };
 
-// Progress bar: Pending > Processing > (Purchasing) > Accepted
 function Stepper({ req }) {
   if (req.status === 'Denied') return null;
   const flow = [
@@ -141,18 +128,23 @@ function Stepper({ req }) {
   ];
   const current = flow.indexOf(req.status);
   return (
-    <ol className="rq-steps" aria-label="Request progress">
-      {flow.map((step, i) => {
-        const done = i < current || req.status === 'Accepted';
-        const cls = done ? 'done' : i === current ? 'current' : '';
-        return (
-          <li key={step} className={cls}>
-            <span className="rq-step-dot">{done ? '✓' : i + 1}</span>
-            <span className="rq-step-label">{step}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="rq-stepper-card">
+      <ol className="rq-steps" aria-label="Request progress">
+        {flow.map((step, i) => {
+          const done = i < current || req.status === 'Accepted';
+          const cls = done ? 'done' : i === current ? 'current' : '';
+          return (
+            <React.Fragment key={step}>
+              <li className={cls}>
+                <span className="rq-step-dot">{done ? <i className="bi bi-check"></i> : i + 1}</span>
+                <span className="rq-step-label">{step}</span>
+              </li>
+              {i < flow.length - 1 && <li className={`rq-step-line ${i < current ? 'done' : ''}`} />}
+            </React.Fragment>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -162,13 +154,11 @@ export default function Requests() {
   }, []);
 
   const { user } = useAuth();
-  // Only used for the "recorded under" note. The server records the real user.
   const actorName =
     [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ') ||
     user?.email ||
     'Unknown user';
 
-  // Real data from the API
   const { requisitions, loading, error, setStatus } = useAllRequisitions();
   const {
     items,
@@ -180,24 +170,29 @@ export default function Requests() {
   } = useInventory();
   const invReady = !invLoading && !invError;
 
-  // Filtering and pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Modals (store ids so they always show the latest data)
   const [detailsId, setDetailsId] = useState(null);
-  const [decision, setDecision] = useState(null); // { type: "accept" | "deny", id }
+  const [decision, setDecision] = useState(null);
   const [denyReason, setDenyReason] = useState('');
 
-  // Banner message after an action + error shown inside the open modal
-  const [notice, setNotice] = useState(null); // { type: "success" | "error", text }
+  const [notice, setNotice] = useState(null);
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // "Add to inventory" / "Receive stock" popup for purchased items
-  const [receive, setReceive] = useState(null); // { reqId, line }
+  // Auto-dismiss toast timer
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => {
+      setNotice(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const [receive, setReceive] = useState(null);
   const [recvQty, setRecvQty] = useState('');
   const [recvCategory, setRecvCategory] = useState('Office Supplies');
   const [recvUnit, setRecvUnit] = useState('pcs');
@@ -213,16 +208,13 @@ export default function Requests() {
   const detailsReq = requisitions.find((r) => r.id === detailsId) || null;
   const decisionReq = decision ? requisitions.find((r) => r.id === decision.id) || null : null;
 
-  // Compares each requested stock line against what is on hand
   const getCheck = (req) => {
     const lines = (req.itemsList || []).map((l) => {
-      // Match by the saved link first. Older slips have no link, so fall back to the item name.
       const inv =
         items.find((i) => i._id === String(l.inventoryItemId)) ||
         items.find((i) => norm(i.name) === norm(l.name));
       return { ...l, inv, enough: !!inv && l.qty <= inv.quantity };
     });
-    // Purchased items only count once they have been received into the inventory
     const purchaseLines = (req.purchaseItems || []).map((l) => {
       const inv = items.find((i) => norm(i.name) === norm(l.name));
       return { ...l, inv, enough: !!inv && l.qty <= inv.quantity };
@@ -242,10 +234,7 @@ export default function Requests() {
     invReady && detailsCheck && detailsReq && isOpen(detailsReq)
       ? getBlockers(detailsCheck, detailsReq.status)
       : [];
-  const detailsAvailable =
-    invReady && detailsCheck && detailsReq && isOpen(detailsReq) ? getAvailable(detailsCheck) : [];
 
-  // Runs one server call. Returns true on success, shows the server's message on failure.
   const run = async (fn) => {
     setBusy(true);
     setActionError('');
@@ -254,7 +243,7 @@ export default function Requests() {
       return out || true;
     } catch (err) {
       setActionError(errMsg(err));
-      refreshInventory(); // stock may have changed since this page loaded
+      refreshInventory();
       return false;
     } finally {
       setBusy(false);
@@ -262,17 +251,37 @@ export default function Requests() {
   };
 
   const stats = useMemo(
-    () => ({
-      pending: requisitions.filter((r) => r.status === 'Pending').length,
-      inProgress: requisitions.filter((r) => r.status === 'Processing' || r.status === 'Purchasing')
-        .length,
-      accepted: requisitions.filter((r) => r.status === 'Accepted').length,
-      denied: requisitions.filter((r) => r.status === 'Denied').length,
-    }),
+    () => [
+      {
+        title: 'Total Requests',
+        count: requisitions.length,
+        icon: 'bi-file-earmark-text',
+        colorClass: 'stat-total',
+      },
+      {
+        title: 'Accepted',
+        count: requisitions.filter((r) => r.status === 'Accepted').length,
+        icon: 'bi-check-circle',
+        colorClass: 'stat-accepted',
+      },
+      {
+        title: 'Pending',
+        count: requisitions.filter((r) => r.status === 'Pending').length,
+        icon: 'bi-clock-history',
+        colorClass: 'stat-pending',
+      },
+      {
+        title: 'Processing / Purchasing',
+        count: requisitions.filter(
+          (r) => r.status === 'Processing' || r.status === 'Purchasing'
+        ).length,
+        icon: 'bi-arrow-repeat',
+        colorClass: 'stat-processing',
+      },
+    ],
     [requisitions]
   );
 
-  // Pending first, then newest
   const filteredRequests = requisitions
     .filter((req) => {
       const query = searchTerm.toLowerCase().trim();
@@ -297,10 +306,9 @@ export default function Requests() {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentItems = filteredRequests.slice(indexOfFirst, indexOfLast);
 
-  // ---------- Handlers ----------
   const openDetails = (id) => {
     setActionError('');
-    refreshInventory(); // stock may have changed on the Inventory page
+    refreshInventory();
     setDetailsId(id);
   };
 
@@ -320,7 +328,6 @@ export default function Requests() {
     setRecvCategory('Office Supplies');
     setRecvUnit('pcs');
     setRecvRef('');
-    // If some are already in the inventory, suggest only the missing amount
     setRecvQty(String(line.inv ? Math.max(1, line.qty - line.inv.quantity) : line.qty));
     setReceive({ reqId, line });
   };
@@ -338,7 +345,6 @@ export default function Requests() {
     try {
       let code = receive.line.inv?.id;
       if (!code) {
-        // New item: create it empty, then receive the stock so the history shows the slip
         const created = await createInventoryItem({
           name: receive.line.name,
           category: recvCategory.trim(),
@@ -353,7 +359,6 @@ export default function Requests() {
       await adjustInventory(code, {
         mode: 'add',
         amount: qty,
-        // Supplier's delivery/PO number if given, otherwise the slip number
         reference: recvRef.trim() || receive.reqId,
         remark: recvRef.trim()
           ? `Purchased for ${receive.reqId}`
@@ -394,7 +399,6 @@ export default function Requests() {
     if (!decisionReq || busy) return;
 
     if (decision.type === 'accept') {
-      // The server checks stock and deducts it. All or nothing.
       const result = await run(() => setStatus(decisionReq.id, 'Accepted'));
       if (!result) return;
       await refreshInventory();
@@ -419,7 +423,6 @@ export default function Requests() {
     closeDetails();
   };
 
-  // One helper for the loading / error / empty rows
   const messageRow = (icon, title, text) => (
     <tr>
       <td colSpan="6" className="rq-empty-cell">
@@ -436,20 +439,35 @@ export default function Requests() {
 
   return (
     <div className="requests-container">
-      {/* Header */}
+      {/* Greeting Header Card with Divider Line */}
       <div className="rq-header-card">
-        <div>
+        <div className="rq-header-text">
           <h1 className="rq-title">Requests</h1>
           <p className="rq-subtitle">
-            Pending → Processing → Accepted, Purchasing, or Denied. Click Review on a request to see
-            what to do next.
+            Manage, review, and track departmental requisition slips from initial submission to final fulfillment or denial.
           </p>
+        </div>
+
+        <div className="rq-header-divider"></div>
+
+        <div className="stats-grid">
+          {stats.map((stat) => (
+            <div key={stat.title} className={`stat-card ${stat.colorClass}`}>
+              <div className="stat-info">
+                <span className="stat-title">{stat.title}</span>
+                <h2 className="stat-count">{loading ? '–' : stat.count}</h2>
+              </div>
+              <div className="stat-icon-circle">
+                <i className={`bi ${stat.icon}`}></i>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Notice */}
+      {/* Floating Bottom-Right Toast Notice */}
       {notice && (
-        <div className={`rq-notice ${notice.type}`} role="status">
+        <div className={`rq-notice-toast ${notice.type}`} role="status">
           <span>{notice.text}</span>
           <button className="rq-notice-close" onClick={() => setNotice(null)} aria-label="Dismiss">
             <i className="bi bi-x-lg"></i>
@@ -458,30 +476,10 @@ export default function Requests() {
       )}
 
       {invError && (
-        <div className="rq-notice error" role="alert">
-          <span>The inventory couldn't be loaded, so stock can't be checked: {invError}</span>
+        <div className="rq-notice-toast error" role="alert">
+          <span>The inventory couldn't be loaded: {invError}</span>
         </div>
       )}
-
-      {/* Stats */}
-      <div className="rq-stats-row">
-        <div className="rq-stat-card">
-          <span className="rq-stat-label">Pending</span>
-          <span className="rq-stat-value stat-warn">{stats.pending}</span>
-        </div>
-        <div className="rq-stat-card">
-          <span className="rq-stat-label">In progress</span>
-          <span className="rq-stat-value stat-info">{stats.inProgress}</span>
-        </div>
-        <div className="rq-stat-card">
-          <span className="rq-stat-label">Accepted</span>
-          <span className="rq-stat-value stat-ok">{stats.accepted}</span>
-        </div>
-        <div className="rq-stat-card">
-          <span className="rq-stat-label">Denied</span>
-          <span className="rq-stat-value stat-danger">{stats.denied}</span>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="rq-filter-bar">
@@ -581,14 +579,14 @@ export default function Requests() {
                                   className="rq-btn-action rq-btn-review"
                                   onClick={() => openDetails(req.id)}
                                 >
-                                  Review
+                                  <i className="bi bi-clipboard-check"></i> Review
                                 </button>
                               ) : (
                                 <button
                                   className="rq-btn-action rq-btn-view"
                                   onClick={() => openDetails(req.id)}
                                 >
-                                  View
+                                  <i className="bi bi-eye"></i> View
                                 </button>
                               )}
                             </div>
@@ -673,13 +671,6 @@ export default function Requests() {
                       ))}
                     </ul>
                   )}
-                  {detailsAvailable.length > 0 && (
-                    <ul className="rq-available">
-                      {detailsAvailable.map((a, i) => (
-                        <li key={i}>✓ {a}</li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
               )}
 
@@ -732,7 +723,6 @@ export default function Requests() {
                     <tbody>
                       {detailsCheck.lines.map((l, idx) => {
                         const unit = l.inv?.unit || l.unit || '';
-                        const showShort = isOpen(detailsReq) && !l.enough;
                         return (
                           <tr key={`${l.inventoryItemId}-${idx}`}>
                             <td>
@@ -740,14 +730,14 @@ export default function Requests() {
                               <div className="rq-sub">{l.inv?.id || ''}</div>
                               {l.qty > l.maxNormal && (
                                 <div className="rq-line-reason">
-                                  Over the usual limit. Reason: {l.reason || 'none given'}
+                                  Over usual limit. Reason: {l.reason || 'none given'}
                                 </div>
                               )}
                             </td>
                             <td>
                               {l.qty} {unit}
                             </td>
-                            <td className={showShort ? 'rq-short-text' : ''}>
+                            <td>
                               {invLoading
                                 ? 'Checking…'
                                 : l.inv
@@ -759,11 +749,11 @@ export default function Requests() {
                               {invLoading ? (
                                 '…'
                               ) : l.enough ? (
-                                <span className="rq-buy-ok">✓ In stock</span>
+                                <span className="rq-badge accepted">In stock</span>
                               ) : l.inv ? (
-                                <span className="rq-short-text">Not enough</span>
+                                <span className="rq-badge denied">Not enough</span>
                               ) : (
-                                <span className="rq-short-text">Not in inventory</span>
+                                <span className="rq-badge denied">Unlisted</span>
                               )}
                             </td>
                           </tr>
@@ -980,6 +970,7 @@ export default function Requests() {
           </div>
         </div>
       )}
+
       {/* Add purchased item to the inventory */}
       {receive && (
         <div className="rq-modal-backdrop rq-modal-backdrop-top" onClick={() => setReceive(null)}>

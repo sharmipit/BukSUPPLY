@@ -35,40 +35,43 @@ async function apiFetch(path, options = {}) {
 
 function ConfirmModal({
   isOpen,
-  icon,
-  iconClass,
   title,
   message,
   confirmLabel,
-  confirmClass,
   onConfirm,
   onClose,
 }) {
   if (!isOpen) return null;
   return (
-    <div className="um-modal-overlay" onClick={onClose}>
+    <div className="um-modal-backdrop" onClick={onClose}>
       <div
-        className="um-modal um-modal-sm"
+        className="um-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="um-confirm-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`um-modal-icon ${iconClass}`}>
-          <i className={`bi ${icon}`}></i>
-        </div>
-        <h3 className="um-modal-title um-center">{title}</h3>
-        <p className="um-modal-text um-center">{message}</p>
-        <div className="um-modal-actions">
+        <div className="um-modal-header">
+          <h3 id="um-confirm-title">{title}</h3>
           <button
             type="button"
-            className="um-btn um-btn-outline"
+            className="um-modal-close"
             onClick={onClose}
+            aria-label="Close"
           >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="um-modal-body">
+          <p className="um-confirm-text">{message}</p>
+        </div>
+
+        <div className="um-modal-footer">
+          <button type="button" className="um-btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="button"
-            className={`um-btn ${confirmClass}`}
-            onClick={onConfirm}
-          >
+          <button type="button" className="um-btn-primary" onClick={onConfirm}>
             {confirmLabel}
           </button>
         </div>
@@ -166,12 +169,18 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   };
 
   return (
-    <div className="um-modal-overlay" onClick={onClose}>
-      <div className="um-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="um-modal-backdrop" onClick={onClose}>
+      <div
+        className="um-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="um-create-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="um-modal-header">
           <div>
-            <h3 className="um-modal-title">Create Moderator Account</h3>
-            <p className="um-modal-text">
+            <h3 id="um-create-title">Create moderator account</h3>
+            <p className="um-modal-subtitle">
               Set up login credentials for a new Supply &amp; Property
               moderator.
             </p>
@@ -186,145 +195,165 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="um-form-group">
-            <label htmlFor="um-id-number">ID Number</label>
-            <input
-              id="um-id-number"
-              name="idNumber"
-              type="text"
-              placeholder="e.g. P-1234"
-              value={form.idNumber}
-              onChange={handleChange}
-            />
-            {errors.idNumber && (
-              <span className="um-error">{errors.idNumber}</span>
+        <form className="um-modal-form" onSubmit={handleSubmit} noValidate>
+          <div className="um-modal-body">
+            <div className="um-field">
+              <label htmlFor="um-id-number">ID number</label>
+              <input
+                id="um-id-number"
+                name="idNumber"
+                type="text"
+                className="um-input"
+                placeholder="e.g. P-1234"
+                value={form.idNumber}
+                onChange={handleChange}
+              />
+              {errors.idNumber && (
+                <span className="um-field-error">{errors.idNumber}</span>
+              )}
+            </div>
+
+            <div className="um-field-row">
+              <div className="um-field">
+                <label htmlFor="um-first-name">First name</label>
+                <input
+                  id="um-first-name"
+                  name="firstName"
+                  type="text"
+                  className="um-input"
+                  placeholder="First name"
+                  value={form.firstName}
+                  onChange={handleChange}
+                />
+                {errors.firstName && (
+                  <span className="um-field-error">{errors.firstName}</span>
+                )}
+              </div>
+              <div className="um-field">
+                <label htmlFor="um-last-name">Last name</label>
+                <input
+                  id="um-last-name"
+                  name="lastName"
+                  type="text"
+                  className="um-input"
+                  placeholder="Last name"
+                  value={form.lastName}
+                  onChange={handleChange}
+                />
+                {errors.lastName && (
+                  <span className="um-field-error">{errors.lastName}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="um-field">
+              <label htmlFor="um-email">Email address</label>
+              <input
+                id="um-email"
+                name="email"
+                type="email"
+                className="um-input"
+                placeholder="moderator@buksu.edu.ph"
+                value={form.email}
+                onChange={handleChange}
+              />
+              {errors.email && (
+                <span className="um-field-error">{errors.email}</span>
+              )}
+            </div>
+
+            {/*
+            <div className="um-field">
+              <label htmlFor="um-contact">Contact number</label>
+              <input
+                id="um-contact"
+                name="contact"
+                type="tel"
+                className="um-input"
+                maxLength={11}
+                placeholder="09XXXXXXXXX"
+                value={form.contact}
+                onChange={handleChange}
+              />
+              {errors.contact && (
+                <span className="um-field-error">{errors.contact}</span>
+              )}
+            </div>
+            */}
+
+            <div className="um-field-row">
+              <div className="um-field">
+                <label htmlFor="um-password">Password</label>
+                <div className="um-input-wrap">
+                  <input
+                    id="um-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    className="um-input"
+                    placeholder="At least 8 characters"
+                    value={form.password}
+                    onChange={handleChange}
+                  />
+                  <button
+                    type="button"
+                    className="um-eye-btn"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    <i
+                      className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}
+                    ></i>
+                  </button>
+                </div>
+                {errors.password && (
+                  <span className="um-field-error">{errors.password}</span>
+                )}
+              </div>
+              <div className="um-field">
+                <label htmlFor="um-confirm">Confirm password</label>
+                <div className="um-input-wrap">
+                  <input
+                    id="um-confirm"
+                    name="confirmPassword"
+                    type={showConfirm ? "text" : "password"}
+                    className="um-input"
+                    placeholder="Re-enter password"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                  />
+                  <button
+                    type="button"
+                    className="um-eye-btn"
+                    onClick={() => setShowConfirm((prev) => !prev)}
+                    aria-label={showConfirm ? "Hide password" : "Show password"}
+                  >
+                    <i
+                      className={`bi ${showConfirm ? "bi-eye-slash" : "bi-eye"}`}
+                    ></i>
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <span className="um-field-error">
+                    {errors.confirmPassword}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {serverError && (
+              <div className="um-error-box">
+                <strong>Could not create account</strong>
+                <p>{serverError}</p>
+              </div>
             )}
           </div>
 
-          <div className="um-form-row">
-            <div className="um-form-group">
-              <label htmlFor="um-first-name">First Name</label>
-              <input
-                id="um-first-name"
-                name="firstName"
-                type="text"
-                placeholder="First name"
-                value={form.firstName}
-                onChange={handleChange}
-              />
-              {errors.firstName && (
-                <span className="um-error">{errors.firstName}</span>
-              )}
-            </div>
-            <div className="um-form-group">
-              <label htmlFor="um-last-name">Last Name</label>
-              <input
-                id="um-last-name"
-                name="lastName"
-                type="text"
-                placeholder="Last name"
-                value={form.lastName}
-                onChange={handleChange}
-              />
-              {errors.lastName && (
-                <span className="um-error">{errors.lastName}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="um-form-group">
-            <label htmlFor="um-email">Email Address</label>
-            <input
-              id="um-email"
-              name="email"
-              type="email"
-              placeholder="moderator@buksu.edu.ph"
-              value={form.email}
-              onChange={handleChange}
-            />
-            {errors.email && <span className="um-error">{errors.email}</span>}
-          </div>
-
-          {/*
-          <div className="um-form-group">
-            <label htmlFor="um-contact">Contact Number</label>
-            <input
-              id="um-contact"
-              name="contact"
-              type="tel"
-              maxLength={11}
-              placeholder="09XXXXXXXXX"
-              value={form.contact}
-              onChange={handleChange}
-            />
-            {errors.contact && (
-              <span className="um-error">{errors.contact}</span>
-            )}
-          </div>
-          */}
-
-          <div className="um-form-row">
-            <div className="um-form-group">
-              <label htmlFor="um-password">Password</label>
-              <div className="um-input-wrap">
-                <input
-                  id="um-password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="At least 8 characters"
-                  value={form.password}
-                  onChange={handleChange}
-                />
-                <button
-                  type="button"
-                  className="um-eye-btn"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  <i
-                    className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}
-                  ></i>
-                </button>
-              </div>
-              {errors.password && (
-                <span className="um-error">{errors.password}</span>
-              )}
-            </div>
-            <div className="um-form-group">
-              <label htmlFor="um-confirm">Confirm Password</label>
-              <div className="um-input-wrap">
-                <input
-                  id="um-confirm"
-                  name="confirmPassword"
-                  type={showConfirm ? "text" : "password"}
-                  placeholder="Re-enter password"
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                />
-                <button
-                  type="button"
-                  className="um-eye-btn"
-                  onClick={() => setShowConfirm((prev) => !prev)}
-                  aria-label={showConfirm ? "Hide password" : "Show password"}
-                >
-                  <i
-                    className={`bi ${showConfirm ? "bi-eye-slash" : "bi-eye"}`}
-                  ></i>
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <span className="um-error">{errors.confirmPassword}</span>
-              )}
-            </div>
-          </div>
-
-          {serverError && <span className="um-error">{serverError}</span>}
-
-          <div className="um-modal-actions">
+          <div className="um-modal-footer">
             <button
               type="button"
-              className="um-btn um-btn-outline"
+              className="um-btn-secondary"
               onClick={onClose}
             >
               Cancel
@@ -334,8 +363,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
               className="um-btn-primary"
               disabled={submitting}
             >
-              <i className="bi bi-plus-lg"></i>{" "}
-              {submitting ? "Creating..." : "Create Account"}
+              {submitting ? "Creating..." : "Create account"}
             </button>
           </div>
         </form>
@@ -349,6 +377,10 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
 /* ------------------------------------------------------------------ */
 
 export default function UserManagement() {
+  useEffect(() => {
+    document.title = "User Management | BukSUPPLY";
+  }, []);
+
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -360,12 +392,17 @@ export default function UserManagement() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Kebab (three dots) menu: { id, top, right } or null
-  const [openMenu, setOpenMenu] = useState(null);
-
   // Modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState(null);
+
+  // Toast notice
+  const [notice, setNotice] = useState(null);
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   /* ---- Debounce search so we don't hit the API on every keystroke ---- */
   useEffect(() => {
@@ -400,23 +437,8 @@ export default function UserManagement() {
     return () => controller.abort();
   }, [activeFilter, debouncedSearch, currentPage, refreshKey]);
 
-  /* ---- Close the row menu on outside click / scroll / resize ---- */
-  useEffect(() => {
-    if (!openMenu) return undefined;
-    const close = () => setOpenMenu(null);
-    document.addEventListener("click", close);
-    window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      document.removeEventListener("click", close);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, [openMenu]);
-
   /* ---- Pagination (server-side) ---- */
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-  const currentUsers = users;
 
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
@@ -427,23 +449,6 @@ export default function UserManagement() {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
-
-  /* ---- Row menu ---- */
-  const handleMenuToggle = (e, userId) => {
-    e.stopPropagation();
-    if (openMenu?.id === userId) {
-      setOpenMenu(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setOpenMenu({
-      id: userId,
-      top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
-    });
-  };
-
-  const menuUser = openMenu ? users.find((u) => u._id === openMenu.id) : null;
 
   /* ---- Actions ---- */
   const handleCreateModerator = async (data) => {
@@ -458,6 +463,10 @@ export default function UserManagement() {
     setDebouncedSearch("");
     setCurrentPage(1);
     setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `Moderator account created for ${data.firstName} ${data.lastName}.`,
+    });
   };
 
   const handleConfirmReactivate = async () => {
@@ -467,6 +476,10 @@ export default function UserManagement() {
           method: "PATCH",
         });
         setRefreshKey((k) => k + 1);
+        setNotice({
+          type: "success",
+          text: `${reactivateTarget.name} (${reactivateTarget.id}) was reactivated.`,
+        });
       } catch (err) {
         setLoadError(err.message);
       }
@@ -474,9 +487,24 @@ export default function UserManagement() {
     setReactivateTarget(null);
   };
 
+  // One helper for the loading / empty rows
+  const messageRow = (icon, title, text) => (
+    <tr>
+      <td colSpan="6" className="um-empty-cell">
+        <div className="um-empty-content">
+          <div className="um-empty-icon">
+            <i className={`bi ${icon}`}></i>
+          </div>
+          <h4>{title}</h4>
+          <p>{text}</p>
+        </div>
+      </td>
+    </tr>
+  );
+
   return (
     <div className="um-page">
-      {/* 1. Header card */}
+      {/* Header card */}
       <div className="um-header-card">
         <div className="um-header-text">
           <h1 className="um-title">User Management</h1>
@@ -489,16 +517,31 @@ export default function UserManagement() {
         </div>
         <button
           type="button"
+          className="um-btn-add"
           onClick={() => setCreateModalOpen(true)}
-          className="um-btn-primary um-create-btn"
         >
           <i className="bi bi-plus-lg"></i> Create Moderator Account
         </button>
       </div>
 
-      {/* 2. Search + filter pills */}
-      <div className="um-toolbar">
-        <div className="um-search">
+      {/* Floating bottom-right toast */}
+      {notice && (
+        <div className={`um-notice-toast ${notice.type}`} role="status">
+          <span>{notice.text}</span>
+          <button
+            type="button"
+            className="um-notice-close"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+      )}
+
+      {/* Search + filter tabs */}
+      <div className="um-filter-bar">
+        <div className="um-search-wrapper">
           <i className="bi bi-search"></i>
           <input
             type="text"
@@ -508,14 +551,14 @@ export default function UserManagement() {
           />
         </div>
 
-        <div className="um-filter-pills" role="tablist">
+        <div className="um-status-tabs" role="tablist">
           {FILTERS.map((filter) => (
             <button
               key={filter}
               type="button"
               role="tab"
               aria-selected={activeFilter === filter}
-              className={`um-pill ${activeFilter === filter ? "active" : ""}`}
+              className={`um-tab-btn ${activeFilter === filter ? "active" : ""}`}
               onClick={() => handleFilterChange(filter)}
             >
               {filter}
@@ -525,87 +568,90 @@ export default function UserManagement() {
       </div>
 
       {loadError && (
-        <div className="um-error" role="alert">
+        <div className="um-error-box" role="alert">
           {loadError}
         </div>
       )}
 
-      {/* 3. Users table */}
-      <div className="um-card">
-        <div className="um-table-wrap">
+      {/* Users table */}
+      <div className="um-section-card">
+        <div className="um-table-wrapper">
           <table className="um-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email Address</th>
-                <th>Contact Number</th>
-                <th>Status</th>
-                <th className="um-actions-col"></th>
+                <th className="um-col-id">ID</th>
+                <th className="um-col-name">Name</th>
+                <th className="um-col-email">Email Address</th>
+                <th className="um-col-contact">Contact Number</th>
+                <th className="um-col-status">Status</th>
+                <th className="um-col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="um-empty-cell">
-                    Loading users...
-                  </td>
-                </tr>
-              ) : currentUsers.length > 0 ? (
-                currentUsers.map((u) => (
-                  <tr key={u._id}>
-                    <td className="um-id-cell">{u.id}</td>
-                    <td>
-                      <div className="um-name">{u.name}</div>
-                      <div className="um-role">{u.role}</div>
-                    </td>
-                    <td>{u.email}</td>
-                    <td>{u.contact || "-"}</td>
-                    <td>
-                      <span className={`um-badge ${u.status.toLowerCase()}`}>
-                        {u.status}
-                      </span>
-                    </td>
-                    <td className="um-actions-cell">
-                      <button
-                        type="button"
-                        className="um-kebab-btn"
-                        onClick={(e) => handleMenuToggle(e, u._id)}
-                        aria-label={`Actions for ${u.name}`}
-                        aria-haspopup="menu"
-                        aria-expanded={openMenu?.id === u._id}
-                      >
-                        <i className="bi bi-three-dots-vertical"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="um-empty-cell">
-                    <div className="um-empty-content">
-                      <div className="um-empty-icon">
-                        <i className="bi bi-people"></i>
-                      </div>
-                      <h4>No Users Found</h4>
-                      <p>No accounts match your current search or filter.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
+              {loading
+                ? messageRow(
+                    "bi-hourglass-split",
+                    "Loading...",
+                    "Fetching user accounts."
+                  )
+                : users.length > 0
+                  ? users.map((u) => (
+                      <tr key={u._id}>
+                        <td className="um-cell-id">{u.id}</td>
+                        <td>
+                          <div className="um-name um-clamp" title={u.name}>
+                            {u.name}
+                          </div>
+                          <div className="um-role">{u.role}</div>
+                        </td>
+                        <td>
+                          <div className="um-clamp" title={u.email}>
+                            {u.email}
+                          </div>
+                        </td>
+                        <td>{u.contact || "—"}</td>
+                        <td>
+                          <span
+                            className={`um-badge ${u.status.toLowerCase()}`}
+                          >
+                            {u.status}
+                          </span>
+                        </td>
+                        <td>
+                          {u.status === "Deactivated" ? (
+                            <button
+                              type="button"
+                              className="um-btn-action um-btn-reactivate"
+                              onClick={() => setReactivateTarget(u)}
+                              aria-label={`Reactivate ${u.name}`}
+                            >
+                              <i className="bi bi-arrow-counterclockwise"></i>{" "}
+                              Reactivate
+                            </button>
+                          ) : (
+                            <span className="um-no-action">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  : messageRow(
+                      "bi-people",
+                      "No Users Found",
+                      "No accounts match your current search or filter."
+                    )}
             </tbody>
           </table>
         </div>
 
-        <div className="um-table-footer">
+        <div className="um-footer-bar">
           <span>
-            Showing {currentUsers.length} of {total} Users
+            Showing {users.length} of {total} users
           </span>
 
           <div className="um-pagination">
             <button
               type="button"
-              className="um-btn um-btn-outline"
+              className="um-btn-action um-btn-neutral"
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
             >
@@ -614,7 +660,7 @@ export default function UserManagement() {
             <span className="um-page-indicator">Page {currentPage}</span>
             <button
               type="button"
-              className="um-btn um-btn-outline"
+              className="um-btn-action um-btn-neutral"
               onClick={() => setCurrentPage((prev) => prev + 1)}
               disabled={currentPage >= totalPages}
             >
@@ -623,30 +669,6 @@ export default function UserManagement() {
           </div>
         </div>
       </div>
-
-      {/* Row action menu (fixed-position so the table wrapper never clips it) */}
-      {openMenu && menuUser && (
-        <div
-          className="um-row-menu"
-          role="menu"
-          style={{ top: openMenu.top, right: openMenu.right }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Reactivate is always shown, but only clickable when the account is Deactivated */}
-          <button
-            type="button"
-            role="menuitem"
-            className="um-row-menu-item"
-            disabled={menuUser.status !== "Deactivated"}
-            onClick={() => {
-              setReactivateTarget(menuUser);
-              setOpenMenu(null);
-            }}
-          >
-            <i className="bi bi-arrow-counterclockwise"></i> Reactivate
-          </button>
-        </div>
-      )}
 
       {/* Modals */}
       <CreateModeratorModal
@@ -657,16 +679,13 @@ export default function UserManagement() {
 
       <ConfirmModal
         isOpen={!!reactivateTarget}
-        icon="bi-arrow-counterclockwise"
-        iconClass="success"
-        title="Reactivate Account?"
+        title="Reactivate account?"
         message={
           reactivateTarget
             ? `${reactivateTarget.name} (${reactivateTarget.id}) will regain access to the system.`
             : ""
         }
         confirmLabel="Reactivate"
-        confirmClass="um-btn-brand"
         onConfirm={handleConfirmReactivate}
         onClose={() => setReactivateTarget(null)}
       />
