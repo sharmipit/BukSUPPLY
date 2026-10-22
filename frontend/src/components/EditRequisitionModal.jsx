@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import useInventory from '../hooks/useInventory';
 import '../styles/EditRequisitionModal.css';
 
-// Dummy stock database matching your system items
-const MOCK_INVENTORY = [
-  { id: '1', name: 'A4 bond paper (ream)', available: 8, maxNormal: 10 },
-  { id: '2', name: 'Long bond paper (ream)', available: 15, maxNormal: 10 },
-  { id: '3', name: 'Ballpen (blue)', available: 200, maxNormal: 30 },
-  { id: '4', name: 'Ballpen (black)', available: 150, maxNormal: 30 },
-  { id: '5', name: 'Pencil', available: 120, maxNormal: 30 },
-  { id: '6', name: 'Whiteboard Marker (Black)', available: 45, maxNormal: 5 },
-];
-
-export default function EditRequisitionModal({ isOpen, onClose, requisitionData, onSave, isCreateMode }) {
+export default function EditRequisitionModal({
+  isOpen,
+  onClose,
+  requisitionData,
+  onSave,
+  isCreateMode,
+}) {
+  const { items: inventory, refresh: refreshInventory } = useInventory();
   const [department, setDepartment] = useState('');
   const [title, setTitle] = useState('');
   const [purpose, setPurpose] = useState('');
@@ -39,9 +37,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       if (requisitionData.itemsList && requisitionData.itemsList.length > 0) {
         setItems(requisitionData.itemsList.map((i) => ({ ...i })));
       } else {
-        setItems([
-          { id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }
-        ]);
+        setItems([{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }]);
       }
 
       setPurchaseItems((requisitionData.purchaseItems || []).map((p) => ({ ...p })));
@@ -51,10 +47,18 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
     }
   }, [requisitionData, isOpen]);
 
+  // Reload stock each time the form opens so the numbers are current
+  useEffect(() => {
+    if (isOpen) refreshInventory();
+  }, [isOpen, refreshInventory]);
+
   if (!isOpen) return null;
 
   const handleAddItem = () => {
-    setItems([...items, { id: Date.now().toString(), name: '', qty: 1, reason: '', maxNormal: 10 }]);
+    setItems([
+      ...items,
+      { id: Date.now().toString(), name: '', qty: 1, reason: '', maxNormal: 10 },
+    ]);
   };
 
   const handleRemoveItem = (index) => {
@@ -68,7 +72,10 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
   };
 
   const handleAddPurchaseItem = () => {
-    setPurchaseItems([...purchaseItems, { id: Date.now().toString(), name: '', qty: 1, reason: '' }]);
+    setPurchaseItems([
+      ...purchaseItems,
+      { id: Date.now().toString(), name: '', qty: 1, reason: '' },
+    ]);
   };
 
   const handleRemovePurchaseItem = (index) => {
@@ -81,11 +88,23 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
     setPurchaseItems(updated);
   };
 
+  // Typing free text unlinks the row from the inventory until an item is picked from the list
+  const handleItemTyping = (index, text) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], name: text, inventoryItemId: null };
+    setItems(updated);
+  };
+
+  const stockOf = (item) => inventory.find((p) => p._id === item.inventoryItemId);
+
   const handleSelectItem = (index, selectedProduct) => {
+    if (selectedProduct.quantity <= 0) return; // out of stock: use the external purchase section
     const updated = [...items];
     updated[index] = {
       ...updated[index],
+      inventoryItemId: selectedProduct._id,
       name: selectedProduct.name,
+      unit: selectedProduct.unit,
       maxNormal: selectedProduct.maxNormal,
     };
     setItems(updated);
@@ -105,11 +124,28 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
     if (saving) return; // ignore double clicks
 
     // Verify that at least one item or purchase item is validly specified
-    const hasValidBodegaItem = items.some(i => i.name && i.name.trim() !== '');
-    const hasValidPurchaseItem = purchaseItems.some(p => p.name && p.name.trim() !== '');
+    const hasValidBodegaItem = items.some((i) => i.name && i.name.trim() !== '');
+    const hasValidPurchaseItem = purchaseItems.some((p) => p.name && p.name.trim() !== '');
 
     if (!hasValidBodegaItem && !hasValidPurchaseItem) {
       showError('Please specify at least one requested item or external purchase item.');
+      return;
+    }
+
+    const namedRows = items.filter((i) => i.name && i.name.trim() !== '');
+    const unlinked = namedRows.find((i) => !i.inventoryItemId);
+    if (unlinked) {
+      showError(`Pick "${unlinked.name}" from the dropdown list, or move it to External Purchase.`);
+      return;
+    }
+    const tooMany = namedRows.find((i) => {
+      const stock = stockOf(i);
+      return stock && i.qty > stock.quantity;
+    });
+    if (tooMany) {
+      showError(
+        `Only ${stockOf(tooMany).quantity} of "${tooMany.name}" in stock. Lower the quantity or request the extra as an external purchase.`
+      );
       return;
     }
 
@@ -126,11 +162,18 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
       purpose,
       itemsList: items,
       purchaseItems: purchaseItems,
-      item: items.filter(i => i.name && i.name.trim() !== '').map(i => `${i.name} (${i.qty})`).join(', ') ||
-            purchaseItems.filter(p => p.name && p.name.trim() !== '').map(p => `${p.name} (${p.qty})`).join(', '),
+      item:
+        items
+          .filter((i) => i.name && i.name.trim() !== '')
+          .map((i) => `${i.name} (${i.qty})`)
+          .join(', ') ||
+        purchaseItems
+          .filter((p) => p.name && p.name.trim() !== '')
+          .map((p) => `${p.name} (${p.qty})`)
+          .join(', '),
       date: requisitionData?.date || currentDate,
       status: requisitionData?.status || 'Pending',
-      remarks: requisitionData?.remarks || 'Awaiting admin review.'
+      remarks: requisitionData?.remarks || 'Awaiting admin review.',
     };
 
     setSaving(true);
@@ -159,7 +202,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
         <i className="bi bi-check-circle-fill"></i>
         <span>
           {isCreateMode
-            ? "Requisition successfully filed!"
+            ? 'Requisition successfully filed!'
             : `Changes successfully saved for Requisition #${requisitionData?.id}!`}
         </span>
       </div>
@@ -174,13 +217,13 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
         <div className="req-modal-header">
           <div>
             <h3 className="req-modal-title">
-              {isCreateMode ? "File New Requisition Slip" : `Edit Requisition Slip`}
+              {isCreateMode ? 'File New Requisition Slip' : `Edit Requisition Slip`}
               {!isCreateMode && <span className="text-accent"> #{requisitionData?.id}</span>}
             </h3>
             <p className="req-modal-subtitle">
               {isCreateMode
-                ? "Submit a new departmental request for bodega stock or external purchasing."
-                : "Update your requested items or requisition details before moderator approval."}
+                ? 'Submit a new departmental request for bodega stock or external purchasing.'
+                : 'Update your requested items or requisition details before moderator approval.'}
             </p>
           </div>
           <button className="req-modal-close-btn" onClick={onClose} type="button">
@@ -219,7 +262,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
           <div className="form-group">
             <div className="d-flex justify-content-between align-items-center">
               <label className="form-label mb-0">Purpose</label>
-              <span className={`char-counter ${purpose.length > PURPOSE_MAX_LENGTH ? 'text-danger' : ''}`}>
+              <span
+                className={`char-counter ${purpose.length > PURPOSE_MAX_LENGTH ? 'text-danger' : ''}`}
+              >
                 {purpose.length}/{PURPOSE_MAX_LENGTH}
               </span>
             </div>
@@ -240,7 +285,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
 
             {items.map((item, index) => {
               const needsReason = item.qty > (item.maxNormal || 10);
-              const filteredProducts = MOCK_INVENTORY.filter(p =>
+              const filteredProducts = inventory.filter((p) =>
                 p.name.toLowerCase().includes(searchTerm.toLowerCase())
               );
 
@@ -259,7 +304,7 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                         }}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
-                          handleItemChange(index, 'name', e.target.value);
+                          handleItemTyping(index, e.target.value);
                         }}
                       />
 
@@ -267,19 +312,29 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                       {activeSearchIndex === index && searchTerm.length >= 1 && (
                         <div className="inventory-dropdown">
                           {filteredProducts.length > 0 ? (
-                            filteredProducts.map(product => (
+                            filteredProducts.map((product) => (
                               <div
-                                key={product.id}
+                                key={product._id}
                                 className="inventory-dropdown-item"
+                                style={
+                                  product.quantity <= 0
+                                    ? { opacity: 0.5, cursor: 'not-allowed' }
+                                    : undefined
+                                }
                                 onClick={() => handleSelectItem(index, product)}
                               >
                                 <span>{product.name}</span>
-                                <span className="stock-badge">{product.available} available</span>
+                                <span className="stock-badge">
+                                  {product.quantity > 0
+                                    ? `${product.quantity} available`
+                                    : 'Out of stock'}
+                                </span>
                               </div>
                             ))
                           ) : (
                             <div className="inventory-dropdown-empty">
-                              <i className="bi bi-search"></i> No items found matching "{searchTerm}"
+                              <i className="bi bi-search"></i> No items found matching "{searchTerm}
+                              "
                             </div>
                           )}
                         </div>
@@ -292,7 +347,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                         min="1"
                         className="form-control custom-input text-center"
                         value={item.qty}
-                        onChange={(e) => handleItemChange(index, 'qty', parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          handleItemChange(index, 'qty', parseInt(e.target.value) || 1)
+                        }
                       />
                     </div>
 
@@ -307,11 +364,20 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                     </button>
                   </div>
 
+                  {item.inventoryItemId && stockOf(item) && item.qty > stockOf(item).quantity && (
+                    <div className="small text-danger mt-2">
+                      Only {stockOf(item).quantity} {stockOf(item).unit} in stock.
+                    </div>
+                  )}
+
                   {needsReason && (
                     <div className="reason-box mt-3">
                       <div className="warning-banner">
                         <i className="bi bi-exclamation-triangle"></i>
-                        <span>Maximum {item.maxNormal || 10} per request. Please provide a justification.</span>
+                        <span>
+                          Maximum {item.maxNormal || 10} per request. Please provide a
+                          justification.
+                        </span>
                       </div>
                       <input
                         type="text"
@@ -327,19 +393,20 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
               );
             })}
 
-            <button
-              type="button"
-              className="btn-add-item-row"
-              onClick={handleAddItem}
-            >
+            <button type="button" className="btn-add-item-row" onClick={handleAddItem}>
               <i className="bi bi-plus-lg"></i> Add bodega item
             </button>
           </div>
 
           {/* External Purchase / Out-of-Stock Items Section */}
           <div className="items-section mt-4 pt-3 border-top">
-            <label className="form-label font-bold text-warning-dark">External Purchase / Out-of-Stock Items</label>
-            <p className="small text-muted mb-2">Use this section if items are not available in the bodega and need university purchasing.</p>
+            <label className="form-label font-bold text-warning-dark">
+              External Purchase / Out-of-Stock Items
+            </label>
+            <p className="small text-muted mb-2">
+              Use this section if items are not available in the bodega and need university
+              purchasing.
+            </p>
 
             {purchaseItems.map((pItem, index) => (
               <div key={index} className="item-row-card border-warning">
@@ -361,7 +428,9 @@ export default function EditRequisitionModal({ isOpen, onClose, requisitionData,
                       min="1"
                       className="form-control custom-input text-center"
                       value={pItem.qty}
-                      onChange={(e) => handlePurchaseItemChange(index, 'qty', parseInt(e.target.value) || 1)}
+                      onChange={(e) =>
+                        handlePurchaseItemChange(index, 'qty', parseInt(e.target.value) || 1)
+                      }
                       required
                     />
                   </div>
