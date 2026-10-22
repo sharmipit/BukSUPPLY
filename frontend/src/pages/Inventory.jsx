@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
-import DeleteModal from '../components/DeleteModal';
 import '../styles/Inventory.css';
 
 // Starting categories. Any category typed into the form is added automatically.
@@ -60,7 +59,6 @@ export default function Inventory() {
   }, []);
 
   const { user } = useAuth();
-  const isAdmin = ['admin', 'administrator'].includes(String(user?.role || '').toLowerCase());
   // Only used for the "recorded by" note. The server records the real user.
   const actorName =
     [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ') ||
@@ -91,6 +89,14 @@ export default function Inventory() {
     }
   }, [categories, categoryFilter]);
 
+  // Toast notice
+  const [notice, setNotice] = useState(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -112,15 +118,23 @@ export default function Inventory() {
   const [historyId, setHistoryId] = useState(null);
   const historyItem = items.find((i) => i.id === historyId) || null;
 
-  // Delete modal
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState(null);
+  // Delete modal (available to both admin and moderator)
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const stats = useMemo(() => {
     const low = items.filter((i) => getStockStatus(i) === 'Low Stock').length;
     const out = items.filter((i) => getStockStatus(i) === 'Out of Stock').length;
     return { total: items.length, inStock: items.length - low - out, low, out };
   }, [items]);
+
+  const statCards = [
+    { title: 'Total Items', count: stats.total, icon: 'bi-boxes' },
+    { title: 'In Stock', count: stats.inStock, icon: 'bi-check-circle' },
+    { title: 'Low Stock', count: stats.low, icon: 'bi-exclamation-triangle' },
+    { title: 'Out of Stock', count: stats.out, icon: 'bi-x-octagon' },
+  ];
 
   const filteredItems = items.filter((item) => {
     const query = searchTerm.toLowerCase().trim();
@@ -133,6 +147,12 @@ export default function Inventory() {
     const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
     return matchesSearch && matchesStatus && matchesCategory;
   });
+
+  // If the current page disappears (e.g. the last item on it was deleted), step back
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [filteredItems.length, currentPage]);
 
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
@@ -195,6 +215,12 @@ export default function Inventory() {
       if (editingId) await update(editingId, cleaned);
       else await create(cleaned);
       setFormModalOpen(false);
+      setNotice({
+        type: 'success',
+        text: editingId
+          ? `${cleaned.name} was updated.`
+          : `${cleaned.name} was added to the inventory.`,
+      });
     } catch (err) {
       setFormError(errMsg(err));
     } finally {
@@ -231,6 +257,12 @@ export default function Inventory() {
         reference: adjustReference.trim(),
         remark: adjustRemark.trim(),
       });
+      setNotice({
+        type: 'success',
+        text: `${adjustTarget.name}: stock ${
+          adjustMode === 'add' ? 'received' : 'withdrawn'
+        } (${adjustTarget.quantity} → ${adjustPreview} ${adjustTarget.unit}).`,
+      });
       setAdjustTarget(null);
     } catch (err) {
       setAdjustError(errMsg(err));
@@ -239,28 +271,42 @@ export default function Inventory() {
     }
   };
 
-  // ---------- Delete (admin only) ----------
-  const handleDeleteClick = (id) => {
-    setSelectedItemId(id);
-    setDeleteModalOpen(true);
+  // ---------- Delete (admin and moderator) ----------
+  const openDeleteModal = (item) => {
+    setDeleteError('');
+    setDeleteTarget(item);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteError('');
+    setDeleteTarget(null);
   };
 
   const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
     try {
-      if (selectedItemId) await remove(selectedItemId);
+      await remove(deleteTarget.id);
+      setNotice({
+        type: 'success',
+        text: `${deleteTarget.name} (${deleteTarget.id}) was deleted.`,
+      });
+      setDeleteTarget(null);
     } catch (err) {
-      alert(errMsg(err));
+      setDeleteError(errMsg(err));
+    } finally {
+      setDeleting(false);
     }
-    setDeleteModalOpen(false);
-    setSelectedItemId(null);
   };
 
   // One helper for the loading / error / empty rows
   const messageRow = (icon, title, text) => (
     <tr>
-      <td colSpan="7" className="empty-state-cell">
-        <div className="empty-state-content">
-          <div className="empty-icon-circle">
+      <td colSpan="7" className="inv-empty-cell">
+        <div className="inv-empty-content">
+          <div className="inv-empty-icon">
             <i className={`bi ${icon}`}></i>
           </div>
           <h4>{title}</h4>
@@ -272,38 +318,47 @@ export default function Inventory() {
 
   return (
     <div className="inventory-container">
-      {/* Header */}
+      {/* Header card with divider and stats */}
       <div className="inv-header-card">
-        <div>
-          <h1 className="inv-title">Inventory</h1>
-          <p className="inv-subtitle">
-            Track supply stock levels, record deliveries and withdrawals, and see who changed what.
-          </p>
+        <div className="inv-header-top">
+          <div className="inv-header-text">
+            <h1 className="inv-title">Inventory</h1>
+            <p className="inv-subtitle">
+              Track supply stock levels, record deliveries and withdrawals, and see who changed
+              what.
+            </p>
+          </div>
+          <button className="inv-btn-add" onClick={openAddModal}>
+            <i className="bi bi-plus-lg"></i> Add Item
+          </button>
         </div>
-        <button className="btn-add-item" onClick={openAddModal}>
-          <i className="bi bi-plus-lg"></i> Add Item
-        </button>
+
+        <div className="inv-header-divider"></div>
+
+        <div className="inv-stats-grid">
+          {statCards.map((stat) => (
+            <div key={stat.title} className="inv-stat-card">
+              <div className="inv-stat-info">
+                <span className="inv-stat-title">{stat.title}</span>
+                <h2 className="inv-stat-count">{loading ? '–' : stat.count}</h2>
+              </div>
+              <div className="inv-stat-icon-circle">
+                <i className={`bi ${stat.icon}`}></i>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="inv-stats-row">
-        <div className="inv-stat-card">
-          <span className="inv-stat-label">Total items</span>
-          <span className="inv-stat-value">{stats.total}</span>
+      {/* Floating bottom-right toast */}
+      {notice && (
+        <div className={`inv-notice-toast ${notice.type}`} role="status">
+          <span>{notice.text}</span>
+          <button className="inv-notice-close" onClick={() => setNotice(null)} aria-label="Dismiss">
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
-        <div className="inv-stat-card">
-          <span className="inv-stat-label">In stock</span>
-          <span className="inv-stat-value stat-ok">{stats.inStock}</span>
-        </div>
-        <div className="inv-stat-card">
-          <span className="inv-stat-label">Low stock</span>
-          <span className="inv-stat-value stat-warn">{stats.low}</span>
-        </div>
-        <div className="inv-stat-card">
-          <span className="inv-stat-label">Out of stock</span>
-          <span className="inv-stat-value stat-danger">{stats.out}</span>
-        </div>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="inv-filter-bar">
@@ -321,22 +376,24 @@ export default function Inventory() {
           />
         </div>
 
-        <select
-          className="inv-category-select"
-          value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value);
-            setCurrentPage(1);
-          }}
-          aria-label="Filter by category"
-        >
-          <option value="All">All categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <div className="inv-select-wrap">
+          <select
+            className="form-control custom-input inv-category-select"
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filter by category"
+          >
+            <option value="All">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="inv-status-tabs">
           {STATUS_TABS.map((status) => (
@@ -360,13 +417,13 @@ export default function Inventory() {
           <table className="inv-table">
             <thead>
               <tr>
-                <th className="col-item">Item</th>
-                <th className="col-category">Category</th>
-                <th className="col-stock">Stock Level</th>
-                <th className="col-location">Location</th>
-                <th className="col-updated">Last Updated</th>
-                <th className="col-status">Status</th>
-                <th className="col-actions text-end">Actions</th>
+                <th className="inv-col-item">Item</th>
+                <th className="inv-col-category">Category</th>
+                <th className="inv-col-stock">Stock Level</th>
+                <th className="inv-col-location">Location</th>
+                <th className="inv-col-updated">Last Updated</th>
+                <th className="inv-col-status">Status</th>
+                <th className="inv-col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -393,18 +450,18 @@ export default function Inventory() {
                             className="inv-row-clickable"
                             onClick={() => setHistoryId(item.id)}
                           >
-                            <td className="align-middle">
-                              <div className="inv-item-name cell-clamp" title={item.name}>
+                            <td className="inv-cell-item">
+                              <div className="inv-item-name inv-clamp" title={item.name}>
                                 {item.name}
                               </div>
                               <div className="inv-item-id">{item.id}</div>
                             </td>
-                            <td className="align-middle">
-                              <div className="cell-clamp" title={item.category}>
+                            <td>
+                              <div className="inv-clamp" title={item.category}>
                                 {item.category}
                               </div>
                             </td>
-                            <td className="align-middle">
+                            <td className="inv-cell-stock">
                               <div className="inv-stock-text">
                                 <strong>{item.quantity}</strong> {item.unit}
                               </div>
@@ -419,50 +476,43 @@ export default function Inventory() {
                                 request
                               </div>
                             </td>
-                            <td className="align-middle">
-                              <div className="cell-clamp" title={item.location}>
+                            <td>
+                              <div className="inv-clamp" title={item.location}>
                                 {item.location || '—'}
                               </div>
                             </td>
-                            <td className="align-middle nowrap-cell">
-                              <div>{fmtDate(item.updated)}</div>
-                              <div className="inv-updated-by" title={item.updatedBy}>
+                            <td>
+                              <div className="inv-nowrap">{fmtDate(item.updated)}</div>
+                              <div className="inv-updated-by inv-clamp" title={item.updatedBy}>
                                 by {item.updatedBy}
                               </div>
                             </td>
-                            <td className="align-middle nowrap-cell">
-                              <span className={`badge-status ${statusClass(status)}`}>
-                                {status}
-                              </span>
+                            <td>
+                              <span className={`inv-badge ${statusClass(status)}`}>{status}</span>
                             </td>
-                            <td
-                              className="text-end align-middle"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="action-buttons">
+                            <td className="inv-cell-actions" onClick={(e) => e.stopPropagation()}>
+                              <div className="inv-action-buttons">
                                 <button
-                                  className="btn-action btn-adjust"
+                                  className="inv-btn-action inv-btn-adjust"
                                   onClick={() => openAdjustModal(item)}
                                   title="Adjust stock"
                                 >
                                   <i className="bi bi-arrow-down-up"></i> Adjust
                                 </button>
                                 <button
-                                  className="btn-action btn-edit"
+                                  className="inv-btn-action inv-btn-neutral"
                                   onClick={() => openEditModal(item)}
                                   title="Edit item"
                                 >
                                   <i className="bi bi-pencil-square"></i> Edit
                                 </button>
-                                {isAdmin && (
-                                  <button
-                                    className="btn-action btn-delete"
-                                    onClick={() => handleDeleteClick(item.id)}
-                                    title="Delete item"
-                                  >
-                                    <i className="bi bi-trash3"></i> Delete
-                                  </button>
-                                )}
+                                <button
+                                  className="inv-btn-action inv-btn-delete"
+                                  onClick={() => openDeleteModal(item)}
+                                  title="Delete item"
+                                >
+                                  <i className="bi bi-trash3"></i> Delete
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -485,7 +535,7 @@ export default function Inventory() {
           </span>
           <div className="inv-pagination">
             <button
-              className="btn-action btn-edit"
+              className="inv-btn-action inv-btn-neutral"
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
             >
@@ -493,7 +543,7 @@ export default function Inventory() {
             </button>
             <span className="inv-page-indicator">Page {currentPage}</span>
             <button
-              className="btn-action btn-edit"
+              className="inv-btn-action inv-btn-neutral"
               onClick={() => setCurrentPage((prev) => prev + 1)}
               disabled={indexOfLast >= filteredItems.length}
             >
@@ -541,7 +591,7 @@ export default function Inventory() {
                   <label htmlFor="inv-category">Category</label>
                   <select
                     id="inv-category"
-                    className="form-control custom-input"
+                    className="form-control custom-input inv-select"
                     value={form.category}
                     onChange={(e) => handleFormChange('category', e.target.value)}
                   >
@@ -635,15 +685,20 @@ export default function Inventory() {
                 by <strong>{actorName}</strong>.
               </p>
 
-              {formError && <span className="inv-field-error">{formError}</span>}
+              {formError && (
+                <div className="inv-error-box">
+                  <strong>Could not save</strong>
+                  <p>{formError}</p>
+                </div>
+              )}
             </div>
 
             <div className="inv-modal-footer">
-              <button className="btn-modal-secondary" onClick={() => setFormModalOpen(false)}>
+              <button className="inv-btn-secondary" onClick={() => setFormModalOpen(false)}>
                 Cancel
               </button>
               <button
-                className="btn-modal-primary"
+                className="inv-btn-primary"
                 onClick={handleSaveItem}
                 disabled={!canSave || saving}
               >
@@ -658,7 +713,7 @@ export default function Inventory() {
       {adjustTarget && (
         <div className="inv-modal-backdrop" onClick={() => setAdjustTarget(null)}>
           <div
-            className="inv-modal inv-modal-sm"
+            className="inv-modal"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -750,15 +805,20 @@ export default function Inventory() {
                 · recorded by <strong>{actorName}</strong>
               </p>
 
-              {adjustError && <span className="inv-field-error">{adjustError}</span>}
+              {adjustError && (
+                <div className="inv-error-box">
+                  <strong>Could not save</strong>
+                  <p>{adjustError}</p>
+                </div>
+              )}
             </div>
 
             <div className="inv-modal-footer">
-              <button className="btn-modal-secondary" onClick={() => setAdjustTarget(null)}>
+              <button className="inv-btn-secondary" onClick={() => setAdjustTarget(null)}>
                 Cancel
               </button>
               <button
-                className="btn-modal-primary"
+                className="inv-btn-primary"
                 onClick={handleConfirmAdjust}
                 disabled={adjustQty === 0 || overWithdraw || adjusting}
               >
@@ -777,7 +837,7 @@ export default function Inventory() {
       {historyItem && (
         <div className="inv-modal-backdrop" onClick={() => setHistoryId(null)}>
           <div
-            className="inv-modal inv-modal-lg"
+            className="inv-modal"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -854,7 +914,7 @@ export default function Inventory() {
             </div>
 
             <div className="inv-modal-footer">
-              <button className="btn-modal-secondary" onClick={() => setHistoryId(null)}>
+              <button className="inv-btn-secondary" onClick={() => setHistoryId(null)}>
                 Close
               </button>
             </div>
@@ -862,14 +922,62 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal (admin only) */}
-      <DeleteModal
-        isOpen={deleteModalOpen}
-        title="Delete Inventory Item?"
-        message={`Are you sure you want to delete item ${selectedItemId}? This action cannot be undone.`}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeleteModalOpen(false)}
-      />
+      {/* Delete Confirmation Modal (admin and moderator).
+          Same width as the others, but its height fits the content. */}
+      {deleteTarget && (
+        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeDeleteModal}>
+          <div
+            className="inv-modal inv-modal-auto"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="inv-delete-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inv-modal-header">
+              <h3 id="inv-delete-title">Delete inventory item?</h3>
+              <button
+                className="inv-modal-close"
+                onClick={closeDeleteModal}
+                aria-label="Close"
+                disabled={deleting}
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div className="inv-modal-body">
+              <p className="inv-confirm-text">
+                <strong>{deleteTarget.name}</strong> · {deleteTarget.id}
+              </p>
+
+              <div className="inv-error-box">
+                <strong>This action cannot be undone</strong>
+                <p>
+                  Are you sure you want to delete item {deleteTarget.id}?
+                  {deleteTarget.quantity > 0 &&
+                    ` It still has ${deleteTarget.quantity} ${deleteTarget.unit} on hand.`}
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="inv-error-box">
+                  <strong>Could not delete</strong>
+                  <p>{deleteError}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="inv-modal-footer">
+              <button className="inv-btn-secondary" onClick={closeDeleteModal} disabled={deleting}>
+                Cancel
+              </button>
+              <button className="inv-btn-danger" onClick={handleConfirmDelete} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete item'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
