@@ -620,6 +620,10 @@
   gap: 16px;
 }
 
+.rq-modal-body > * {
+  flex-shrink: 0;
+}
+
 .rq-modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -804,6 +808,8 @@
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 16px;
   overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
 }
 
 .rq-lines {
@@ -889,6 +895,101 @@
 .rq-deduct-list li.short {
   background-color: #fef2f2;
   color: #991b1b;
+}
+
+/* Append to the bottom of src/styles/Requests.css */
+
+/* Progress steps */
+.rq-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.rq-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.rq-steps li:not(:last-child)::after {
+  content: '';
+  width: 28px;
+  height: 2px;
+  background: #e2e8f0;
+  margin-left: 4px;
+}
+.rq-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.rq-steps li.done {
+  color: #15803d;
+}
+.rq-steps li.done .rq-step-dot {
+  background: #dcfce7;
+  color: #15803d;
+}
+.rq-steps li.done:not(:last-child)::after {
+  background: #86efac;
+}
+.rq-steps li.current {
+  color: #1e293b;
+  font-weight: 700;
+}
+.rq-steps li.current .rq-step-dot {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* What is blocking Accept */
+.rq-blockers {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+.rq-blockers li + li {
+  margin-top: 2px;
+}
+
+/* Purchased items: inventory status next to each one */
+.rq-buy-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.rq-buy-ok {
+  color: #15803d;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.rq-buy-missing {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.rq-available {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #15803d;
+  font-size: 0.9rem;
 }
 
 /* ==========================================================================
