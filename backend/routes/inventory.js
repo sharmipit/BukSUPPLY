@@ -6,9 +6,7 @@ const { protect, restrictTo } = require('../middleware/auth');
 const router = express.Router();
 // IMPORTANT: copy the exact role strings from your requisitionRoutes.js (same spelling and capital letters)
 const STAFF_ROLES = ['Moderator', 'Administrator'];
-const ADMIN_ROLES = ['Administrator'];
 const staffOnly = restrictTo(...STAFF_ROLES);
-const adminOnly = restrictTo(...ADMIN_ROLES);
 
 const roleOf = (u) => String(u?.role || '').toLowerCase();
 const isStaff = (u) => STAFF_ROLES.map((r) => r.toLowerCase()).includes(roleOf(u));
@@ -147,7 +145,8 @@ router.post('/:code/adjust', staffOnly, async (req, res, next) => {
   }
 });
 
-router.delete('/:code', adminOnly, async (req, res, next) => {
+// Moderators and administrators can both delete items
+router.delete('/:code', staffOnly, async (req, res, next) => {
   try {
     const gone = await InventoryItem.findOneAndDelete({ code: req.params.code });
     if (!gone) return res.status(404).json({ message: 'Item not found.' });
