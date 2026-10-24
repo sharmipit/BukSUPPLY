@@ -79,7 +79,6 @@
   color: #2C1A14;
 }
 
-/* Scrollable area with slim scrollbar and brown hover effect */
 .details-modal-body {
   padding: 28px 32px;
   display: flex;
@@ -146,7 +145,6 @@
   gap: 6px;
 }
 
-/* Grey background box exclusively for info values */
 .detail-card-box {
   background-color: #FAF7F2;
   border: 1px solid #DFD8CC;
@@ -161,9 +159,76 @@
   line-height: 1.5;
 }
 
-.purchase-items-list {
+/* ==========================================================================
+   Item lists (stock items and purchase items)
+   ========================================================================== */
+.details-item-list {
+  list-style: none;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.details-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #DFD8CC;
+}
+
+.details-item:first-child {
+  padding-top: 0;
+}
+
+.details-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.details-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.details-item-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #2C1A14;
+  overflow-wrap: anywhere;
+}
+
+.details-item-qty {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 50px;
+  background-color: #F3E8DC;
+  color: #8C5839;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.details-item-note {
+  margin-top: 6px;
+}
+
+.details-item-note-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8C7A70;
+}
+
+.details-item-note p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #594D46;
+  overflow-wrap: anywhere;
 }
 
 .details-modal-footer {
