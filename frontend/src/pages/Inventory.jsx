@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
@@ -82,6 +82,46 @@ export default function Inventory() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // Status and category dropdowns
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryRef = useRef(null);
+
+  // Close the category dropdown on outside click or Escape
+  useEffect(() => {
+    if (!categoryOpen) return;
+    const onDown = (e) => {
+      if (categoryRef.current && !categoryRef.current.contains(e.target)) setCategoryOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setCategoryOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [categoryOpen]);
+
+  // Close the status dropdown on outside click or Escape
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onDown = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFilterOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filterOpen]);
+
   // If the selected category no longer exists (its last item was deleted), reset
   useEffect(() => {
     if (categoryFilter !== 'All' && !categories.includes(categoryFilter)) {
@@ -128,6 +168,16 @@ export default function Inventory() {
     const out = items.filter((i) => getStockStatus(i) === 'Out of Stock').length;
     return { total: items.length, inStock: items.length - low - out, low, out };
   }, [items]);
+
+  const statusCounts = useMemo(
+    () => ({
+      All: items.length,
+      'In Stock': stats.inStock,
+      'Low Stock': stats.low,
+      'Out of Stock': stats.out,
+    }),
+    [items.length, stats]
+  );
 
   const statCards = [
     { title: 'Total Items', count: stats.total, icon: 'bi-boxes' },
@@ -376,38 +426,119 @@ export default function Inventory() {
           />
         </div>
 
-        <div className="inv-select-wrap">
-          <select
-            className="form-control custom-input inv-category-select"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            aria-label="Filter by category"
-          >
-            <option value="All">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="inv-status-tabs">
-          {STATUS_TABS.map((status) => (
+        <div className="inv-filter-group">
+          {/* Category dropdown (no dots or counts) */}
+          <div className="inv-dropdown" ref={categoryRef}>
             <button
-              key={status}
-              className={`inv-tab-btn ${statusFilter === status ? 'active' : ''}`}
+              type="button"
+              className={`inv-dropdown-trigger ${categoryOpen ? 'open' : ''}`}
               onClick={() => {
-                setStatusFilter(status);
-                setCurrentPage(1);
+                setCategoryOpen((o) => !o);
+                setFilterOpen(false);
               }}
+              aria-haspopup="listbox"
+              aria-expanded={categoryOpen}
+              aria-label="Filter by category"
             >
-              {status}
+              <i className="bi bi-tag"></i>
+              <span className="inv-dropdown-label">Category</span>
+              <span className="inv-dropdown-value">
+                <span className="inv-dropdown-value-text">
+                  {categoryFilter === 'All' ? 'All categories' : categoryFilter}
+                </span>
+              </span>
+              <i className="bi bi-chevron-down inv-dropdown-chevron"></i>
             </button>
-          ))}
+
+            {categoryOpen && (
+              <ul className="inv-dropdown-menu" role="listbox">
+                {['All', ...categories].map((cat) => {
+                  const active = categoryFilter === cat;
+                  return (
+                    <li key={cat} role="presentation">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        className={`inv-dropdown-item ${active ? 'active' : ''}`}
+                        onClick={() => {
+                          setCategoryFilter(cat);
+                          setCurrentPage(1);
+                          setCategoryOpen(false);
+                        }}
+                      >
+                        <span className="inv-dropdown-item-text">
+                          {cat === 'All' ? 'All categories' : cat}
+                        </span>
+                        <i className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}></i>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Status dropdown */}
+          <div className="inv-dropdown" ref={filterRef}>
+            <button
+              type="button"
+              className={`inv-dropdown-trigger ${filterOpen ? 'open' : ''}`}
+              onClick={() => {
+                setFilterOpen((o) => !o);
+                setCategoryOpen(false);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={filterOpen}
+              aria-label="Filter by status"
+            >
+              <i className="bi bi-funnel"></i>
+              <span className="inv-dropdown-label">Status</span>
+              <span className="inv-dropdown-value">
+                <span
+                  className={`inv-dot ${statusFilter === 'All' ? 'all' : statusClass(statusFilter)}`}
+                />
+                {statusFilter === 'All' ? 'All statuses' : statusFilter}
+              </span>
+              <i className="bi bi-chevron-down inv-dropdown-chevron"></i>
+            </button>
+
+            {filterOpen && (
+              <ul className="inv-dropdown-menu" role="listbox">
+                {STATUS_TABS.map((status) => {
+                  const active = statusFilter === status;
+                  return (
+                    <li key={status} role="presentation">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        className={`inv-dropdown-item ${active ? 'active' : ''}`}
+                        onClick={() => {
+                          setStatusFilter(status);
+                          setCurrentPage(1);
+                          setFilterOpen(false);
+                        }}
+                      >
+                        <span
+                          className={`inv-dot ${status === 'All' ? 'all' : statusClass(status)}`}
+                        />
+                        <span className="inv-dropdown-item-text">
+                          {status === 'All' ? 'All statuses' : status}
+                        </span>
+                        <span className="inv-dropdown-count">
+                          {loading ? '–' : statusCounts[status]}
+                        </span>
+                        <i
+                          className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}
+                        ></i>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
 

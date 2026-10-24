@@ -335,23 +335,77 @@ const parseISO = (v) => {
   return { y, m: m - 1, d };
 };
 
-// Filter dropdown. Same look as the category filter on the Inventory page.
-function SelectFilter({ value, onChange, label, allLabel, options }) {
+// Filter dropdown. Same look as the category dropdown on the Inventory page.
+// onChange receives the chosen value ("All" or one of the options).
+function SelectFilter({ value, onChange, label, icon, allLabel, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="rl-select-wrap">
-      <select
-        className="rl-select"
-        value={value}
-        onChange={onChange}
-        aria-label={label}
+    <div className="rl-dropdown" ref={ref}>
+      <button
+        type="button"
+        className={`rl-dropdown-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Filter by ${label.toLowerCase()}`}
       >
-        <option value="All">{allLabel}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+        <i className={`bi ${icon}`}></i>
+        <span className="rl-dropdown-label">{label}</span>
+        <span className="rl-dropdown-value">
+          <span className="rl-dropdown-value-text">
+            {value === "All" ? allLabel : value}
+          </span>
+        </span>
+        <i className="bi bi-chevron-down rl-dropdown-chevron"></i>
+      </button>
+
+      {open && (
+        <ul className="rl-dropdown-menu" role="listbox">
+          {["All", ...options].map((opt) => {
+            const active = value === opt;
+            return (
+              <li key={opt} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`rl-dropdown-item ${active ? "active" : ""}`}
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="rl-dropdown-item-text">
+                    {opt === "All" ? allLabel : opt}
+                  </span>
+                  <i
+                    className={`bi bi-check2 rl-dropdown-check ${active ? "show" : ""}`}
+                  ></i>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -874,65 +928,72 @@ export default function ReportsLogs() {
           />
         </div>
 
-        {tab === "stocks" && (
-          <>
-            <SelectFilter
-              value={categoryFilter}
-              onChange={change(setCategoryFilter)}
-              label="Filter by category"
-              allLabel="All categories"
-              options={categories}
-            />
+        {/* Right side: "Clear filters" first (left), then the filters */}
+        <div className="rl-filter-group">
+          {hasFilters && (
+            <button className="rl-btn-clear" onClick={clearFilters}>
+              <i className="bi bi-x-circle"></i> Clear filters
+            </button>
+          )}
+
+          {tab === "stocks" && (
+            <>
+              <SelectFilter
+                value={categoryFilter}
+                onChange={changeValue(setCategoryFilter)}
+                label="Category"
+                icon="bi-tag"
+                allLabel="All categories"
+                options={categories}
+              />
+              <SelectFilter
+                value={statusFilter}
+                onChange={changeValue(setStatusFilter)}
+                label="Status"
+                icon="bi-funnel"
+                allLabel="All statuses"
+                options={STOCK_STATUSES}
+              />
+            </>
+          )}
+
+          {tab === "requests" && (
             <SelectFilter
               value={statusFilter}
-              onChange={change(setStatusFilter)}
-              label="Filter by status"
+              onChange={changeValue(setStatusFilter)}
+              label="Status"
+              icon="bi-funnel"
               allLabel="All statuses"
-              options={STOCK_STATUSES}
+              options={REQUEST_STATUSES}
             />
-          </>
-        )}
+          )}
 
-        {tab === "requests" && (
-          <SelectFilter
-            value={statusFilter}
-            onChange={change(setStatusFilter)}
-            label="Filter by status"
-            allLabel="All statuses"
-            options={REQUEST_STATUSES}
-          />
-        )}
-
-        {tab === "transactions" && (
-          <SelectFilter
-            value={typeFilter}
-            onChange={change(setTypeFilter)}
-            label="Filter by type"
-            allLabel="All types"
-            options={TRANSACTION_TYPES}
-          />
-        )}
-
-        {tab !== "stocks" && (
-          <>
-            <DateFilter
-              label="From"
-              value={dateFrom}
-              onChange={changeValue(setDateFrom)}
+          {tab === "transactions" && (
+            <SelectFilter
+              value={typeFilter}
+              onChange={changeValue(setTypeFilter)}
+              label="Type"
+              icon="bi-arrow-left-right"
+              allLabel="All types"
+              options={TRANSACTION_TYPES}
             />
-            <DateFilter
-              label="To"
-              value={dateTo}
-              onChange={changeValue(setDateTo)}
-            />
-          </>
-        )}
+          )}
 
-        {hasFilters && (
-          <button className="rl-btn-clear" onClick={clearFilters}>
-            <i className="bi bi-x-circle"></i> Clear filters
-          </button>
-        )}
+          {tab !== "stocks" && (
+            <>
+              <DateFilter
+                label="From"
+                value={dateFrom}
+                onChange={changeValue(setDateFrom)}
+              />
+              <DateFilter
+                label="To"
+                value={dateTo}
+                onChange={changeValue(setDateTo)}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Table */}
