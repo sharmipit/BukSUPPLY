@@ -78,7 +78,8 @@ export default function UserDashboard() {
   const handleCreateNewClick = () => {
     setIsCreateMode(true);
     setSelectedEditReq({
-      department: user?.department || 'College of Technologies',
+
+      department: user?.department || '',
       title: '',
       purpose: '',
       itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
