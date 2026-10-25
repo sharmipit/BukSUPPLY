@@ -7,6 +7,7 @@ import '../styles/Requests.css';
 
 const STATUS_TABS = ['All', 'Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied'];
 const OPEN_STATUSES = ['Pending', 'Processing', 'Purchasing'];
+// Same starting categories as the Inventory page
 const DEFAULT_CATEGORIES = [
   'Paper Products',
   'Writing Supplies',
@@ -14,6 +15,7 @@ const DEFAULT_CATEGORIES = [
   'Lab Materials',
   'Cleaning Supplies',
 ];
+const NEW_CATEGORY = '__new__';
 
 // ---------- Helpers ----------
 const isOpen = (req) => OPEN_STATUSES.includes(req.status);
@@ -136,10 +138,14 @@ function Stepper({ req }) {
           return (
             <React.Fragment key={step}>
               <li className={cls}>
-                <span className="rq-step-dot">{done ? <i className="bi bi-check"></i> : i + 1}</span>
+                <span className="rq-step-dot">
+                  {done ? <i className="bi bi-check"></i> : i + 1}
+                </span>
                 <span className="rq-step-label">{step}</span>
               </li>
-              {i < flow.length - 1 && <li className={`rq-step-line ${i < current ? 'done' : ''}`} />}
+              {i < flow.length - 1 && (
+                <li className={`rq-step-line ${i < current ? 'done' : ''}`} />
+              )}
             </React.Fragment>
           );
         })}
@@ -215,15 +221,19 @@ export default function Requests() {
   const [receive, setReceive] = useState(null);
   const [recvQty, setRecvQty] = useState('');
   const [recvCategory, setRecvCategory] = useState('Office Supplies');
+  const [recvCustomCategory, setRecvCustomCategory] = useState('');
   const [recvUnit, setRecvUnit] = useState('pcs');
   const [recvRef, setRecvRef] = useState('');
   const [recvError, setRecvError] = useState('');
   const [recvBusy, setRecvBusy] = useState(false);
 
-  const categoryOptions = useMemo(
-    () => [...new Set([...DEFAULT_CATEGORIES, ...items.map((i) => i.category).filter(Boolean)])],
-    [items]
-  );
+  // Category list = defaults + every category currently used by an item
+  // (same as the Inventory page)
+  const categoryOptions = useMemo(() => {
+    const set = new Set(DEFAULT_CATEGORIES);
+    items.forEach((i) => i.category && set.add(i.category));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [items]);
 
   const detailsReq = requisitions.find((r) => r.id === detailsId) || null;
   const decisionReq = decision ? requisitions.find((r) => r.id === decision.id) || null : null;
@@ -292,9 +302,8 @@ export default function Requests() {
       },
       {
         title: 'Processing / Purchasing',
-        count: requisitions.filter(
-          (r) => r.status === 'Processing' || r.status === 'Purchasing'
-        ).length,
+        count: requisitions.filter((r) => r.status === 'Processing' || r.status === 'Purchasing')
+          .length,
         icon: 'bi-arrow-repeat',
         colorClass: 'stat-processing',
       },
@@ -354,6 +363,7 @@ export default function Requests() {
   const openReceive = (reqId, line) => {
     setRecvError('');
     setRecvCategory('Office Supplies');
+    setRecvCustomCategory('');
     setRecvUnit('pcs');
     setRecvRef('');
     setRecvQty(String(line.inv ? Math.max(1, line.qty - line.inv.quantity) : line.qty));
@@ -364,8 +374,17 @@ export default function Requests() {
     if (!receive || recvBusy) return;
     const qty = Math.floor(Number(recvQty));
     if (!(qty >= 1)) return setRecvError('Enter a quantity of 1 or more.');
-    if (!receive.line.inv && !recvCategory.trim()) {
-      return setRecvError('Pick or type a category.');
+
+    const recvIsNew = recvCategory === NEW_CATEGORY;
+    if (!receive.line.inv && recvIsNew && !recvCustomCategory.trim()) {
+      return setRecvError('Type the name of the new category.');
+    }
+
+    // Resolve the category. Reuse an existing spelling if it matches ignoring case.
+    let category = recvCategory;
+    if (recvIsNew) {
+      const typed = recvCustomCategory.trim();
+      category = categoryOptions.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
     }
 
     setRecvBusy(true);
@@ -375,12 +394,11 @@ export default function Requests() {
       if (!code) {
         const created = await createInventoryItem({
           name: receive.line.name,
-          category: recvCategory.trim(),
+          category,
           unit: recvUnit.trim() || 'pcs',
           quantity: 0,
           reorderLevel: 10,
           maxNormal: 10,
-          location: '',
         });
         code = created.id;
       }
@@ -472,7 +490,8 @@ export default function Requests() {
         <div className="rq-header-text">
           <h1 className="rq-title">Requests</h1>
           <p className="rq-subtitle">
-            Manage, review, and track departmental requisition slips from initial submission to final fulfillment or denial.
+            Manage, review, and track departmental requisition slips from initial submission to
+            final fulfillment or denial.
           </p>
         </div>
 
@@ -564,7 +583,9 @@ export default function Requests() {
                       <span className="rq-dropdown-item-text">
                         {status === 'All' ? 'All statuses' : status}
                       </span>
-                      <span className="rq-dropdown-count">{loading ? '–' : statusCounts[status]}</span>
+                      <span className="rq-dropdown-count">
+                        {loading ? '–' : statusCounts[status]}
+                      </span>
                       <i className={`bi bi-check2 rq-dropdown-check ${active ? 'show' : ''}`}></i>
                     </button>
                   </li>
@@ -838,14 +859,21 @@ export default function Requests() {
                   )}
                   <ul className="rq-purchase-list">
                     {detailsCheck.purchaseLines.map((p, idx) => (
-                      <li key={idx}>
-                        <strong>{p.name}</strong> · {p.qty}
-                        {p.reason && <div className="rq-sub">{p.reason}</div>}
+                      <li key={idx} className="rq-purchase-item">
+                        <div className="rq-purchase-info">
+                          <div className="rq-purchase-name">
+                            <strong>{p.name}</strong>
+                            <span className="rq-purchase-qty">Qty: {p.qty}</span>
+                          </div>
+                          {p.reason && <div className="rq-sub">{p.reason}</div>}
+                        </div>
+
                         {detailsReq.status === 'Purchasing' && invReady && (
                           <div className="rq-buy-status">
                             {p.enough ? (
                               <span className="rq-buy-ok">
-                                ✓ In inventory ({p.inv.quantity} {p.inv.unit} on hand)
+                                <i className="bi bi-check-circle-fill"></i> In inventory (
+                                {p.inv.quantity} {p.inv.unit} on hand)
                               </span>
                             ) : (
                               <>
@@ -858,6 +886,9 @@ export default function Requests() {
                                   className="rq-btn-action rq-btn-review"
                                   onClick={() => openReceive(detailsReq.id, p)}
                                 >
+                                  <i
+                                    className={`bi ${p.inv ? 'bi-box-arrow-in-down' : 'bi-plus-lg'}`}
+                                  ></i>
                                   {p.inv ? 'Receive stock' : 'Add to inventory'}
                                 </button>
                               </>
@@ -1095,19 +1126,31 @@ export default function Requests() {
                 <>
                   <div className="rq-field">
                     <label htmlFor="rq-recv-cat">Category</label>
-                    <input
+                    <select
                       id="rq-recv-cat"
-                      type="text"
-                      list="rq-category-list"
-                      className="form-control custom-input"
+                      className="form-control custom-input rq-select"
                       value={recvCategory}
                       onChange={(e) => setRecvCategory(e.target.value)}
-                    />
-                    <datalist id="rq-category-list">
+                    >
                       {categoryOptions.map((c) => (
-                        <option key={c} value={c} />
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
-                    </datalist>
+                      <option value={NEW_CATEGORY}>+ Add new category…</option>
+                    </select>
+
+                    {recvCategory === NEW_CATEGORY && (
+                      <input
+                        type="text"
+                        className="form-control custom-input rq-new-category"
+                        placeholder="e.g. Electrical Supplies"
+                        value={recvCustomCategory}
+                        onChange={(e) => setRecvCustomCategory(e.target.value)}
+                        aria-label="New category name"
+                        autoFocus
+                      />
+                    )}
                   </div>
                   <div className="rq-field">
                     <label htmlFor="rq-recv-unit">Unit</label>
