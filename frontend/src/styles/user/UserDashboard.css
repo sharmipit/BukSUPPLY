@@ -46,7 +46,7 @@
   margin-bottom: 28px;
 }
 
-/* 2. Indicator Cards Grid (Robust responsive grid to prevent sidebar toggle breaking) */
+/* 2. Indicator Cards Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -66,7 +66,7 @@
     transform 0.25s ease,
     box-shadow 0.25s ease,
     background-color 0.25s ease;
-  min-width: 0; /* prevents flex child overflow */
+  min-width: 0; 
 }
 
 .stat-card:hover {
@@ -205,6 +205,72 @@
 
 .custom-table tbody tr:hover {
   background-color: rgba(250, 247, 242, 0.6);
+}
+
+/* Clean tables */
+.user-dashboard-container .ud-table {
+  table-layout: fixed;
+  min-width: 900px;
+}
+
+.user-dashboard-container .ud-table th {
+  white-space: nowrap;
+}
+
+.user-dashboard-container .ud-table .ud-col-slip {
+  width: 150px;
+}
+
+.user-dashboard-container .ud-table .ud-col-items {
+  width: auto;
+}
+
+.user-dashboard-container .ud-table .ud-col-date {
+  width: 130px;
+}
+
+.user-dashboard-container .ud-table .ud-col-status {
+  width: 140px;
+}
+
+.user-dashboard-container .ud-table .ud-col-remarks {
+  width: 280px;
+}
+
+.user-dashboard-container .ud-table .ud-col-actions {
+  width: 250px;
+}
+
+.user-dashboard-container .ud-table td.ud-cell-nowrap {
+  white-space: nowrap;
+}
+
+.user-dashboard-container .ud-cell-clip {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-dashboard-container .ud-table .action-buttons {
+  flex-wrap: nowrap;
+}
+
+.user-dashboard-container .ud-table .btn-action {
+  white-space: nowrap;
+}
+
+.user-dashboard-container .locked-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #594d46;
+  background-color: #f3f4f6;
+  padding: 6px 12px;
+  border-radius: 50px;
+  white-space: nowrap;
 }
 
 /* Status Badges */

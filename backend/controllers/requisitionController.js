@@ -13,6 +13,17 @@ const fmtDate = (d) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }
 const personName = (u) =>
   [u.firstName, u.lastName].filter((n) => n && n !== "-").join(" ") || u.email || "Unknown user";
 
+// What the requester sees under "Remarks" when no moderator note was written.
+// Worked out each time a slip is read and never saved, so it always matches the
+// slip's current status and a moderator's own note always takes priority.
+// Denied is left out on purpose: a denial always carries the moderator's reason.
+const DEFAULT_REMARKS = {
+  Pending: "Awaiting moderator review.",
+  Processing: "Acknowledged by the moderator and now being processed.",
+  Purchasing: "Waiting for items to be purchased or restocked.",
+  Accepted: "Approved. Please proceed to the Property Window for pickup.",
+};
+
 // Shapes a DB document into what the React pages expect
 const toClient = (r) => {
   const parts = [
@@ -44,7 +55,7 @@ const toClient = (r) => {
     reviewedBy: r.reviewedBy || undefined,
     reviewedAt: r.reviewedAt || undefined,
     denyReason: r.status === "Denied" ? r.remarks || undefined : undefined,
-    remarks: r.remarks || (r.status === "Pending" ? "Awaiting moderator review." : ""),
+    remarks: r.remarks || DEFAULT_REMARKS[r.status] || "",
     itemsList: r.itemsList,
     purchaseItems: r.purchaseItems,
     requester,
@@ -195,13 +206,13 @@ exports.update = async (req, res) => {
   }
 };
 
-/** DELETE /api/requisitions/:slip: owner only, Pending only */
+/** DELETE /api/requisitions/:slip: owner only, Pending only (this is what "Cancel" calls) */
 exports.remove = async (req, res) => {
   try {
     const doc = await Requisition.findOne({ slipNumber: req.params.slip, requester: req.user._id });
     if (!doc) return res.status(404).json({ message: "Requisition not found." });
     if (doc.status !== "Pending") {
-      return res.status(409).json({ message: "Only pending requisitions can be deleted." });
+      return res.status(409).json({ message: "Only pending requisitions can be cancelled." });
     }
     await doc.deleteOne();
     res.json({ message: "Requisition deleted." });
