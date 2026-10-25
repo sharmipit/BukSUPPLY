@@ -17,17 +17,35 @@ export default function UserDashboard() {
   const { requisitions, loading, error, create, update, remove } = useRequisitions();
 
   // Google accounts without a surname are stored with "-", so skip that
-  const displayName = [user?.firstName, user?.lastName]
-    .filter((n) => n && n !== '-')
-    .join(' ');
+  const displayName = user?.firstName || '';
 
   const count = (...s) => requisitions.filter((r) => s.includes(r.status)).length;
 
   const stats = [
-    { title: 'Total Requests', count: requisitions.length, icon: 'bi-file-earmark-text', colorClass: 'stat-total' },
-    { title: 'Accepted', count: count('Accepted'), icon: 'bi-check-circle', colorClass: 'stat-accepted' },
-    { title: 'Pending', count: count('Pending'), icon: 'bi-clock-history', colorClass: 'stat-pending' },
-    { title: 'Processing / Purchasing', count: count('Processing', 'Purchasing'), icon: 'bi-arrow-repeat', colorClass: 'stat-processing' },
+    {
+      title: 'Total Requests',
+      count: requisitions.length,
+      icon: 'bi-file-earmark-text',
+      colorClass: 'stat-total',
+    },
+    {
+      title: 'Accepted',
+      count: count('Accepted'),
+      icon: 'bi-check-circle',
+      colorClass: 'stat-accepted',
+    },
+    {
+      title: 'Pending',
+      count: count('Pending'),
+      icon: 'bi-clock-history',
+      colorClass: 'stat-pending',
+    },
+    {
+      title: 'Processing / Purchasing',
+      count: count('Processing', 'Purchasing'),
+      icon: 'bi-arrow-repeat',
+      colorClass: 'stat-processing',
+    },
   ];
 
   // Action queue: slips still in progress, newest first (server already sorts)
@@ -60,7 +78,8 @@ export default function UserDashboard() {
   const handleCreateNewClick = () => {
     setIsCreateMode(true);
     setSelectedEditReq({
-      department: user?.department || 'College of Technologies',
+
+      department: user?.department || '',
       title: '',
       purpose: '',
       itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
@@ -93,7 +112,9 @@ export default function UserDashboard() {
     <tr>
       <td colSpan={cols} className="empty-state-cell">
         <div className="empty-state-content">
-          <div className="empty-icon-circle"><i className={`bi ${icon}`}></i></div>
+          <div className="empty-icon-circle">
+            <i className={`bi ${icon}`}></i>
+          </div>
           <h4>{title}</h4>
           <p>{text}</p>
         </div>
@@ -106,10 +127,12 @@ export default function UserDashboard() {
       {/* 1. Welcome card */}
       <div className="welcome-card">
         <h1 className="welcome-title">
-          Good day! <span style={{ color: '#8C5839' }}>{displayName || 'there'}</span>
+          Good day, <span className="accent">{displayName || 'there'}!</span>
         </h1>
         <p className="welcome-subtitle">
-          Here is your daily operational summary for <strong>BukSU Supply & Property Management</strong>. Review your departmental requisition slips, check window issuance updates, or file new requests below.
+          Here is your daily operational summary for{' '}
+          <strong>BukSU Supply & Property Management</strong>. Review your departmental requisition
+          slips, check window issuance updates, or file new requests below.
         </p>
         <div className="welcome-divider"></div>
 
@@ -120,7 +143,9 @@ export default function UserDashboard() {
                 <span className="stat-title">{stat.title}</span>
                 <h2 className="stat-count">{loading ? '–' : stat.count}</h2>
               </div>
-              <div className="stat-icon-circle"><i className={`bi ${stat.icon}`}></i></div>
+              <div className="stat-icon-circle">
+                <i className={`bi ${stat.icon}`}></i>
+              </div>
             </div>
           ))}
         </div>
@@ -131,9 +156,14 @@ export default function UserDashboard() {
         <div className="section-card-header">
           <div>
             <h3 className="section-card-title">Recent Requisition Slip</h3>
-            <p className="section-card-desc">Overview of your latest submitted requisition slips and their current progress.</p>
+            <p className="section-card-desc">
+              Overview of your latest submitted requisition slips and their current progress.
+            </p>
           </div>
-          <button onClick={handleCreateNewClick} className="btn-file-slip text-decoration-none border-0">
+          <button
+            onClick={handleCreateNewClick}
+            className="btn-file-slip text-decoration-none border-0"
+          >
             <i className="bi bi-plus-lg"></i> File Requisition Slip
           </button>
         </div>
@@ -150,45 +180,70 @@ export default function UserDashboard() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                emptyRow(5, 'bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
-              ) : error ? (
-                emptyRow(5, 'bi-exclamation-circle', 'Could not load requisitions', error)
-              ) : recentRequests.length > 0 ? (
-                recentRequests.map((req) => {
-                  const isPending = req.status === 'Pending';
-                  return (
-                    <tr key={req.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(req)}>
-                      <td className="fw-semibold">{req.id}</td>
-                      <td>{req.item}</td>
-                      <td>{req.date}</td>
-                      <td>
-                        <span className={`badge-status ${req.status.toLowerCase()}`}>{req.status}</span>
-                      </td>
-                      <td className="text-end align-middle" onClick={(e) => e.stopPropagation()}>
-                        <div className="action-buttons">
-                          {isPending ? (
-                            <>
-                              <button className="btn-action btn-edit" onClick={() => handleEdit(req)} title="Edit Requisition">
-                                <i className="bi bi-pencil-square"></i> Edit
-                              </button>
-                              <button className="btn-action btn-delete" onClick={() => handleDeleteClick(req.id)} title="Delete Requisition">
-                                <i className="bi bi-trash3"></i> Delete
-                              </button>
-                            </>
-                          ) : (
-                            <span className="locked-badge-pill text-muted small">
-                              <i className="bi bi-lock-fill"></i> Locked ({req.status})
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                emptyRow(5, 'bi-check2', 'No Active Requisitions', 'You currently have no active requests. File a new requisition slip to get started.')
-              )}
+              {loading
+                ? emptyRow(
+                    5,
+                    'bi-hourglass-split',
+                    'Loading...',
+                    'Fetching your requisition slips.'
+                  )
+                : error
+                  ? emptyRow(5, 'bi-exclamation-circle', 'Could not load requisitions', error)
+                  : recentRequests.length > 0
+                    ? recentRequests.map((req) => {
+                        const isPending = req.status === 'Pending';
+                        return (
+                          <tr
+                            key={req.id}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleRowClick(req)}
+                          >
+                            <td className="fw-semibold">{req.id}</td>
+                            <td>{req.item}</td>
+                            <td>{req.date}</td>
+                            <td>
+                              <span className={`badge-status ${req.status.toLowerCase()}`}>
+                                {req.status}
+                              </span>
+                            </td>
+                            <td
+                              className="text-end align-middle"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="action-buttons">
+                                {isPending ? (
+                                  <>
+                                    <button
+                                      className="btn-action btn-edit"
+                                      onClick={() => handleEdit(req)}
+                                      title="Edit Requisition"
+                                    >
+                                      <i className="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button
+                                      className="btn-action btn-delete"
+                                      onClick={() => handleDeleteClick(req.id)}
+                                      title="Delete Requisition"
+                                    >
+                                      <i className="bi bi-trash3"></i> Delete
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="locked-badge-pill text-muted small">
+                                    <i className="bi bi-lock-fill"></i> Locked ({req.status})
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    : emptyRow(
+                        5,
+                        'bi-check2',
+                        'No Active Requisitions',
+                        'You currently have no active requests. File a new requisition slip to get started.'
+                      )}
             </tbody>
           </table>
         </div>
@@ -206,7 +261,9 @@ export default function UserDashboard() {
         <div className="section-card-header">
           <div>
             <h3 className="section-card-title">Transaction & Request History</h3>
-            <p className="section-card-desc">Audit archive of pending, completed, or processed requisitions.</p>
+            <p className="section-card-desc">
+              Audit archive of pending, completed, or processed requisitions.
+            </p>
           </div>
         </div>
 
@@ -222,21 +279,30 @@ export default function UserDashboard() {
               </tr>
             </thead>
             <tbody>
-              {currentHistoryItems.length > 0 ? (
-                currentHistoryItems.map((hist) => (
-                  <tr key={hist.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(hist)}>
-                    <td className="fw-semibold text-muted">{hist.id}</td>
-                    <td>{hist.item}</td>
-                    <td>{hist.date}</td>
-                    <td>
-                      <span className={`badge-status ${hist.status.toLowerCase()}`}>{hist.status}</span>
-                    </td>
-                    <td className="text-body-secondary small">{hist.remarks}</td>
-                  </tr>
-                ))
-              ) : (
-                emptyRow(5, 'bi-clock-history', 'No Transaction History', 'You have no past or archived requisition slips at the moment.')
-              )}
+              {currentHistoryItems.length > 0
+                ? currentHistoryItems.map((hist) => (
+                    <tr
+                      key={hist.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleRowClick(hist)}
+                    >
+                      <td className="fw-semibold text-muted">{hist.id}</td>
+                      <td>{hist.item}</td>
+                      <td>{hist.date}</td>
+                      <td>
+                        <span className={`badge-status ${hist.status.toLowerCase()}`}>
+                          {hist.status}
+                        </span>
+                      </td>
+                      <td className="text-body-secondary small">{hist.remarks}</td>
+                    </tr>
+                  ))
+                : emptyRow(
+                    5,
+                    'bi-clock-history',
+                    'No Transaction History',
+                    'You have no past or archived requisition slips at the moment.'
+                  )}
             </tbody>
           </table>
         </div>
@@ -246,11 +312,19 @@ export default function UserDashboard() {
             Open Full Request History <i className="bi bi-arrow-right"></i>
           </Link>
           <div className="pagination-controls-wrapper">
-            <button className="btn-action btn-edit" onClick={() => setHistoryPage((p) => Math.max(p - 1, 1))} disabled={historyPage === 1}>
+            <button
+              className="btn-action btn-edit"
+              onClick={() => setHistoryPage((p) => Math.max(p - 1, 1))}
+              disabled={historyPage === 1}
+            >
               Previous
             </button>
             <span className="pagination-indicator">Page {historyPage}</span>
-            <button className="btn-action btn-edit" onClick={() => setHistoryPage((p) => p + 1)} disabled={indexOfLastItem >= requisitions.length}>
+            <button
+              className="btn-action btn-edit"
+              onClick={() => setHistoryPage((p) => p + 1)}
+              disabled={indexOfLastItem >= requisitions.length}
+            >
               Next
             </button>
           </div>
@@ -267,7 +341,10 @@ export default function UserDashboard() {
 
       <EditRequisitionModal
         isOpen={editModalOpen || createModalOpen}
-        onClose={() => { setEditModalOpen(false); setCreateModalOpen(false); }}
+        onClose={() => {
+          setEditModalOpen(false);
+          setCreateModalOpen(false);
+        }}
         requisitionData={selectedEditReq}
         onSave={isCreateMode ? create : update}
         isCreateMode={isCreateMode}

@@ -1,10 +1,17 @@
+const mongoose = require("mongoose");
 const Requisition = require("../models/Requisition");
 const Notification = require("../models/Notification");
+const InventoryItem = require("../models/InventoryItem");
+const { deductForRequisition } = require("../services/stock");
 
 const SERVER_ERROR = { message: "Something went wrong. Please try again." };
 
 // YYYY-MM-DD in Philippine time (toISOString would use UTC and show the wrong day)
 const fmtDate = (d) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+
+// Name shown in the inventory history ("by ...")
+const personName = (u) =>
+  [u.firstName, u.lastName].filter((n) => n && n !== "-").join(" ") || u.email || "Unknown user";
 
 // Shapes a DB document into what the React pages expect
 const toClient = (r) => {
@@ -33,6 +40,10 @@ const toClient = (r) => {
     dateFiled: fmtDate(r.createdAt),
     dateProcessed: r.processedAt ? fmtDate(r.processedAt) : "Pending",
     status: r.status,
+    requestedBy: requester ? requester.name : undefined,
+    reviewedBy: r.reviewedBy || undefined,
+    reviewedAt: r.reviewedAt || undefined,
+    denyReason: r.status === "Denied" ? r.remarks || undefined : undefined,
     remarks: r.remarks || (r.status === "Pending" ? "Awaiting moderator review." : ""),
     itemsList: r.itemsList,
     purchaseItems: r.purchaseItems,
@@ -40,6 +51,7 @@ const toClient = (r) => {
   };
 };
 
+// External purchase items: free text, nothing to look up
 const cleanItems = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((i) => i && typeof i.name === "string" && i.name.trim())
@@ -50,18 +62,61 @@ const cleanItems = (arr) =>
       maxNormal: Number(i.maxNormal) || undefined,
     }));
 
+// In-stock lines must point at a real inventory item.
+// Name, unit and limit come from the database, not from the browser.
+const buildStockLines = async (arr) => {
+  const rows = (Array.isArray(arr) ? arr : []).filter((i) => i && String(i.name || "").trim());
+  if (!rows.length) return { lines: [] };
+
+  if (rows.some((i) => !mongoose.isValidObjectId(i.inventoryItemId))) {
+    return { error: "Pick each stock item from the inventory list." };
+  }
+
+  const found = await InventoryItem.find({
+    _id: { $in: rows.map((i) => i.inventoryItemId) },
+  }).select("name unit quantity maxNormal");
+  const byId = new Map(found.map((d) => [String(d._id), d]));
+
+  const lines = [];
+  for (const i of rows) {
+    const inv = byId.get(String(i.inventoryItemId));
+    const qty = Math.floor(Number(i.qty));
+    const reason = String(i.reason || "").trim();
+
+    if (!inv) return { error: `"${i.name}" is no longer in the inventory.` };
+    if (!(qty >= 1)) return { error: "Every item needs a quantity of at least 1." };
+    if (qty > inv.quantity) return { error: `Only ${inv.quantity} ${inv.unit} of ${inv.name} in stock.` };
+    if (qty > inv.maxNormal && !reason) {
+      return { error: `${inv.name}: please explain why you need more than ${inv.maxNormal}.` };
+    }
+    lines.push({
+      inventoryItemId: inv._id,
+      name: inv.name,
+      unit: inv.unit,
+      qty,
+      reason,
+      maxNormal: inv.maxNormal,
+    });
+  }
+  return { lines };
+};
+
 // Validates and returns the editable fields (never status/id/date)
-const parseBody = (body) => {
+const parseBody = async (body) => {
   const title = String(body.title || "").trim();
   const purpose = String(body.purpose || "").trim();
-  const itemsList = cleanItems(body.itemsList);
-  const purchaseItems = cleanItems(body.purchaseItems);
-
   if (!title || !purpose) return { error: "Title and purpose are required." };
-  if (!itemsList.length && !purchaseItems.length) return { error: "Add at least one item." };
-  if ([...itemsList, ...purchaseItems].some((i) => !(i.qty >= 1))) {
+
+  const purchaseItems = cleanItems(body.purchaseItems);
+  if (purchaseItems.some((i) => !(i.qty >= 1))) {
     return { error: "Every item needs a quantity of at least 1." };
   }
+
+  const { lines: itemsList, error: stockError } = await buildStockLines(body.itemsList);
+  if (stockError) return { error: stockError };
+
+  if (!itemsList.length && !purchaseItems.length) return { error: "Add at least one item." };
+
   return {
     data: { title, purpose, itemsList, purchaseItems, department: String(body.department || "").trim() },
   };
@@ -94,7 +149,7 @@ exports.listAll = async (req, res) => {
 /** POST /api/requisitions */
 exports.create = async (req, res) => {
   try {
-    const { data, error } = parseBody(req.body);
+    const { data, error } = await parseBody(req.body);
     if (error) return res.status(400).json({ message: error });
 
     const doc = await Requisition.create({
@@ -128,7 +183,7 @@ exports.update = async (req, res) => {
       return res.status(409).json({ message: "Only pending requisitions can be edited." });
     }
 
-    const { data, error } = parseBody(req.body);
+    const { data, error } = await parseBody(req.body);
     if (error) return res.status(400).json({ message: error });
 
     Object.assign(doc, data);
@@ -164,6 +219,13 @@ const STATUS_NOTIF = {
   Denied: { type: "warning", text: "was denied." },
 };
 
+// The moderator workflow only moves forward
+const TRANSITIONS = {
+  Pending: ["Processing", "Denied"],
+  Processing: ["Purchasing", "Accepted", "Denied"],
+  Purchasing: ["Accepted", "Denied"],
+};
+
 /** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
 exports.setStatus = async (req, res) => {
   try {
@@ -177,8 +239,34 @@ exports.setStatus = async (req, res) => {
     const doc = await Requisition.findOne({ slipNumber: req.params.slip });
     if (!doc) return res.status(404).json({ message: "Requisition not found." });
 
+    if (!(TRANSITIONS[doc.status] || []).includes(status)) {
+      return res
+        .status(409)
+        .json({ message: `A ${doc.status.toLowerCase()} request can't be moved to ${status}.` });
+    }
+    if (status === "Denied" && !remarks) {
+      return res.status(400).json({ message: "Please give a reason for the denial." });
+    }
+    if (status === "Accepted" && doc.status === "Processing" && doc.purchaseItems.length > 0) {
+      return res
+        .status(409)
+        .json({ message: "This request has items to buy. Send it to purchasing first." });
+    }
+
+    // Approving takes the items out of the inventory. If anything is short, nothing changes.
+    let stock = null;
+    if (status === "Accepted") {
+      try {
+        stock = await deductForRequisition(doc._id, personName(req.user));
+      } catch (err) {
+        return res.status(409).json({ message: err.message });
+      }
+    }
+
     doc.status = status;
-    doc.remarks = remarks;
+    if (remarks) doc.remarks = remarks; // for Denied this is the reason the student sees
+    doc.reviewedBy = personName(req.user);
+    doc.reviewedAt = new Date();
     if (status === "Accepted" || status === "Denied") doc.processedAt = new Date();
     await doc.save();
 
@@ -191,7 +279,7 @@ exports.setStatus = async (req, res) => {
       link: "/user/requests",
     });
 
-    res.json({ requisition: toClient(doc) });
+    res.json({ requisition: toClient(doc), stock });
   } catch (err) {
     console.error("setStatus error:", err);
     res.status(500).json(SERVER_ERROR);

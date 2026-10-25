@@ -58,12 +58,13 @@
   font-size: 1.1rem;
 }
 
+/* One size for all three modals */
 .req-modal-card {
   background-color: #FFFFFF;
   border-radius: 24px;
   max-width: 720px;
   width: 100%;
-  max-height: 90vh;
+  height: min(680px, 90vh);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -111,7 +112,13 @@
   color: #2C1A14;
 }
 
-/* Scrollable area with generous spacing between form groups */
+.req-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .req-modal-body {
   padding: 32px;
   display: flex;
@@ -162,6 +169,7 @@
   color: #8C7A70;
 }
 
+/* Shared input style. Other pages (Inventory, Reports) also use this class. */
 .custom-input {
   width: 100%;
   box-sizing: border-box;
@@ -188,13 +196,7 @@ textarea.custom-input {
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
-/* Items Section with wide gaps */
-.items-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
+/* Item rows (used by the purchase modal) */
 .item-row-card {
   background-color: #FAF7F2;
   border: 1px solid #DFD8CC;
@@ -246,47 +248,6 @@ textarea.custom-input {
   cursor: not-allowed;
 }
 
-.inventory-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  background-color: #FFFFFF;
-  border: 1px solid #DFD8CC;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-  z-index: 100;
-  margin-top: 6px;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.inventory-dropdown-item {
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-size: 0.9rem;
-  border-bottom: 1px solid #FAF7F2;
-  transition: background-color 0.15s ease;
-}
-
-.inventory-dropdown-item:hover {
-  background-color: #FAF7F2;
-}
-
-.inventory-dropdown-empty {
-  padding: 14px 16px;
-  font-size: 0.88rem;
-  color: #786B63;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
 .stock-badge {
   font-size: 0.78rem;
   color: #065F46;
@@ -294,6 +255,12 @@ textarea.custom-input {
   padding: 3px 10px;
   border-radius: 50px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.stock-badge.is-out {
+  color: #991B1B;
+  background-color: #FEE2E2;
 }
 
 .warning-banner {
@@ -306,12 +273,6 @@ textarea.custom-input {
   align-items: center;
   gap: 8px;
   font-weight: 500;
-}
-
-.reason-box {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .btn-add-item-row {
@@ -334,13 +295,14 @@ textarea.custom-input {
   background-color: #FAF7F2;
 }
 
+/* Footer of the slip form */
 .req-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 14px;
-  margin-top: 16px;
-  padding-top: 24px;
+  padding: 16px 32px 24px;
   border-top: 1px solid #DFD8CC;
+  flex-shrink: 0;
 }
 
 .btn-modal-cancel {
@@ -351,6 +313,10 @@ textarea.custom-input {
   color: #2C1A14;
   font-weight: 600;
   cursor: pointer;
+}
+
+.btn-modal-cancel:hover {
+  background-color: #FAF7F2;
 }
 
 .btn-modal-save {
@@ -364,6 +330,535 @@ textarea.custom-input {
   transition: background-color 0.2s ease;
 }
 
-.btn-modal-save:hover {
+.btn-modal-save:hover:not(:disabled) {
   background-color: #8C5839;
+}
+
+.btn-modal-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.req-btn-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  background-color: #F3F4F6;
+  color: #374151;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.req-btn-soft i {
+  color: #8C5839;
+}
+
+.req-btn-soft:hover {
+  background-color: #E5E7EB;
+  color: #1F2937;
+}
+
+.req-btn-soft:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.25);
+}
+
+.req-btn-soft--sm {
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+/* ==========================================================================
+   Slip form sections (requisition details, items, notes, etc.)
+   ========================================================================== */
+.req-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  background-color: #FAF7F2;
+  border: 1px solid #DFD8CC;
+  border-radius: 16px;
+  flex-shrink: 0;
+}
+
+.req-section--purchase {
+  background-color: #FFFBF0;
+  border-color: #EBDDB4;
+}
+
+.req-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.req-section-id {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.req-section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background-color: #8C5839;
+  color: #FFFFFF;
+  font-size: 1.15rem;
+}
+
+.req-section-title {
+  margin: 0 0 2px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2C1A14;
+}
+
+.req-section-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #594D46;
+}
+
+.req-section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #8C5839;
+  border-radius: 50px;
+  background-color: #FFFFFF;
+  color: #8C5839;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.req-section-btn:hover {
+  background-color: #8C5839;
+  color: #FFFFFF;
+}
+
+.req-section-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8C7A70;
+}
+
+.req-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.req-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background-color: #FFFFFF;
+  border: 1px solid #DFD8CC;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.req-summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.req-summary-name {
+  font-weight: 600;
+  color: #2C1A14;
+  overflow-wrap: anywhere;
+}
+
+.req-summary-sub {
+  font-size: 0.78rem;
+  color: #594D46;
+  overflow-wrap: anywhere;
+}
+
+.req-summary-qty {
+  font-weight: 600;
+  color: #2C1A14;
+  white-space: nowrap;
+}
+
+.req-summary-remove {
+  width: 34px;
+  height: 34px;
+}
+
+/* ==========================================================================
+   Item modals
+   ========================================================================== */
+.req-modal-overlay--top {
+  z-index: 100001;
+}
+
+/* Search + category filter */
+.req-pick-toolbar {
+  display: flex;
+  gap: 12px;
+  padding: 16px 32px;
+  border-bottom: 1px solid #DFD8CC;
+  flex-shrink: 0;
+}
+
+.req-pick-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.req-pick-search i {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8C7A70;
+  pointer-events: none;
+}
+
+.req-pick-search .custom-input {
+  padding-left: 44px;
+}
+
+.req-pick-select {
+  flex: 0 1 190px;
+  min-width: 0;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid #DFD8CC;
+  border-radius: 12px;
+  background-color: #FAF7F2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #594D46;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.req-pick-select:focus {
+  outline: none;
+  border-color: #8C5839;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
+}
+
+/* The list that is always visible */
+.req-pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.req-pick-list::-webkit-scrollbar {
+  width: 14px;
+}
+
+.req-pick-list::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0;
+}
+
+.req-pick-list::-webkit-scrollbar-thumb {
+  background-color: #DFD8CC;
+  border-radius: 50px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+
+.req-pick-list::-webkit-scrollbar-thumb:hover {
+  background-color: #8C5839;
+  background-clip: padding-box;
+}
+
+.req-pick-list > * {
+  flex-shrink: 0;
+}
+
+.req-purchase-body {
+  gap: 16px;
+}
+
+.req-pick-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #FFFFFF;
+  border: 1px solid #DFD8CC;
+  border-radius: 14px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.req-pick-row:hover {
+  border-color: #8C5839;
+}
+
+.req-pick-row.is-selected {
+  background-color: #FAF7F2;
+  border-color: #8C5839;
+}
+
+.req-pick-row.is-out {
+  background-color: #FAF7F2;
+}
+
+.req-pick-row.is-out .req-pick-info {
+  opacity: 0.6;
+}
+
+.req-pick-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.req-pick-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.req-pick-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #2C1A14;
+  overflow-wrap: anywhere;
+}
+
+.req-pick-meta {
+  font-size: 0.78rem;
+  color: #594D46;
+}
+
+.req-pick-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 96px;
+  justify-content: flex-end;
+}
+
+.req-pick-qty {
+  width: 80px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.req-pick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #8C5839;
+  border-radius: 50px;
+  background-color: #FAF7F2;
+  color: #8C5839;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.req-pick-add:hover {
+  background-color: #8C5839;
+  color: #FFFFFF;
+}
+
+.req-pick-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* "No match" call to action */
+.req-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  background-color: #FAF7F2;
+  border: 1.5px dashed #8C5839;
+  border-radius: 16px;
+}
+
+.req-cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: 1px solid #8C5839;
+  color: #8C5839;
+  font-size: 1.3rem;
+}
+
+.req-cta-text {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #594D46;
+  overflow-wrap: anywhere;
+}
+
+.req-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 50px;
+  background-color: #2C1A14;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.req-cta-btn:hover {
+  background-color: #8C5839;
+}
+
+.req-inline-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 32px 12px;
+  padding: 10px 14px;
+  border: 1px solid #FCA5A5;
+  border-radius: 12px;
+  background-color: #FEF2F2;
+  color: #991B1B;
+  font-size: 0.85rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* Footer of the item modals */
+.req-picker-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 16px 32px 24px;
+  border-top: 1px solid #DFD8CC;
+  flex-shrink: 0;
+}
+
+.req-picker-footer-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.req-picker-footer-right {
+  display: flex;
+  gap: 10px;
+}
+
+.req-picker-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #594D46;
+}
+
+@media (max-width: 560px) {
+  .req-modal-body {
+    padding: 20px;
+    gap: 22px;
+  }
+
+  .req-modal-actions {
+    padding: 14px 20px 20px;
+  }
+
+  .req-pick-toolbar {
+    flex-direction: column;
+    padding: 14px 20px;
+  }
+
+  .req-pick-select {
+    flex-basis: auto;
+  }
+
+  .req-pick-list {
+    padding: 14px 20px;
+  }
+
+  .req-pick-main {
+    flex-wrap: wrap;
+  }
+
+  .req-pick-action {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .req-btn-soft {
+    white-space: normal;
+    text-align: left;
+  }
+
+  .req-inline-error {
+    margin: 0 20px 12px;
+  }
+
+  .req-picker-footer {
+    padding: 14px 20px 20px;
+  }
+
+  .req-picker-footer-right {
+    width: 100%;
+  }
+
+  .req-picker-footer-right button {
+    flex: 1;
+  }
 }

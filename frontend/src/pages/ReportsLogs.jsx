@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import "../styles/ReportsLogs.css";
@@ -17,6 +17,22 @@ const REQUEST_STATUSES = [
   "Denied",
 ];
 const TRANSACTION_TYPES = ["Received", "Withdrawn", "Edited"];
+
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 // ---------- Sample data (replace with API calls later) ----------
 const SAMPLE_ITEMS = [
@@ -310,6 +326,291 @@ const pdfText = (v) =>
     .replace(/−/g, "-")
     .replace(/→/g, "to");
 
+// "YYYY-MM-DD" <-> { y, m (0-11), d }. Built from parts so there is no timezone shift.
+const pad = (n) => String(n).padStart(2, "0");
+const toISO = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+const parseISO = (v) => {
+  if (!v) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  return { y, m: m - 1, d };
+};
+
+// Filter dropdown. Same look as the category dropdown on the Inventory page.
+// onChange receives the chosen value ("All" or one of the options).
+function SelectFilter({ value, onChange, label, icon, allLabel, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="rl-dropdown" ref={ref}>
+      <button
+        type="button"
+        className={`rl-dropdown-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Filter by ${label.toLowerCase()}`}
+      >
+        <i className={`bi ${icon}`}></i>
+        <span className="rl-dropdown-label">{label}</span>
+        <span className="rl-dropdown-value">
+          <span className="rl-dropdown-value-text">
+            {value === "All" ? allLabel : value}
+          </span>
+        </span>
+        <i className="bi bi-chevron-down rl-dropdown-chevron"></i>
+      </button>
+
+      {open && (
+        <ul className="rl-dropdown-menu" role="listbox">
+          {["All", ...options].map((opt) => {
+            const active = value === opt;
+            return (
+              <li key={opt} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`rl-dropdown-item ${active ? "active" : ""}`}
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="rl-dropdown-item-text">
+                    {opt === "All" ? allLabel : opt}
+                  </span>
+                  <i
+                    className={`bi bi-check2 rl-dropdown-check ${active ? "show" : ""}`}
+                  ></i>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Date capsule with a custom calendar. value and onChange use "YYYY-MM-DD" ("" = empty).
+function DateFilter({ label, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("days"); // "days" | "months"
+  const ref = useRef(null);
+
+  const selected = parseISO(value);
+  const now = new Date();
+  const today = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+  const [view, setView] = useState({
+    y: (selected || today).y,
+    m: (selected || today).m,
+  });
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    if (!open) {
+      const base = selected || today;
+      setView({ y: base.y, m: base.m });
+      setMode("days");
+    }
+    setOpen((o) => !o);
+  };
+
+  const shiftMonth = (delta) =>
+    setView((v) => {
+      const total = v.m + delta;
+      return { y: v.y + Math.floor(total / 12), m: ((total % 12) + 12) % 12 };
+    });
+
+  // 6 weeks x 7 days, starting on the Sunday on or before the 1st
+  const firstWeekday = new Date(view.y, view.m, 1).getDay();
+  const cells = Array.from({ length: 42 }, (_, i) => {
+    const dt = new Date(view.y, view.m, 1 - firstWeekday + i);
+    return {
+      y: dt.getFullYear(),
+      m: dt.getMonth(),
+      d: dt.getDate(),
+      outside: dt.getMonth() !== view.m,
+    };
+  });
+
+  const same = (a, b) => a && b && a.y === b.y && a.m === b.m && a.d === b.d;
+
+  const pick = (c) => {
+    onChange(toISO(c.y, c.m, c.d));
+    setOpen(false);
+  };
+
+  return (
+    <div className="rl-date-field" ref={ref}>
+      <button
+        type="button"
+        className="rl-date-btn"
+        onClick={toggle}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <span>{label}</span>
+        <span className={`rl-date-value ${value ? "" : "is-empty"}`}>
+          {value ? fmtDate(value) : "Select date"}
+        </span>
+        <i className="bi bi-calendar3 rl-date-icon" aria-hidden="true"></i>
+      </button>
+
+      {open && (
+        <div className="rl-calendar" role="dialog" aria-label={`${label} date`}>
+          <div className="rl-cal-head">
+            {mode === "days" ? (
+              <button
+                type="button"
+                className="rl-cal-title"
+                onClick={() => setMode("months")}
+                aria-label="Choose month and year"
+              >
+                {MONTHS[view.m]} {view.y}
+                <i className="bi bi-chevron-down"></i>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="rl-cal-title"
+                onClick={() => setMode("days")}
+                aria-label="Back to days"
+              >
+                {view.y}
+                <i className="bi bi-chevron-up"></i>
+              </button>
+            )}
+
+            <div className="rl-cal-nav">
+              <button
+                type="button"
+                className="rl-cal-nav-btn"
+                onClick={() =>
+                  mode === "days"
+                    ? shiftMonth(-1)
+                    : setView((v) => ({ ...v, y: v.y - 1 }))
+                }
+                aria-label={mode === "days" ? "Previous month" : "Previous year"}
+              >
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <button
+                type="button"
+                className="rl-cal-nav-btn"
+                onClick={() =>
+                  mode === "days"
+                    ? shiftMonth(1)
+                    : setView((v) => ({ ...v, y: v.y + 1 }))
+                }
+                aria-label={mode === "days" ? "Next month" : "Next year"}
+              >
+                <i className="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+          {mode === "days" ? (
+            <>
+              <div className="rl-cal-weekdays">
+                {WEEKDAYS.map((w) => (
+                  <span key={w}>{w}</span>
+                ))}
+              </div>
+              <div className="rl-cal-grid">
+                {cells.map((c) => (
+                  <button
+                    key={toISO(c.y, c.m, c.d)}
+                    type="button"
+                    className={[
+                      "rl-cal-day",
+                      c.outside ? "is-outside" : "",
+                      same(c, today) ? "is-today" : "",
+                      same(c, selected) ? "is-selected" : "",
+                    ].join(" ")}
+                    onClick={() => pick(c)}
+                  >
+                    {c.d}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="rl-cal-months">
+              {MONTHS.map((name, i) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={[
+                    "rl-cal-month",
+                    view.m === i ? "is-selected" : "",
+                    today.y === view.y && today.m === i ? "is-today" : "",
+                  ].join(" ")}
+                  onClick={() => {
+                    setView((v) => ({ ...v, m: i }));
+                    setMode("days");
+                  }}
+                >
+                  {name.slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="rl-cal-foot">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              Clear
+            </button>
+            <button type="button" onClick={() => pick(today)}>
+              Today
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReportsLogs() {
   useEffect(() => {
     document.title = "Reports & Logs | BukSUPPLY";
@@ -325,8 +626,15 @@ export default function ReportsLogs() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  // For inputs that send an event (search box, dropdowns)
   const change = (setter) => (e) => {
     setter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // For the calendar, which sends the value directly
+  const changeValue = (setter) => (v) => {
+    setter(v);
     setCurrentPage(1);
   };
 
@@ -414,7 +722,6 @@ export default function ReportsLogs() {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentRows = activeRows.slice(indexOfFirst, indexOfLast);
 
-  // Exports every filtered row, not just the current page
   // Exports every filtered row, not just the current page
   const handleExport = () => {
     const label = TABS.find((t) => t.key === tab).label;
@@ -621,91 +928,72 @@ export default function ReportsLogs() {
           />
         </div>
 
-        {tab === "stocks" && (
-          <>
-            <select
-              className="rl-select"
-              value={categoryFilter}
-              onChange={change(setCategoryFilter)}
-              aria-label="Filter by category"
-            >
-              <option value="All">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rl-select"
-              value={statusFilter}
-              onChange={change(setStatusFilter)}
-              aria-label="Filter by status"
-            >
-              <option value="All">All statuses</option>
-              {STOCK_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
+        {/* Right side: "Clear filters" first (left), then the filters */}
+        <div className="rl-filter-group">
+          {hasFilters && (
+            <button className="rl-btn-clear" onClick={clearFilters}>
+              <i className="bi bi-x-circle"></i> Clear filters
+            </button>
+          )}
 
-        {tab === "requests" && (
-          <select
-            className="rl-select"
-            value={statusFilter}
-            onChange={change(setStatusFilter)}
-            aria-label="Filter by status"
-          >
-            <option value="All">All statuses</option>
-            {REQUEST_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {tab === "transactions" && (
-          <select
-            className="rl-select"
-            value={typeFilter}
-            onChange={change(setTypeFilter)}
-            aria-label="Filter by type"
-          >
-            <option value="All">All types</option>
-            {TRANSACTION_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {tab !== "stocks" && (
-          <>
-            <label className="rl-date-field">
-              <span>From</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={change(setDateFrom)}
+          {tab === "stocks" && (
+            <>
+              <SelectFilter
+                value={categoryFilter}
+                onChange={changeValue(setCategoryFilter)}
+                label="Category"
+                icon="bi-tag"
+                allLabel="All categories"
+                options={categories}
               />
-            </label>
-            <label className="rl-date-field">
-              <span>To</span>
-              <input type="date" value={dateTo} onChange={change(setDateTo)} />
-            </label>
-          </>
-        )}
+              <SelectFilter
+                value={statusFilter}
+                onChange={changeValue(setStatusFilter)}
+                label="Status"
+                icon="bi-funnel"
+                allLabel="All statuses"
+                options={STOCK_STATUSES}
+              />
+            </>
+          )}
 
-        {hasFilters && (
-          <button className="rl-btn-clear" onClick={clearFilters}>
-            Clear filters
-          </button>
-        )}
+          {tab === "requests" && (
+            <SelectFilter
+              value={statusFilter}
+              onChange={changeValue(setStatusFilter)}
+              label="Status"
+              icon="bi-funnel"
+              allLabel="All statuses"
+              options={REQUEST_STATUSES}
+            />
+          )}
+
+          {tab === "transactions" && (
+            <SelectFilter
+              value={typeFilter}
+              onChange={changeValue(setTypeFilter)}
+              label="Type"
+              icon="bi-arrow-left-right"
+              allLabel="All types"
+              options={TRANSACTION_TYPES}
+            />
+          )}
+
+          {tab !== "stocks" && (
+            <>
+              <DateFilter
+                label="From"
+                value={dateFrom}
+                onChange={changeValue(setDateFrom)}
+              />
+              <DateFilter
+                label="To"
+                value={dateTo}
+                onChange={changeValue(setDateTo)}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -715,32 +1003,32 @@ export default function ReportsLogs() {
             <thead>
               {tab === "stocks" && (
                 <tr>
-                  <th className="col-main">Item</th>
-                  <th className="col-wide">Category</th>
-                  <th className="col-num">Unit</th>
-                  <th className="col-num">On hand</th>
-                  <th className="col-num">Reorder level</th>
-                  <th className="col-status">Status</th>
+                  <th className="rl-col-main">Item</th>
+                  <th className="rl-col-wide">Category</th>
+                  <th className="rl-col-num">Unit</th>
+                  <th className="rl-col-num">On hand</th>
+                  <th className="rl-col-num">Reorder level</th>
+                  <th className="rl-col-status">Status</th>
                 </tr>
               )}
               {tab === "requests" && (
                 <tr>
-                  <th className="col-date">Date filed</th>
-                  <th className="col-slip">Slip</th>
-                  <th className="col-wide">Requested by</th>
-                  <th className="col-main">Items</th>
-                  <th className="col-status">Status</th>
-                  <th className="col-wide">College / Office</th>
+                  <th className="rl-col-date">Date filed</th>
+                  <th className="rl-col-slip">Slip</th>
+                  <th className="rl-col-wide">Requested by</th>
+                  <th className="rl-col-main">Items</th>
+                  <th className="rl-col-status">Status</th>
+                  <th className="rl-col-wide">College / Office</th>
                 </tr>
               )}
               {tab === "transactions" && (
                 <tr>
-                  <th className="col-date">Date & time</th>
-                  <th className="col-main">Item</th>
-                  <th className="col-type">Type</th>
-                  <th className="col-change">Change</th>
-                  <th className="col-ref">Reference</th>
-                  <th className="col-wide">Done by</th>
+                  <th className="rl-col-date">Date & time</th>
+                  <th className="rl-col-main">Item</th>
+                  <th className="rl-col-type">Type</th>
+                  <th className="rl-col-change">Change</th>
+                  <th className="rl-col-ref">Reference</th>
+                  <th className="rl-col-wide">Done by</th>
                 </tr>
               )}
             </thead>
@@ -756,22 +1044,22 @@ export default function ReportsLogs() {
                 currentRows.map((i) => (
                   <tr key={i.id}>
                     <td>
-                      <div className="rl-strong cell-clamp" title={i.name}>
+                      <div className="rl-strong rl-clamp" title={i.name}>
                         {i.name}
                       </div>
                       <div className="rl-sub">{i.id}</div>
                     </td>
                     <td>
-                      <div className="cell-clamp" title={i.category}>
+                      <div className="rl-clamp" title={i.category}>
                         {i.category}
                       </div>
                     </td>
-                    <td className="nowrap-cell">{i.unit}</td>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">{i.unit}</td>
+                    <td className="rl-nowrap">
                       <strong>{i.quantity}</strong>
                     </td>
-                    <td className="nowrap-cell">{i.reorderLevel}</td>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">{i.reorderLevel}</td>
+                    <td className="rl-nowrap">
                       <span className={`rl-badge ${slug(i.status)}`}>
                         {i.status}
                       </span>
@@ -782,30 +1070,30 @@ export default function ReportsLogs() {
               {tab === "requests" &&
                 currentRows.map((r) => (
                   <tr key={r.id}>
-                    <td className="nowrap-cell">{fmtDate(r.date)}</td>
+                    <td className="rl-nowrap">{fmtDate(r.date)}</td>
                     <td>
-                      <div className="rl-strong nowrap-cell">{r.id}</div>
-                      <div className="rl-sub cell-clamp" title={r.title}>
+                      <div className="rl-strong rl-nowrap">{r.id}</div>
+                      <div className="rl-sub rl-clamp" title={r.title}>
                         {r.title}
                       </div>
                     </td>
                     <td>
-                      <div className="cell-clamp" title={r.requestedBy}>
+                      <div className="rl-clamp" title={r.requestedBy}>
                         {r.requestedBy}
                       </div>
                     </td>
                     <td>
-                      <div className="cell-clamp" title={r.items}>
+                      <div className="rl-clamp" title={r.items}>
                         {r.items}
                       </div>
                     </td>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">
                       <span className={`rl-badge ${slug(r.status)}`}>
                         {r.status}
                       </span>
                     </td>
                     <td>
-                      <div className="cell-clamp" title={r.department}>
+                      <div className="rl-clamp" title={r.department}>
                         {r.department}
                       </div>
                     </td>
@@ -815,22 +1103,22 @@ export default function ReportsLogs() {
               {tab === "transactions" &&
                 currentRows.map((t) => (
                   <tr key={t.id}>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">
                       <div>{fmtDate(t.date)}</div>
                       <div className="rl-sub">{fmtTime(t.date)}</div>
                     </td>
                     <td>
-                      <div className="rl-strong cell-clamp" title={t.item}>
+                      <div className="rl-strong rl-clamp" title={t.item}>
                         {t.item}
                       </div>
                       <div className="rl-sub">{t.itemId}</div>
                     </td>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">
                       <span className={`rl-badge ${slug(t.type)}`}>
                         {t.type}
                       </span>
                     </td>
-                    <td className="nowrap-cell">
+                    <td className="rl-nowrap">
                       <div className="rl-strong">{changeText(t)}</div>
                       {t.type !== "Edited" && (
                         <div className="rl-sub">
@@ -839,10 +1127,10 @@ export default function ReportsLogs() {
                       )}
                     </td>
                     <td>
-                      <div className="cell-clamp">{t.reference || "—"}</div>
+                      <div className="rl-clamp">{t.reference || "—"}</div>
                     </td>
                     <td>
-                      <div className="cell-clamp" title={t.by}>
+                      <div className="rl-clamp" title={t.by}>
                         {t.by}
                       </div>
                     </td>
