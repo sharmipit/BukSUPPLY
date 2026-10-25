@@ -439,12 +439,24 @@
   margin-bottom: 0 !important;
 }
 
-.rq-table .col-slip { width: 140px; }
-.rq-table .col-requester { width: 190px; }
-.rq-table .col-title { width: auto; }
-.rq-table .col-items { width: 220px; }
-.rq-table .col-status { width: 150px; }
-.rq-table .col-actions { width: 140px; }
+.rq-table .col-slip {
+  width: 140px;
+}
+.rq-table .col-requester {
+  width: 190px;
+}
+.rq-table .col-title {
+  width: auto;
+}
+.rq-table .col-items {
+  width: 220px;
+}
+.rq-table .col-status {
+  width: 150px;
+}
+.rq-table .col-actions {
+  width: 140px;
+}
 
 .rq-table th {
   background-color: #8c5839 !important;
@@ -685,8 +697,12 @@
   overflow: hidden;
 }
 
-.rq-modal-sm { max-width: 460px; }
-.rq-modal-lg { max-width: 760px; }
+.rq-modal-sm {
+  max-width: 460px;
+}
+.rq-modal-lg {
+  max-width: 760px;
+}
 
 .rq-modal-header {
   display: flex;
@@ -1037,6 +1053,7 @@
   color: #92400e;
 }
 
+/* Items to purchase */
 .rq-purchase-list {
   list-style: none;
   margin: 0;
@@ -1047,10 +1064,43 @@
 }
 
 .rq-purchase-list li {
-  padding: 10px 16px;
+  padding: 14px 16px;
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 12px;
   font-size: 0.9rem;
+}
+
+.rq-purchase-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rq-purchase-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rq-purchase-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rq-purchase-qty {
+  padding: 2px 10px;
+  border-radius: 50px;
+  background-color: #f3efe8;
+  color: var(--text-body, #594d46);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rq-purchase-info .rq-sub {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 
 .rq-deduct-list {
@@ -1088,21 +1138,52 @@
 }
 
 .rq-buy-status {
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  text-align: right;
 }
+
+.rq-buy-status .rq-btn-action {
+  padding: 8px 16px;
+}
+
 .rq-buy-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #15803d;
   font-size: 0.85rem;
   font-weight: 600;
 }
+
 .rq-buy-missing {
   color: #b91c1c;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
+}
+
+/* Category dropdown in the "Add to inventory" modal */
+select.rq-select {
+  padding-right: 46px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 18px center;
+  background-size: 12px 8px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Text box that appears for "+ Add new category" */
+.rq-new-category {
+  margin-top: 2px;
+  border-color: var(--text-light-brown, #8c5839);
+  background-color: var(--bg-color, #faf7f2);
 }
 
 /* ==========================================================================
@@ -1153,5 +1234,18 @@
   .rq-modal-footer .rq-btn-secondary,
   .rq-modal-footer .rq-btn-danger-outline {
     flex: 1 1 auto;
+  }
+
+  /* Purchase items stack on small screens */
+  .rq-purchase-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rq-buy-status {
+    align-items: stretch;
+    text-align: left;
+  }
+  .rq-buy-status .rq-btn-action {
+    justify-content: center;
   }
 }

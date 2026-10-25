@@ -22,7 +22,6 @@ const EMPTY_FORM = {
   quantity: 0,
   reorderLevel: 10,
   maxNormal: 10,
-  location: '',
 };
 
 const getStockStatus = (item) => {
@@ -191,8 +190,7 @@ export default function Inventory() {
     const matchesSearch =
       query === '' ||
       item.id.toLowerCase().includes(query) ||
-      item.name.toLowerCase().includes(query) ||
-      (item.location || '').toLowerCase().includes(query);
+      item.name.toLowerCase().includes(query);
     const matchesStatus = statusFilter === 'All' || getStockStatus(item) === statusFilter;
     const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
     return matchesSearch && matchesStatus && matchesCategory;
@@ -226,7 +224,6 @@ export default function Inventory() {
       quantity: item.quantity,
       reorderLevel: item.reorderLevel,
       maxNormal: item.maxNormal,
-      location: item.location || '',
     });
     setCustomCategory('');
     setFormError('');
@@ -252,7 +249,6 @@ export default function Inventory() {
       name: form.name.trim(),
       category,
       unit: form.unit.trim() || 'pcs',
-      location: form.location.trim(),
       quantity: Math.max(0, Number(form.quantity) || 0),
       reorderLevel: Math.max(0, Number(form.reorderLevel) || 0),
       maxNormal: Math.max(1, Number(form.maxNormal) || 1),
@@ -354,7 +350,7 @@ export default function Inventory() {
   // One helper for the loading / error / empty rows
   const messageRow = (icon, title, text) => (
     <tr>
-      <td colSpan="7" className="inv-empty-cell">
+      <td colSpan="6" className="inv-empty-cell">
         <div className="inv-empty-content">
           <div className="inv-empty-icon">
             <i className={`bi ${icon}`}></i>
@@ -417,7 +413,7 @@ export default function Inventory() {
           <input
             type="text"
             className="form-control custom-input"
-            placeholder="Search by item ID, name, or location..."
+            placeholder="Search by item ID or name..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -470,7 +466,9 @@ export default function Inventory() {
                         <span className="inv-dropdown-item-text">
                           {cat === 'All' ? 'All categories' : cat}
                         </span>
-                        <i className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}></i>
+                        <i
+                          className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}
+                        ></i>
                       </button>
                     </li>
                   );
@@ -551,7 +549,6 @@ export default function Inventory() {
                 <th className="inv-col-item">Item</th>
                 <th className="inv-col-category">Category</th>
                 <th className="inv-col-stock">Stock Level</th>
-                <th className="inv-col-location">Location</th>
                 <th className="inv-col-updated">Last Updated</th>
                 <th className="inv-col-status">Status</th>
                 <th className="inv-col-actions">Actions</th>
@@ -605,11 +602,6 @@ export default function Inventory() {
                               <div className="inv-reorder-text">
                                 Reorder at {item.reorderLevel} · Usual limit {item.maxNormal} per
                                 request
-                              </div>
-                            </td>
-                            <td>
-                              <div className="inv-clamp" title={item.location}>
-                                {item.location || '—'}
                               </div>
                             </td>
                             <td>
@@ -799,18 +791,6 @@ export default function Inventory() {
                 </span>
               </div>
 
-              <div className="inv-field">
-                <label htmlFor="inv-location">Storage location (optional)</label>
-                <input
-                  id="inv-location"
-                  type="text"
-                  className="form-control custom-input"
-                  value={form.location}
-                  onChange={(e) => handleFormChange('location', e.target.value)}
-                  placeholder="e.g. Storage Room A"
-                />
-              </div>
-
               <p className="inv-audit-note">
                 {editingId ? 'This edit will be recorded' : 'This item will be recorded as added'}{' '}
                 by <strong>{actorName}</strong>.
@@ -996,10 +976,6 @@ export default function Inventory() {
                   <span className="inv-meta-value">
                     {historyItem.quantity} {historyItem.unit}
                   </span>
-                </div>
-                <div>
-                  <span className="inv-meta-label">Location</span>
-                  <span className="inv-meta-value">{historyItem.location || '—'}</span>
                 </div>
                 <div>
                   <span className="inv-meta-label">Added by</span>
