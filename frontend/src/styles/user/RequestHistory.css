@@ -205,6 +205,13 @@
   overflow-wrap: anywhere;
 }
 
+.request-history-container .rh-clip {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .req-title-text {
   font-weight: 600;
   color: var(--text-dark, #2C1A14);

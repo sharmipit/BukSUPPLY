@@ -48,9 +48,9 @@ export default function UserDashboard() {
     },
   ];
 
-  // Action queue: slips still in progress, newest first (server already sorts)
+
   const recentRequests = requisitions
-    .filter((r) => ['Pending', 'Processing', 'Purchasing'].includes(r.status))
+    .filter((r) => ['Pending', 'Processing', 'Purchasing', 'Denied'].includes(r.status))
     .slice(0, 5);
 
   // History table pagination
@@ -59,8 +59,13 @@ export default function UserDashboard() {
   const indexOfLastItem = historyPage * itemsPerPage;
   const currentHistoryItems = requisitions.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
 
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(requisitions.length / itemsPerPage));
+    if (historyPage > totalPages) setHistoryPage(totalPages);
+  }, [requisitions.length, historyPage]);
+
   // Modal state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedReqId, setSelectedReqId] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -78,7 +83,6 @@ export default function UserDashboard() {
   const handleCreateNewClick = () => {
     setIsCreateMode(true);
     setSelectedEditReq({
-
       department: user?.department || '',
       title: '',
       purpose: '',
@@ -88,18 +92,30 @@ export default function UserDashboard() {
     setCreateModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
-    setSelectedReqId(id);
-    setDeleteModalOpen(true);
+  const handleRequestAgain = (req) => {
+    setIsCreateMode(true);
+    setSelectedEditReq({
+      department: req.department || user?.department || '',
+      title: `${req.title} (Re-filed)`,
+      purpose: req.purpose || '',
+      itemsList: (req.itemsList || []).map((l) => ({ ...l })),
+      purchaseItems: (req.purchaseItems || []).map((p) => ({ ...p })),
+    });
+    setCreateModalOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleCancelClick = (id) => {
+    setSelectedReqId(id);
+    setCancelModalOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
     try {
       await remove(selectedReqId);
     } catch (err) {
       alert(errMsg(err));
     }
-    setDeleteModalOpen(false);
+    setCancelModalOpen(false);
     setSelectedReqId(null);
   };
 
@@ -169,14 +185,14 @@ export default function UserDashboard() {
         </div>
 
         <div className="table-responsive-wrapper">
-          <table className="custom-table">
+          <table className="custom-table ud-table">
             <thead>
               <tr>
-                <th>Requisition Slip</th>
-                <th>Item & Quantity</th>
-                <th>Date Filed</th>
-                <th>Status</th>
-                <th className="text-end">Actions</th>
+                <th className="ud-col-slip">Requisition Slip</th>
+                <th className="ud-col-items">Item & Quantity</th>
+                <th className="ud-col-date">Date Filed</th>
+                <th className="ud-col-status">Status</th>
+                <th className="ud-col-actions text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -192,22 +208,27 @@ export default function UserDashboard() {
                   : recentRequests.length > 0
                     ? recentRequests.map((req) => {
                         const isPending = req.status === 'Pending';
+                        const isDenied = req.status === 'Denied';
                         return (
                           <tr
                             key={req.id}
                             style={{ cursor: 'pointer' }}
                             onClick={() => handleRowClick(req)}
                           >
-                            <td className="fw-semibold">{req.id}</td>
-                            <td>{req.item}</td>
-                            <td>{req.date}</td>
+                            <td className="fw-semibold ud-cell-nowrap">{req.id}</td>
                             <td>
+                              <div className="ud-cell-clip" title={req.item}>
+                                {req.item}
+                              </div>
+                            </td>
+                            <td className="ud-cell-nowrap">{req.date}</td>
+                            <td className="ud-cell-nowrap">
                               <span className={`badge-status ${req.status.toLowerCase()}`}>
                                 {req.status}
                               </span>
                             </td>
                             <td
-                              className="text-end align-middle"
+                              className="text-end align-middle ud-cell-nowrap"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="action-buttons">
@@ -222,12 +243,20 @@ export default function UserDashboard() {
                                     </button>
                                     <button
                                       className="btn-action btn-delete"
-                                      onClick={() => handleDeleteClick(req.id)}
-                                      title="Delete Requisition"
+                                      onClick={() => handleCancelClick(req.id)}
+                                      title="Cancel Requisition"
                                     >
-                                      <i className="bi bi-trash3"></i> Delete
+                                      <i className="bi bi-x-circle"></i> Cancel
                                     </button>
                                   </>
+                                ) : isDenied ? (
+                                  <button
+                                    className="btn-action btn-edit"
+                                    onClick={() => handleRequestAgain(req)}
+                                    title="File a new slip using this one's details"
+                                  >
+                                    <i className="bi bi-arrow-repeat"></i> Request Again
+                                  </button>
                                 ) : (
                                   <span className="locked-badge-pill text-muted small">
                                     <i className="bi bi-lock-fill"></i> Locked ({req.status})
@@ -249,7 +278,7 @@ export default function UserDashboard() {
         </div>
 
         <div className="table-footer-bar">
-          <span>Showing {recentRequests.length} active slips</span>
+          <span>Showing {recentRequests.length} recent slips</span>
           <Link to="/user/requests" className="footer-link text-decoration-none">
             Open Full Requisitions Hub <i className="bi bi-arrow-right"></i>
           </Link>
@@ -268,14 +297,14 @@ export default function UserDashboard() {
         </div>
 
         <div className="table-responsive-wrapper">
-          <table className="custom-table">
+          <table className="custom-table ud-table">
             <thead>
               <tr>
-                <th>Requisition Slip</th>
-                <th>Item & Description</th>
-                <th>Date Filed</th>
-                <th>Final Status</th>
-                <th>Remarks</th>
+                <th className="ud-col-slip">Requisition Slip</th>
+                <th className="ud-col-items">Item & Description</th>
+                <th className="ud-col-date">Date Filed</th>
+                <th className="ud-col-status">Final Status</th>
+                <th className="ud-col-remarks">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -286,15 +315,23 @@ export default function UserDashboard() {
                       style={{ cursor: 'pointer' }}
                       onClick={() => handleRowClick(hist)}
                     >
-                      <td className="fw-semibold text-muted">{hist.id}</td>
-                      <td>{hist.item}</td>
-                      <td>{hist.date}</td>
+                      <td className="fw-semibold text-muted ud-cell-nowrap">{hist.id}</td>
                       <td>
+                        <div className="ud-cell-clip" title={hist.item}>
+                          {hist.item}
+                        </div>
+                      </td>
+                      <td className="ud-cell-nowrap">{hist.date}</td>
+                      <td className="ud-cell-nowrap">
                         <span className={`badge-status ${hist.status.toLowerCase()}`}>
                           {hist.status}
                         </span>
                       </td>
-                      <td className="text-body-secondary small">{hist.remarks}</td>
+                      <td className="text-body-secondary small">
+                        <div className="ud-cell-clip" title={hist.remarks}>
+                          {hist.remarks}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 : emptyRow(
@@ -332,11 +369,11 @@ export default function UserDashboard() {
       </div>
 
       <DeleteModal
-        isOpen={deleteModalOpen}
-        title="Delete Requisition Slip?"
-        message={`Are you sure you want to delete requisition slip ${selectedReqId}? This action cannot be undone.`}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeleteModalOpen(false)}
+        isOpen={cancelModalOpen}
+        title="Cancel Requisition Slip?"
+        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? This action cannot be undone.`}
+        onConfirm={handleConfirmCancel}
+        onClose={() => setCancelModalOpen(false)}
       />
 
       <EditRequisitionModal

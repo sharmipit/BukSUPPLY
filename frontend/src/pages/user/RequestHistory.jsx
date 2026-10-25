@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import useRequisitions from '../../hooks/useRequisitions';
 import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
+import FilterDropdown from '../../components/FilterDropdown';
 import '../../styles/user/RequestHistory.css';
+
+const STATUS_OPTIONS = [
+  { value: 'All', label: 'All statuses' },
+  { value: 'Pending', label: 'Pending', tone: 'pending' },
+  { value: 'Processing', label: 'Processing', tone: 'processing' },
+  { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
+  { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
+  { value: 'Denied', label: 'Denied', tone: 'denied' },
+];
 
 export default function RequestHistory() {
   useEffect(() => {
     document.title = 'Request History | BukSUPPLY';
   }, []);
 
-  // Real data from the API (replaces the old hardcoded array)
+  // Real data from the API
   const { requisitions: historyRecords, loading, error } = useRequisitions();
 
   // Search and filter states
@@ -88,20 +98,16 @@ export default function RequestHistory() {
           />
         </div>
 
-        <div className="status-filter-tabs">
-          {['All', 'Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied'].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
-              onClick={() => {
-                setStatusFilter(status);
-                setCurrentPage(1);
-              }}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+        <FilterDropdown
+          icon="bi-funnel"
+          ariaLabel="Filter by status"
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(value) => {
+            setStatusFilter(value);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* History Table Card */}
@@ -132,15 +138,15 @@ export default function RequestHistory() {
                         >
                           <td className="fw-semibold align-middle nowrap-cell">{record.id}</td>
                           <td className="align-middle">
-                            <div className="req-title-text cell-clamp" title={record.title}>
+                            <div className="req-title-text rh-clip" title={record.title}>
                               {record.title}
                             </div>
-                            <div className="req-purpose-text cell-clamp" title={record.purpose}>
+                            <div className="req-purpose-text rh-clip" title={record.purpose}>
                               {record.purpose}
                             </div>
                           </td>
                           <td className="align-middle">
-                            <div className="cell-clamp" title={record.item}>
+                            <div className="rh-clip" title={record.item}>
                               {record.item}
                             </div>
                           </td>
@@ -151,7 +157,7 @@ export default function RequestHistory() {
                             </span>
                           </td>
                           <td className="align-middle text-body-secondary small">
-                            <div className="cell-clamp" title={record.remarks}>
+                            <div className="rh-clip" title={record.remarks}>
                               {record.remarks}
                             </div>
                           </td>

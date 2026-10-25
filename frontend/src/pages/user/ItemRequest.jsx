@@ -1,21 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useRequisitions from '../../hooks/useRequisitions';
 import { errMsg } from '../../api/client';
 import DeleteModal from '../../components/DeleteModal';
 import EditRequisitionModal from '../../components/EditRequisitionModal';
 import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
+import FilterDropdown from '../../components/FilterDropdown';
 import '../../styles/user/ItemRequest.css';
+
+const STATUS_OPTIONS = [
+  { value: 'All', label: 'All statuses' },
+  { value: 'Pending', label: 'Pending', tone: 'pending' },
+  { value: 'Processing', label: 'Processing', tone: 'processing' },
+  { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
+  { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
+  { value: 'Denied', label: 'Denied', tone: 'denied' },
+];
 
 export default function ItemRequest() {
   useEffect(() => {
     document.title = 'Item Request | BukSUPPLY';
   }, []);
 
-  const { user } = useAuth();
+  // Kept so the page behaves exactly as before
+  useAuth();
 
-  // Real data from the API (replaces the old hardcoded array)
+  // Real data from the API
   const { requisitions, loading, error, create, update, remove } = useRequisitions();
 
   // Filtering and pagination state
@@ -25,7 +35,7 @@ export default function ItemRequest() {
   const itemsPerPage = 4;
 
   // Modals state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedReqId, setSelectedReqId] = useState(null);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -49,6 +59,12 @@ export default function ItemRequest() {
     return matchesSearch && matchesStatus;
   });
 
+  // If the current page disappears (e.g. the last slip on it was cancelled), step back
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredRequests.length / itemsPerPage));
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [filteredRequests.length, currentPage]);
+
   // Pagination calculation
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
@@ -60,18 +76,19 @@ export default function ItemRequest() {
     setEditModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
+  // Cancel = same server call as the old Delete: the slip is removed
+  const handleCancelClick = (id) => {
     setSelectedReqId(id);
-    setDeleteModalOpen(true);
+    setCancelModalOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmCancel = async () => {
     try {
       await remove(selectedReqId);
     } catch (err) {
       alert(errMsg(err));
     }
-    setDeleteModalOpen(false);
+    setCancelModalOpen(false);
     setSelectedReqId(null);
   };
 
@@ -151,17 +168,16 @@ export default function ItemRequest() {
           />
         </div>
 
-        <div className="status-filter-tabs">
-          {['All', 'Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied'].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
-              onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+        <FilterDropdown
+          icon="bi-funnel"
+          ariaLabel="Filter by status"
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(value) => {
+            setStatusFilter(value);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Main Requisitions Table Card */}
@@ -192,11 +208,11 @@ export default function ItemRequest() {
                     <tr key={req.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(req)}>
                       <td className="fw-semibold align-middle nowrap-cell">{req.id}</td>
                       <td className="align-middle">
-                        <div className="req-title-text cell-clamp" title={req.title}>{req.title}</div>
-                        <div className="req-purpose-text cell-clamp" title={req.purpose}>{req.purpose}</div>
+                        <div className="req-title-text ir-clip" title={req.title}>{req.title}</div>
+                        <div className="req-purpose-text ir-clip" title={req.purpose}>{req.purpose}</div>
                       </td>
                       <td className="align-middle">
-                        <div className="cell-clamp" title={req.item}>{req.item}</div>
+                        <div className="ir-clip" title={req.item}>{req.item}</div>
                       </td>
                       <td className="align-middle nowrap-cell">{req.date}</td>
                       <td className="align-middle nowrap-cell">
@@ -217,10 +233,10 @@ export default function ItemRequest() {
                               </button>
                               <button
                                 className="btn-action btn-delete"
-                                onClick={() => handleDeleteClick(req.id)}
-                                title="Delete Requisition"
+                                onClick={() => handleCancelClick(req.id)}
+                                title="Cancel Requisition"
                               >
-                                <i className="bi bi-trash3"></i> Delete
+                                <i className="bi bi-x-circle"></i> Cancel
                               </button>
                             </>
                           )}
@@ -236,7 +252,7 @@ export default function ItemRequest() {
                           )}
                           {req.status === 'Denied' && (
                             <button
-                              className="btn-action btn-request-again"
+                              className="btn-action btn-edit"
                               onClick={() => handleRequestAgain(req)}
                               title="File a new request based on this denied slip"
                             >
@@ -282,13 +298,13 @@ export default function ItemRequest() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Cancel Confirmation Modal */}
       <DeleteModal
-        isOpen={deleteModalOpen}
-        title="Delete Requisition Slip?"
-        message={`Are you sure you want to delete requisition slip ${selectedReqId}? This action cannot be undone.`}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeleteModalOpen(false)}
+        isOpen={cancelModalOpen}
+        title="Cancel Requisition Slip?"
+        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? This action cannot be undone.`}
+        onConfirm={handleConfirmCancel}
+        onClose={() => setCancelModalOpen(false)}
       />
 
       {/* Reusable Edit / Create Requisition Modal */}
