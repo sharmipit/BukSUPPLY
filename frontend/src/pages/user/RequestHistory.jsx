@@ -5,7 +5,7 @@ import '../../styles/user/RequestHistory.css';
 
 export default function RequestHistory() {
   useEffect(() => {
-    document.title = 'My Requests | BukSUPPLY';
+    document.title = 'Request History | BukSUPPLY';
   }, []);
 
   // Real data from the API (replaces the old hardcoded array)
@@ -66,7 +66,8 @@ export default function RequestHistory() {
         <div>
           <h1 className="hub-title">Request History & Archives</h1>
           <p className="hub-subtitle">
-            Complete audit trail of all pending, processed, approved, and archived requisitions submitted under your account.
+            Complete audit trail of all pending, processed, approved, and archived requisitions
+            submitted under your account.
           </p>
         </div>
       </div>
@@ -92,7 +93,10 @@ export default function RequestHistory() {
             <button
               key={status}
               className={`filter-tab-btn ${statusFilter === status ? 'active' : ''}`}
-              onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
             >
               {status}
             </button>
@@ -115,46 +119,58 @@ export default function RequestHistory() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                messageRow('bi-hourglass-split', 'Loading...', 'Fetching your request history.')
-              ) : error ? (
-                messageRow('bi-exclamation-circle', 'Could not load history', error)
-              ) : currentHistoryItems.length > 0 ? (
-                currentHistoryItems.map((record) => (
-                  <tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(record)}>
-                    <td className="fw-semibold align-middle nowrap-cell">{record.id}</td>
-                    <td className="align-middle">
-                      <div className="req-title-text cell-clamp" title={record.title}>{record.title}</div>
-                      <div className="req-purpose-text cell-clamp" title={record.purpose}>{record.purpose}</div>
-                    </td>
-                    <td className="align-middle">
-                      <div className="cell-clamp" title={record.item}>{record.item}</div>
-                    </td>
-                    <td className="align-middle nowrap-cell">{record.dateFiled}</td>
-                    <td className="align-middle nowrap-cell">
-                      <span className={`badge-status ${record.status.toLowerCase()}`}>
-                        {record.status}
-                      </span>
-                    </td>
-                    <td className="align-middle text-body-secondary small">
-                      <div className="cell-clamp" title={record.remarks}>{record.remarks}</div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                messageRow(
-                  'bi-clock-history',
-                  'No History Records Found',
-                  'You have no past or archived requisition slips matching your search criteria.'
-                )
-              )}
+              {loading
+                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching your request history.')
+                : error
+                  ? messageRow('bi-exclamation-circle', 'Could not load history', error)
+                  : currentHistoryItems.length > 0
+                    ? currentHistoryItems.map((record) => (
+                        <tr
+                          key={record.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleRowClick(record)}
+                        >
+                          <td className="fw-semibold align-middle nowrap-cell">{record.id}</td>
+                          <td className="align-middle">
+                            <div className="req-title-text cell-clamp" title={record.title}>
+                              {record.title}
+                            </div>
+                            <div className="req-purpose-text cell-clamp" title={record.purpose}>
+                              {record.purpose}
+                            </div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="cell-clamp" title={record.item}>
+                              {record.item}
+                            </div>
+                          </td>
+                          <td className="align-middle nowrap-cell">{record.dateFiled}</td>
+                          <td className="align-middle nowrap-cell">
+                            <span className={`badge-status ${record.status.toLowerCase()}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="align-middle text-body-secondary small">
+                            <div className="cell-clamp" title={record.remarks}>
+                              {record.remarks}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    : messageRow(
+                        'bi-clock-history',
+                        'No History Records Found',
+                        'You have no past or archived requisition slips matching your search criteria.'
+                      )}
             </tbody>
           </table>
         </div>
 
         {/* Table Pagination Bar */}
         <div className="table-footer-bar">
-          <span>Showing {currentHistoryItems.length} of {filteredHistory.length} history records</span>
+          <span>
+            Showing {currentHistoryItems.length} of {filteredHistory.length} history records
+          </span>
           <div className="pagination-controls-wrapper">
             <button
               className="btn-action btn-edit"

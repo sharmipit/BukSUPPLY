@@ -1,6 +1,5 @@
 /* ==========================================================================
    BukSUPPLY - Reports & Logs Styles
-   Matches Inventory + Requests: same tokens, radii, table and badge style.
    ========================================================================== */
 
 .reports-container {
@@ -9,9 +8,23 @@
   max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  font-family: 'Poppins', -apple-system, 'Segoe UI', sans-serif;
 }
 
-/* Header */
+/* Uniform font: everything inside the page inherits Poppins (icons excluded) */
+.reports-container *:not(.bi) {
+  font-family: inherit;
+}
+
+.reports-container *,
+.reports-container *::before,
+.reports-container *::after {
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
 .rl-header-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -29,7 +42,7 @@
   font-size: 2.2rem;
   font-weight: 700;
   color: var(--text-dark, #2c1a14);
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .rl-subtitle {
@@ -91,7 +104,53 @@
   background-color: #faf7f2;
 }
 
-/* Tabs */
+/* ==========================================================================
+   Table
+   ========================================================================== */
+.rl-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.rl-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.rl-table-wrapper::-webkit-scrollbar-track,
+.rl-table-wrapper::-webkit-scrollbar-corner,
+.rl-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rl-table-wrapper::-webkit-scrollbar-button,
+.rl-tabs::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.rl-table-wrapper::-webkit-scrollbar-thumb,
+.rl-tabs::-webkit-scrollbar-thumb {
+  background-color: #dfd8cc;
+  border-radius: 50px;
+}
+
+.rl-table-wrapper::-webkit-scrollbar-thumb:hover,
+.rl-tabs::-webkit-scrollbar-thumb:hover {
+  background-color: #8c5839;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .rl-table-wrapper,
+  .rl-tabs {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+}
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
 .rl-tabs {
   display: inline-flex;
   gap: 6px;
@@ -102,7 +161,7 @@
   margin-bottom: 24px;
   max-width: 100%;
   overflow-x: auto;
-  box-sizing: border-box;
+  overflow-y: hidden;
 }
 
 .rl-tab-btn {
@@ -129,7 +188,9 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* Filter bar */
+/* ==========================================================================
+   Filter bar
+   ========================================================================== */
 .rl-filter-bar {
   display: flex;
   align-items: center;
@@ -145,77 +206,479 @@
   position: relative;
 }
 
+/* Right side of the filter bar: Clear filters on the left, then the filters */
+.rl-filter-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-left: auto;
+  min-width: 0;
+}
+
 .rl-search-wrapper i {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
   color: #8c7a70;
+  pointer-events: none;
 }
 
 .rl-search-wrapper .custom-input {
   padding-left: 44px;
 }
 
-.rl-select {
-  flex: 0 1 auto;
-  max-width: 240px;
-  text-overflow: ellipsis;
+/* Dropdown filters (same look as the Inventory category dropdown) */
+.rl-dropdown {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.rl-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 250px;
+  height: 51px;
   background-color: #ffffff;
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 50px;
-  padding: 11px 18px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-body, #594d46);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  color: var(--text-dark, #2c1a14);
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(44, 26, 20, 0.03);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.rl-select:focus-visible,
-.rl-date-field:focus-within {
-  outline: 2px solid var(--text-light-brown, #8c5839);
-  outline-offset: 2px;
+.rl-dropdown-trigger > .bi:first-child {
+  color: #8c5839;
 }
 
+.rl-dropdown-trigger:hover {
+  border-color: #8c5839;
+  background-color: #fdfbf7;
+}
+
+.rl-dropdown-trigger.open,
+.rl-dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: #8c5839;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
+}
+
+.rl-dropdown-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8c7a70;
+  padding-right: 10px;
+  border-right: 1px solid var(--card-border, #dfd8cc);
+}
+
+.rl-dropdown-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rl-dropdown-value-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rl-dropdown-chevron {
+  font-size: 0.8rem;
+  color: #8c5839;
+  transition: transform 0.2s ease;
+}
+
+.rl-dropdown-trigger.open .rl-dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.rl-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  z-index: 60;
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(44, 26, 20, 0.16);
+  animation: rl-dropdown-in 0.18s cubic-bezier(0.165, 0.84, 0.44, 1);
+  transform-origin: top left;
+}
+
+@keyframes rl-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.rl-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-dark, #2c1a14);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.rl-dropdown-item:hover,
+.rl-dropdown-item:focus-visible {
+  outline: none;
+  background-color: #faf7f2;
+}
+
+.rl-dropdown-item.active {
+  background-color: #f5efe6;
+  font-weight: 700;
+}
+
+.rl-dropdown-item-text {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.rl-dropdown-check {
+  width: 16px;
+  color: #8c5839;
+  font-size: 1rem;
+  opacity: 0;
+}
+
+.rl-dropdown-check.show {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   Date capsule 
+   ========================================================================== */
 .rl-date-field {
+  position: relative;
+  display: inline-block;
+}
+
+.rl-date-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 51px;
+  padding: 0 46px 0 20px;
   background-color: #ffffff;
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 50px;
-  padding: 7px 16px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--text-body, #594d46);
-  margin: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.rl-date-field input {
-  border: none;
+.rl-date-btn:hover,
+.rl-date-btn[aria-expanded='true'] {
+  border-color: #8c5839;
+}
+
+.rl-date-btn:focus-visible,
+.rl-date-btn[aria-expanded='true'] {
   outline: none;
-  background: transparent;
-  font: inherit;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
+}
+
+.rl-date-value {
+  min-width: 96px;
   font-weight: 500;
+  text-align: left;
   color: var(--text-dark, #2c1a14);
 }
 
-.rl-btn-clear {
-  background: none;
+.rl-date-value.is-empty {
+  color: #8c7a70;
+}
+
+.rl-date-icon {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8c5839;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.rl-calendar {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(44, 26, 20, 0.18);
+  animation: rl-cal-in 0.18s ease;
+}
+
+@keyframes rl-cal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rl-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.rl-cal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
   border: none;
-  padding: 8px 12px;
+  border-radius: 10px;
+  background: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dark, #2c1a14);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.rl-cal-title i {
+  font-size: 0.7rem;
+  color: #8c5839;
+}
+
+.rl-cal-title:hover {
+  background-color: #faf7f2;
+}
+
+.rl-cal-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.rl-cal-nav-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-body, #594d46);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rl-cal-nav-btn:hover {
+  background-color: #f3e8dc;
+  color: #8c5839;
+}
+
+.rl-cal-weekdays,
+.rl-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.rl-cal-weekdays span {
+  padding: 6px 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8c7a70;
+}
+
+.rl-cal-day {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 2px auto;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dark, #2c1a14);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.rl-cal-day:hover {
+  background-color: #f3e8dc;
+}
+
+.rl-cal-day.is-outside {
+  color: #b8a99f;
+}
+
+.rl-cal-day.is-today {
+  border-color: #8c5839;
+  color: #8c5839;
+  font-weight: 700;
+}
+
+.rl-cal-day.is-selected,
+.rl-cal-day.is-selected:hover {
+  background-color: #8c5839;
+  border-color: #8c5839;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.rl-cal-day:focus-visible,
+.rl-cal-month:focus-visible,
+.rl-cal-nav-btn:focus-visible,
+.rl-cal-title:focus-visible,
+.rl-cal-foot button:focus-visible {
+  outline: 2px solid #8c5839;
+  outline-offset: 1px;
+}
+
+/* Month picker */
+.rl-cal-months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.rl-cal-month {
+  padding: 12px 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-light-brown, #8c5839);
+  color: var(--text-dark, #2c1a14);
   cursor: pointer;
-  text-decoration: underline;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.rl-cal-month:hover {
+  background-color: #f3e8dc;
+}
+
+.rl-cal-month.is-today {
+  border-color: #8c5839;
+  color: #8c5839;
+}
+
+.rl-cal-month.is-selected,
+.rl-cal-month.is-selected:hover {
+  background-color: #8c5839;
+  border-color: #8c5839;
+  color: #ffffff;
+}
+
+.rl-cal-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+}
+
+.rl-cal-foot button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8c5839;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.rl-cal-foot button:hover {
+  background-color: #f3e8dc;
+}
+
+/* Clear filters */
+.rl-btn-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 51px;
+  padding: 0 20px;
+  background-color: #f3e8dc;
+  color: #8c5839;
+  border: 1px solid #e3cfba;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .rl-btn-clear:hover {
-  color: var(--text-dark, #2c1a14);
+  background-color: #8c5839;
+  border-color: #8c5839;
+  color: #ffffff;
 }
 
-/* Table card */
+.rl-btn-clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.25);
+}
+
+/* ==========================================================================
+   Table card
+   ========================================================================== */
 .rl-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -232,7 +695,7 @@
 
 .rl-table {
   width: 100% !important;
-  min-width: 1000px;
+  min-width: 1280px;
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -242,32 +705,32 @@
   margin-bottom: 0 !important;
 }
 
-.rl-table .col-main {
+.rl-table .rl-col-main {
   width: auto;
 }
-.rl-table .col-wide {
-  width: 200px;
+.rl-table .rl-col-wide {
+  width: 220px;
 }
-.rl-table .col-date {
-  width: 160px;
+.rl-table .rl-col-date {
+  width: 170px;
 }
-.rl-table .col-slip {
-  width: 200px;
+.rl-table .rl-col-slip {
+  width: 210px;
 }
-.rl-table .col-num {
-  width: 130px;
-}
-.rl-table .col-type {
-  width: 130px;
-}
-.rl-table .col-change {
-  width: 160px;
-}
-.rl-table .col-ref {
-  width: 190px;
-}
-.rl-table .col-status {
+.rl-table .rl-col-num {
   width: 140px;
+}
+.rl-table .rl-col-type {
+  width: 140px;
+}
+.rl-table .rl-col-change {
+  width: 170px;
+}
+.rl-table .rl-col-ref {
+  width: 200px;
+}
+.rl-table .rl-col-status {
+  width: 150px;
 }
 
 .rl-table th {
@@ -295,7 +758,7 @@
   background-color: transparent !important;
 }
 
-.rl-table td.nowrap-cell {
+.rl-table td.rl-nowrap {
   white-space: nowrap;
 }
 
@@ -305,6 +768,10 @@
 
 .rl-table tbody tr:hover td {
   background-color: rgba(250, 247, 242, 0.7) !important;
+}
+
+.rl-nowrap {
+  white-space: nowrap;
 }
 
 .rl-strong {
@@ -319,7 +786,7 @@
   text-overflow: ellipsis;
 }
 
-.cell-clamp {
+.rl-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -398,6 +865,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 0.88rem;
   color: var(--text-body, #594d46);
 }
@@ -412,6 +881,7 @@
   font-weight: 600;
   color: var(--text-dark, #2c1a14);
   padding: 0 4px;
+  white-space: nowrap;
 }
 
 .rl-btn-action {
@@ -470,16 +940,19 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-dark, #2c1a14);
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .rl-empty-content p {
   font-size: 0.9rem;
   color: var(--text-body, #594d46);
   line-height: 1.5;
+  margin: 0;
 }
 
-/* Print: hide the controls, keep the table */
+/* ==========================================================================
+   Print: hide the controls, keep the table
+   ========================================================================== */
 .rl-print-head {
   display: none;
 }
@@ -513,7 +986,9 @@
   }
 }
 
-/* Responsive */
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
 @media (max-width: 900px) {
   .reports-container {
     padding: 20px 16px;
@@ -540,11 +1015,34 @@
     flex-basis: auto;
   }
 
-  .rl-select {
-    max-width: 100%;
+  .rl-filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .rl-dropdown {
+    width: 100%;
+  }
+
+  .rl-dropdown-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rl-dropdown-menu {
+    left: 0;
+    right: 0;
   }
 
   .rl-date-field {
-    justify-content: space-between;
+    display: block;
+  }
+
+  .rl-date-btn {
+    width: 100%;
+    justify-content: flex-start;
   }
 }

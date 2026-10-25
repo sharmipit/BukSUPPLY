@@ -12,8 +12,8 @@
 
 /* 1. Welcome Card */
 .welcome-card {
-  background-color: var(--card-bg, #FFFFFF);
-  border: 1px solid var(--card-border, #DFD8CC);
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 24px;
   padding: 36px 40px;
   margin-bottom: 28px;
@@ -23,13 +23,17 @@
 .welcome-title {
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
   margin-bottom: 12px;
+}
+
+.welcome-title .accent {
+  color: #8c5839;
 }
 
 .welcome-subtitle {
   font-size: 1.05rem;
-  color: var(--text-body, #594D46);
+  color: var(--text-body, #594d46);
   line-height: 1.6;
   max-width: 950px;
 }
@@ -37,7 +41,7 @@
 .welcome-divider {
   width: 100%;
   height: 1px;
-  background-color: var(--divider-color, #CFC7BA);
+  background-color: var(--divider-color, #cfc7ba);
   margin-top: 24px;
   margin-bottom: 28px;
 }
@@ -50,23 +54,26 @@
 }
 
 .stat-card {
-  background-color: var(--card-bg, #FFFFFF);
-  border: 1px solid var(--card-border, #DFD8CC);
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 20px;
   padding: 20px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 4px 16px rgba(44, 26, 20, 0.02);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease;
   min-width: 0; /* prevents flex child overflow */
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 24px rgba(140, 88, 57, 0.12);
-  background-color: #FDFBF7;
-  border-color: #8C5839;
+  background-color: #fdfbf7;
+  border-color: #8c5839;
 }
 
 .stat-info {
@@ -77,7 +84,7 @@
 .stat-title {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-body, #594D46);
+  color: var(--text-body, #594d46);
   display: block;
   margin-bottom: 4px;
   white-space: nowrap;
@@ -88,15 +95,15 @@
 .stat-count {
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
 }
 
 .stat-icon-circle {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background-color: #8C5839;
-  color: #FFFFFF;
+  background-color: #8c5839;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,13 +114,13 @@
 }
 
 .stat-card:hover .stat-icon-circle {
-  background-color: #72462C;
+  background-color: #72462c;
 }
 
 /* 3. Dashboard Section Cards & Tables */
 .dashboard-section-card {
-  background-color: var(--card-bg, #FFFFFF);
-  border: 1px solid var(--card-border, #DFD8CC);
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 24px;
   box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
   overflow: hidden;
@@ -125,24 +132,24 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--card-border, #DFD8CC);
+  border-bottom: 1px solid var(--card-border, #dfd8cc);
 }
 
 .section-card-title {
   font-size: 1.4rem;
   font-weight: 700;
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
   margin-bottom: 4px;
 }
 
 .section-card-desc {
   font-size: 0.92rem;
-  color: var(--text-body, #594D46);
+  color: var(--text-body, #594d46);
 }
 
 .btn-file-slip {
-  background-color: var(--btn-dark, #2C1A14);
-  color: #FFFFFF;
+  background-color: var(--btn-dark, #2c1a14);
+  color: #ffffff;
   padding: 10px 20px;
   border-radius: 50px;
   font-size: 0.9rem;
@@ -151,12 +158,14 @@
   align-items: center;
   gap: 8px;
   text-decoration: none !important;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .btn-file-slip:hover {
-  background-color: var(--text-light-brown, #8C5839);
-  color: #FFFFFF;
+  background-color: var(--text-light-brown, #8c5839);
+  color: #ffffff;
   transform: translateY(-2px);
 }
 
@@ -174,8 +183,8 @@
 }
 
 .custom-table th {
-  background-color: #8C5839;
-  color: #FFFFFF;
+  background-color: #8c5839;
+  color: #ffffff;
   font-weight: 600;
   padding: 16px 24px;
   text-transform: uppercase;
@@ -185,8 +194,8 @@
 
 .custom-table td {
   padding: 18px 24px;
-  color: var(--text-dark, #2C1A14);
-  border-bottom: 1px solid var(--card-border, #DFD8CC);
+  color: var(--text-dark, #2c1a14);
+  border-bottom: 1px solid var(--card-border, #dfd8cc);
   vertical-align: middle;
 }
 
@@ -209,28 +218,28 @@
 }
 
 .badge-status.pending {
-  background-color: #FEF3C7;
-  color: #92400E;
+  background-color: #fef3c7;
+  color: #92400e;
 }
 
 .badge-status.processing {
-  background-color: #DBEAFE;
-  color: #1E40AF;
+  background-color: #dbeafe;
+  color: #1e40af;
 }
 
 .badge-status.purchasing {
-  background-color: #FEF3C7;
-  color: #B45309;
+  background-color: #fef3c7;
+  color: #b45309;
 }
 
 .badge-status.accepted {
-  background-color: #D1FAE5;
-  color: #065F46;
+  background-color: #d1fae5;
+  color: #065f46;
 }
 
 .badge-status.denied {
-  background-color: #FEE2E2;
-  color: #991B1B;
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
 /* Action Buttons */
@@ -259,25 +268,25 @@
 }
 
 .btn-edit {
-  background-color: #F3F4F6;
+  background-color: #f3f4f6;
   color: #374151;
-  border-color: #D1D5DB;
+  border-color: #d1d5db;
 }
 
 .btn-edit:hover:not(:disabled) {
-  background-color: #E5E7EB;
-  color: #1F2937;
+  background-color: #e5e7eb;
+  color: #1f2937;
 }
 
 .btn-delete {
-  background-color: #FEF2F2;
-  color: #DC2626;
-  border-color: #FCA5A5;
+  background-color: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
 }
 
 .btn-delete:hover {
-  background-color: #DC2626;
-  color: #FFFFFF;
+  background-color: #dc2626;
+  color: #ffffff;
 }
 
 /* Empty State Styling */
@@ -298,9 +307,9 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background-color: var(--bg-color, #FAF7F2);
-  border: 1px solid var(--text-light-brown, #8C5839);
-  color: var(--text-light-brown, #8C5839);
+  background-color: var(--bg-color, #faf7f2);
+  border: 1px solid var(--text-light-brown, #8c5839);
+  color: var(--text-light-brown, #8c5839);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -311,26 +320,26 @@
 .empty-state-content h4 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
   margin-bottom: 8px;
 }
 
 .empty-state-content p {
   font-size: 0.9rem;
-  color: var(--text-body, #594D46);
+  color: var(--text-body, #594d46);
   line-height: 1.5;
 }
 
 /* Table Footer Bar & Pagination Spacing */
 .table-footer-bar {
   padding: 16px 32px;
-  background-color: var(--bg-color, #FAF7F2);
-  border-top: 1px solid var(--card-border, #DFD8CC);
+  background-color: var(--bg-color, #faf7f2);
+  border-top: 1px solid var(--card-border, #dfd8cc);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.88rem;
-  color: var(--text-body, #594D46);
+  color: var(--text-body, #594d46);
 }
 
 .pagination-controls-wrapper {
@@ -341,13 +350,13 @@
 
 .pagination-indicator {
   font-weight: 600;
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
   padding: 0 4px;
 }
 
 .footer-link {
   font-weight: 600;
-  color: var(--text-light-brown, #8C5839);
+  color: var(--text-light-brown, #8c5839);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -356,7 +365,7 @@
 }
 
 .footer-link:hover {
-  color: var(--text-dark, #2C1A14);
+  color: var(--text-dark, #2c1a14);
 }
 
 /* Responsive queries */
