@@ -23,7 +23,11 @@ const userNavSections = [
         icon: "bi-file-earmark-plus",
         to: "/user/requests",
       },
-      { label: "My Requests", icon: "bi-clock-history", to: "/user/history" },
+      {
+        label: "Request History",
+        icon: "bi-clock-history",
+        to: "/user/history",
+      },
       { label: "Notifications", icon: "bi-bell", to: "/user/notifications" },
     ],
   },
