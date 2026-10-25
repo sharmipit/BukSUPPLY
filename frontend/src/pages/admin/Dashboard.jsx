@@ -52,6 +52,7 @@ const ROUTES = {
   requests: '/admin/requests',
   inventory: '/admin/inventory',
   users: '/admin/users',
+  reports: '/admin/reports-logs', // change to the path registered for ReportsLogs.jsx
 };
 
 const EMPTY_FORM = {
@@ -265,6 +266,7 @@ const Dashboard = ({
   onViewRequests, // optional overrides; by default they navigate to ROUTES
   onViewInventory,
   onViewUsers,
+  onViewReports,
   onItemAdded = () => {},
 }) => {
   const navigate = useNavigate();
@@ -778,21 +780,17 @@ const Dashboard = ({
     },
   ];
 
-  const handleGeneratePDF = () => {
-    // Placeholder: swap in your PDF library (jsPDF, react-to-print, etc.)
-    window.print();
-  };
-
   // Navigation shortcuts (quick action + "View ..." links in the table footers)
   const handleViewRequests = onViewRequests ?? (() => navigate(ROUTES.requests));
   const handleViewInventory = onViewInventory ?? (() => navigate(ROUTES.inventory));
   const handleViewUsers = onViewUsers ?? (() => navigate(ROUTES.users));
+  const handleViewReports = onViewReports ?? (() => navigate(ROUTES.reports));
 
   const quickActions = [
     { id: 'process', label: 'Process Requests', onClick: handleViewRequests },
     { id: 'item', label: 'Add Item', onClick: openAddModal },
     { id: 'users', label: 'Manage Users', onClick: handleViewUsers },
-    { id: 'pdf', label: 'Generate Report', onClick: handleGeneratePDF },
+    { id: 'reports', label: 'Reports & Logs', onClick: handleViewReports },
   ];
 
   const currentItems = slips.slice(0, PREVIEW_LIMIT);

@@ -8,7 +8,11 @@
   max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
-  font-family: 'Poppins', -apple-system, 'Segoe UI', sans-serif;
+  font-family:
+    'Poppins',
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
 }
 
 /* Uniform font: everything inside the page inherits Poppins (icons excluded) */
