@@ -19,7 +19,9 @@ export default function useRequisitions() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // These throw on failure so the modal can show the error
   const create = async (data) => {
@@ -32,10 +34,11 @@ export default function useRequisitions() {
     setRequisitions((prev) => prev.map((r) => (r.id === data.id ? res.data.requisition : r)));
   };
 
-  const remove = async (id) => {
-    await api.delete(`/requisitions/${id}`);
-    setRequisitions((prev) => prev.filter((r) => r.id !== id));
+  // Cancel keeps the slip in the database and marks it as Cancelled
+  const cancel = async (id) => {
+    const res = await api.patch(`/requisitions/${id}/cancel`);
+    setRequisitions((prev) => prev.map((r) => (r.id === id ? res.data.requisition : r)));
   };
 
-  return { requisitions, loading, error, reload: load, create, update, remove };
+  return { requisitions, loading, error, reload: load, create, update, cancel };
 }

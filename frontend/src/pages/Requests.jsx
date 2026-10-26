@@ -5,7 +5,15 @@ import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
 import '../styles/Requests.css';
 
-const STATUS_TABS = ['All', 'Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied'];
+const STATUS_TABS = [
+  'All',
+  'Pending',
+  'Processing',
+  'Purchasing',
+  'Accepted',
+  'Denied',
+  'Cancelled',
+];
 const OPEN_STATUSES = ['Pending', 'Processing', 'Purchasing'];
 // Same starting categories as the Inventory page
 const DEFAULT_CATEGORIES = [
@@ -121,7 +129,7 @@ const nextStepText = (req, check) => {
 };
 
 function Stepper({ req }) {
-  if (req.status === 'Denied') return null;
+  if (req.status === 'Denied' || req.status === 'Cancelled') return null;
   const flow = [
     'Pending',
     'Processing',
@@ -787,6 +795,13 @@ export default function Requests() {
                 <div className="rq-deny-box">
                   <strong>Reason for denial</strong>
                   <p>{detailsReq.denyReason}</p>
+                </div>
+              )}
+
+              {detailsReq.status === 'Cancelled' && (
+                <div className="rq-deny-box">
+                  <strong>Cancelled by the requester</strong>
+                  <p>This request was cancelled before it was processed. No action is needed.</p>
                 </div>
               )}
 

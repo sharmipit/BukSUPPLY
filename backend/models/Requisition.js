@@ -43,13 +43,15 @@ const RequisitionSchema = new mongoose.Schema(
     purchaseItems: [stockItem], // special purchase items
     status: {
       type: String,
-      enum: ['Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied'],
+      enum: ['Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied', 'Cancelled'],
       default: 'Pending',
     },
     remarks: { type: String, default: '' },
     processedAt: Date,
     reviewedBy: { type: String, default: '' }, // name of the moderator/admin who last handled it
     reviewedAt: Date,
+    // Set when the requester cancels a Pending slip (the slip is kept, not deleted)
+    cancelledAt: Date,
     // Set once stock has been deducted for this slip, so it can never be deducted twice
     stockDeducted: { type: Boolean, default: false },
   },
