@@ -15,6 +15,7 @@ const STATUS_OPTIONS = [
   { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
   { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
   { value: 'Denied', label: 'Denied', tone: 'denied' },
+  { value: 'Cancelled', label: 'Cancelled', tone: 'cancelled' },
 ];
 
 export default function ItemRequest() {
@@ -26,13 +27,13 @@ export default function ItemRequest() {
   useAuth();
 
   // Real data from the API
-  const { requisitions, loading, error, create, update, remove } = useRequisitions();
+  const { requisitions, loading, error, create, update, cancel } = useRequisitions();
 
   // Filtering and pagination state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 5;
 
   // Modals state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -76,7 +77,7 @@ export default function ItemRequest() {
     setEditModalOpen(true);
   };
 
-  // Cancel = same server call as the old Delete: the slip is removed
+  // Cancel keeps the slip in the database and marks it as Cancelled
   const handleCancelClick = (id) => {
     setSelectedReqId(id);
     setCancelModalOpen(true);
@@ -84,7 +85,7 @@ export default function ItemRequest() {
 
   const handleConfirmCancel = async () => {
     try {
-      await remove(selectedReqId);
+      await cancel(selectedReqId);
     } catch (err) {
       alert(errMsg(err));
     }
@@ -92,12 +93,12 @@ export default function ItemRequest() {
     setSelectedReqId(null);
   };
 
-  // Opens the modal pre-filled from a denied slip. Saving it calls create().
+  // Opens the modal pre-filled from a denied or cancelled slip. Saving it calls create().
   const handleRequestAgain = (req) => {
     setIsCreateMode(true);
     setSelectedEditReq({
       department: req.department,
-      title: `${req.title} (Re-filed)`,
+      title: req.title,
       purpose: req.purpose,
       itemsList: req.itemsList || [],
       purchaseItems: req.purchaseItems || [],
@@ -144,7 +145,8 @@ export default function ItemRequest() {
         <div>
           <h1 className="hub-title">Requisitions Hub</h1>
           <p className="hub-subtitle">
-            Manage, search, file, and track all your departmental property and supply requisitions in one place.
+            Manage, search, file, and track all your departmental property and supply requisitions
+            in one place.
           </p>
         </div>
         <button className="btn-file-new-slip border-0" onClick={handleFileNew}>
@@ -195,89 +197,106 @@ export default function ItemRequest() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                messageRow('bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
-              ) : error ? (
-                messageRow('bi-exclamation-circle', 'Could not load requisitions', error)
-              ) : currentItems.length > 0 ? (
-                currentItems.map((req) => {
-                  const isPending = req.status === 'Pending';
-                  const isProcessingOrPurchasing = req.status === 'Processing' || req.status === 'Purchasing';
+              {loading
+                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
+                : error
+                  ? messageRow('bi-exclamation-circle', 'Could not load requisitions', error)
+                  : currentItems.length > 0
+                    ? currentItems.map((req) => {
+                        const isPending = req.status === 'Pending';
+                        const isProcessingOrPurchasing =
+                          req.status === 'Processing' || req.status === 'Purchasing';
+                        const canRequestAgain =
+                          req.status === 'Denied' || req.status === 'Cancelled';
 
-                  return (
-                    <tr key={req.id} style={{ cursor: 'pointer' }} onClick={() => handleRowClick(req)}>
-                      <td className="fw-semibold align-middle nowrap-cell">{req.id}</td>
-                      <td className="align-middle">
-                        <div className="req-title-text ir-clip" title={req.title}>{req.title}</div>
-                        <div className="req-purpose-text ir-clip" title={req.purpose}>{req.purpose}</div>
-                      </td>
-                      <td className="align-middle">
-                        <div className="ir-clip" title={req.item}>{req.item}</div>
-                      </td>
-                      <td className="align-middle nowrap-cell">{req.date}</td>
-                      <td className="align-middle nowrap-cell">
-                        <span className={`badge-status ${req.status.toLowerCase()}`}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="text-end align-middle" onClick={(e) => e.stopPropagation()}>
-                        <div className="action-buttons">
-                          {isPending && (
-                            <>
-                              <button
-                                className="btn-action btn-edit"
-                                onClick={() => handleEdit(req)}
-                                title="Edit Requisition"
-                              >
-                                <i className="bi bi-pencil-square"></i> Edit
-                              </button>
-                              <button
-                                className="btn-action btn-delete"
-                                onClick={() => handleCancelClick(req.id)}
-                                title="Cancel Requisition"
-                              >
-                                <i className="bi bi-x-circle"></i> Cancel
-                              </button>
-                            </>
-                          )}
-                          {isProcessingOrPurchasing && (
-                            <span className="locked-badge-pill text-muted small">
-                              <i className="bi bi-lock-fill"></i> Locked ({req.status})
-                            </span>
-                          )}
-                          {req.status === 'Accepted' && (
-                            <span className="locked-badge-pill">
-                              <i className="bi bi-check-circle-fill text-success"></i> Locked (Approved)
-                            </span>
-                          )}
-                          {req.status === 'Denied' && (
-                            <button
-                              className="btn-action btn-edit"
-                              onClick={() => handleRequestAgain(req)}
-                              title="File a new request based on this denied slip"
+                        return (
+                          <tr
+                            key={req.id}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleRowClick(req)}
+                          >
+                            <td className="fw-semibold align-middle nowrap-cell">{req.id}</td>
+                            <td className="align-middle">
+                              <div className="req-title-text ir-clip" title={req.title}>
+                                {req.title}
+                              </div>
+                              <div className="req-purpose-text ir-clip" title={req.purpose}>
+                                {req.purpose}
+                              </div>
+                            </td>
+                            <td className="align-middle">
+                              <div className="ir-clip" title={req.item}>
+                                {req.item}
+                              </div>
+                            </td>
+                            <td className="align-middle nowrap-cell">{req.date}</td>
+                            <td className="align-middle nowrap-cell">
+                              <span className={`badge-status ${req.status.toLowerCase()}`}>
+                                {req.status}
+                              </span>
+                            </td>
+                            <td
+                              className="text-end align-middle"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <i className="bi bi-arrow-repeat"></i> Request Again
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                messageRow(
-                  'bi-folder2-open',
-                  'No Requisitions Found',
-                  'No requisition slips match your current search or status filter criteria.'
-                )
-              )}
+                              <div className="action-buttons">
+                                {isPending && (
+                                  <>
+                                    <button
+                                      className="btn-action btn-edit"
+                                      onClick={() => handleEdit(req)}
+                                      title="Edit Requisition"
+                                    >
+                                      <i className="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                    <button
+                                      className="btn-action btn-delete"
+                                      onClick={() => handleCancelClick(req.id)}
+                                      title="Cancel Requisition"
+                                    >
+                                      <i className="bi bi-x-circle"></i> Cancel
+                                    </button>
+                                  </>
+                                )}
+                                {isProcessingOrPurchasing && (
+                                  <span className="locked-badge-pill text-muted small">
+                                    <i className="bi bi-lock-fill"></i> Locked ({req.status})
+                                  </span>
+                                )}
+                                {req.status === 'Accepted' && (
+                                  <span className="locked-badge-pill">
+                                    <i className="bi bi-check-circle-fill text-success"></i> Locked
+                                    (Approved)
+                                  </span>
+                                )}
+                                {canRequestAgain && (
+                                  <button
+                                    className="btn-action btn-edit"
+                                    onClick={() => handleRequestAgain(req)}
+                                    title={`File a new request based on this ${req.status.toLowerCase()} slip`}
+                                  >
+                                    <i className="bi bi-arrow-repeat"></i> Request Again
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    : messageRow(
+                        'bi-folder2-open',
+                        'No Requisitions Found',
+                        'No requisition slips match your current search or status filter criteria.'
+                      )}
             </tbody>
           </table>
         </div>
 
         {/* Table Pagination Bar */}
         <div className="table-footer-bar">
-          <span>Showing {currentItems.length} of {filteredRequests.length} requisitions</span>
+          <span>
+            Showing {currentItems.length} of {filteredRequests.length} requisitions
+          </span>
           <div className="pagination-controls-wrapper">
             <button
               className="btn-action btn-edit"
@@ -302,7 +321,7 @@ export default function ItemRequest() {
       <DeleteModal
         isOpen={cancelModalOpen}
         title="Cancel Requisition Slip?"
-        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? This action cannot be undone.`}
+        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? It will be marked as Cancelled and can no longer be edited.`}
         onConfirm={handleConfirmCancel}
         onClose={() => setCancelModalOpen(false)}
       />

@@ -11,6 +11,7 @@ const STATUS_OPTIONS = [
   { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
   { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
   { value: 'Denied', label: 'Denied', tone: 'denied' },
+  { value: 'Cancelled', label: 'Cancelled', tone: 'cancelled' },
 ];
 
 export default function RequestHistory() {
@@ -25,7 +26,7 @@ export default function RequestHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 5;
 
   // Details Modal State
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);

@@ -398,6 +398,9 @@
 .rq-dot.denied {
   background-color: #ef4444;
 }
+.rq-dot.cancelled {
+  background-color: #6c757d;
+}
 
 /* Table card */
 .rq-section-card {
@@ -550,6 +553,10 @@
 .rq-badge.denied {
   background-color: #fee2e2;
   color: #991b1b;
+}
+.rq-badge.cancelled {
+  background-color: #f1f3f5;
+  color: #6c757d;
 }
 
 /* Action buttons */
