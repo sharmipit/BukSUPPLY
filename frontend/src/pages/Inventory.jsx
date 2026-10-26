@@ -616,25 +616,28 @@ export default function Inventory() {
                             <td className="inv-cell-actions" onClick={(e) => e.stopPropagation()}>
                               <div className="inv-action-buttons">
                                 <button
-                                  className="inv-btn-action inv-btn-adjust"
+                                  className="inv-btn-action inv-btn-icon inv-btn-adjust"
                                   onClick={() => openAdjustModal(item)}
                                   title="Adjust stock"
+                                  aria-label="Adjust stock"
                                 >
-                                  <i className="bi bi-arrow-down-up"></i> Adjust
+                                  <i className="bi bi-arrow-down-up"></i>
                                 </button>
                                 <button
-                                  className="inv-btn-action inv-btn-neutral"
+                                  className="inv-btn-action inv-btn-icon inv-btn-neutral"
                                   onClick={() => openEditModal(item)}
                                   title="Edit item"
+                                  aria-label="Edit item"
                                 >
-                                  <i className="bi bi-pencil-square"></i> Edit
+                                  <i className="bi bi-pencil-square"></i>
                                 </button>
                                 <button
-                                  className="inv-btn-action inv-btn-delete"
+                                  className="inv-btn-action inv-btn-icon inv-btn-delete"
                                   onClick={() => openDeleteModal(item)}
                                   title="Delete item"
+                                  aria-label="Delete item"
                                 >
-                                  <i className="bi bi-trash3"></i> Delete
+                                  <i className="bi bi-trash3"></i>
                                 </button>
                               </div>
                             </td>
