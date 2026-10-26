@@ -8,7 +8,11 @@
   max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
-  font-family: 'Poppins', -apple-system, 'Segoe UI', sans-serif;
+  font-family:
+    'Poppins',
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
 }
 
 .inventory-container *:not(.bi) {
@@ -229,6 +233,7 @@
 
 /* ==========================================================================
    Slim horizontal scrollbar (table)
+   Only shows on narrow screens, where the table cannot fit.
    No arrow buttons, a light thumb, and brown only on hover.
    scrollbar-width / scrollbar-color are used only where ::-webkit-scrollbar
    is not supported (Firefox), because in Chrome and Edge they override the
@@ -518,9 +523,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* No forced min-width: the table fits the screen, and the Item column
+   takes whatever space the fixed columns leave over. */
 .inv-table {
   width: 100% !important;
-  min-width: 1340px;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -551,10 +558,7 @@
   width: 140px;
 }
 .inv-table .inv-col-stock {
-  width: 220px;
-}
-.inv-table .inv-col-location {
-  width: 140px;
+  width: 200px;
 }
 .inv-table .inv-col-updated {
   width: 150px;
@@ -563,7 +567,7 @@
   width: 130px;
 }
 .inv-table .inv-col-actions {
-  width: 320px;
+  width: 140px;
 }
 
 .inv-table th {
@@ -721,6 +725,17 @@
 .inv-btn-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Icon-only buttons in the table (Adjust, Edit, Delete) */
+.inv-btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
 }
 
 .inv-btn-neutral {
@@ -1333,6 +1348,11 @@
   .inv-move-date {
     margin-left: 0;
     width: 100%;
+  }
+
+  /* On phones and small tablets the table scrolls instead of squashing */
+  .inv-table {
+    min-width: 900px;
   }
 }
 
