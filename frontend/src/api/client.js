@@ -10,6 +10,8 @@ api.interceptors.request.use((config) => {
 });
 
 export const errMsg = (err) =>
-  err.response?.data?.message || 'Cannot reach the server. Please try again.';
+  err.response?.data?.message ||
+  (err.response ? 'Something went wrong.' : err.message) ||
+  'Cannot reach the server. Please try again.';
 
 export default api;
