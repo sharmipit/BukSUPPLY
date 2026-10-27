@@ -1,10 +1,9 @@
 const express = require('express');
-const axios = require('axios');
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
 const ExportHistory = require('../models/ExportHistory');
 const { protect, restrictTo } = require('../middleware/auth');
-const { buildXlsx } = require('../services/reportFiles');
+const { buildPdf, buildXlsx } = require('../services/reportFiles');
 
 const router = express.Router();
 
@@ -16,44 +15,6 @@ const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const TYPES = ['stocks', 'requests', 'transactions'];
 const FORMATS = ['pdf', 'xlsx'];
 const FILTER_KEYS = ['category', 'status', 'type', 'from', 'to'];
-
-const TITLES = {
-  stocks: 'Stock Report',
-  requests: 'Requests Report',
-  transactions: 'Transactions Report',
-};
-
-const COLUMNS = {
-  stocks: [
-    { header: 'Code', key: 'id' },
-    { header: 'Item', key: 'name' },
-    { header: 'Category', key: 'category' },
-    { header: 'Quantity', key: 'quantity' },
-    { header: 'Unit', key: 'unit' },
-    { header: 'Reorder Level', key: 'reorderLevel' },
-    { header: 'Status', key: 'status' },
-  ],
-  requests: [
-    { header: 'Slip #', key: 'id' },
-    { header: 'Requested by', key: 'requester' },
-    { header: 'Department', key: 'department' },
-    { header: 'Title', key: 'title' },
-    { header: 'Items', key: 'items' },
-    { header: 'Status', key: 'status' },
-    { header: 'Date Filed', key: 'createdAt' },
-  ],
-  transactions: [
-    { header: 'Date', key: 'createdAt' },
-    { header: 'Code', key: 'code' },
-    { header: 'Item', key: 'item' },
-    { header: 'Type', key: 'type' },
-    { header: 'Qty', key: 'quantity' },
-    { header: 'Before', key: 'before' },
-    { header: 'After', key: 'after' },
-    { header: 'Done by', key: 'user' },
-    { header: 'Remark', key: 'remark' },
-  ],
-};
 
 // Dates are picked in Philippine time (UTC+8); "to" includes the whole day
 function dateRange(q) {
@@ -82,7 +43,7 @@ const pickFilters = (q = {}) => {
 // ---------- Data loaders (shared by JSON and file export) ----------
 async function stocksRows(q) {
   const filter = {};
-  if (str(q.category)) filter.category = str(q.category);
+  if (str(q.category) && str(q.category) !== 'All') filter.category = str(q.category);
 
   const items = await InventoryItem.find(filter).sort({ category: 1, name: 1 }).lean();
   let rows = items.map((i) => ({
@@ -96,13 +57,14 @@ async function stocksRows(q) {
     updatedAt: i.updatedAt,
   }));
 
-  if (str(q.status)) rows = rows.filter((r) => r.status === str(q.status));
+  if (str(q.status) && str(q.status) !== 'All')
+    rows = rows.filter((r) => r.status === str(q.status));
   return rows;
 }
 
 async function requestsRows(q) {
   const filter = {};
-  if (str(q.status)) filter.status = str(q.status);
+  if (str(q.status) && str(q.status) !== 'All') filter.status = str(q.status);
   const range = dateRange(q);
   if (range) filter.createdAt = range;
 
@@ -127,7 +89,7 @@ async function requestsRows(q) {
 
 async function transactionsRows(q) {
   const match = {};
-  if (str(q.type)) match['movements.type'] = str(q.type);
+  if (str(q.type) && str(q.type) !== 'All') match['movements.type'] = str(q.type);
   const range = dateRange(q);
   if (range) match['movements.date'] = range;
 
@@ -147,90 +109,12 @@ async function transactionsRows(q) {
         after: '$movements.after',
         user: '$movements.by',
         reference: '$movements.reference',
-        remark: '$movements.remark',
       },
     },
   ]);
 }
 
 const loaders = { stocks: stocksRows, requests: requestsRows, transactions: transactionsRows };
-
-// Helper to convert rows into styled HTML for PDFShift
-function generateHtmlReport(type, rows, summary) {
-  const cols = COLUMNS[type] || [];
-  const title = TITLES[type] || 'Report';
-
-  const tableHeaders = cols.map((col) => `<th>${col.header}</th>`).join('');
-  const tableRows = rows
-    .map((row) => {
-      const cells = cols
-        .map((col) => {
-          const val = row[col.key] ?? '';
-          return `<td>${val}</td>`;
-        })
-        .join('');
-      return `<tr>${cells}</tr>`;
-    })
-    .join('');
-
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; margin: 30px; color: #1e293b; }
-          h2 { color: #1e40af; margin-bottom: 4px; }
-          .summary { color: #64748b; font-size: 12px; margin-bottom: 4px; }
-          .meta { color: #94a3b8; font-size: 11px; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; font-size: 10px; }
-          th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
-          th { background-color: #1e40af; color: #ffffff; font-weight: bold; }
-          tr:nth-child(even) { background-color: #f8fafc; }
-        </style>
-      </head>
-      <body>
-        <h2>BukSUPPLY – ${title}</h2>
-        <div class="summary">${summary}</div>
-        <div class="meta">Generated ${new Date().toLocaleString('en-PH')} · ${rows.length} record(s)</div>
-        <table>
-          <thead>
-            <tr>${tableHeaders}</tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
-}
-
-// Function to call PDFShift API
-async function generatePdfShift(type, rows, summary) {
-  const html = generateHtmlReport(type, rows, summary);
-
-  const response = await axios.post(
-    'https://api.pdfshift.io/v3/convert/pdf',
-    {
-      source: html,
-      landscape: true,
-    },
-    {
-      headers: {
-        'X-API-Key': process.env.PDFSHIFT_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      auth: {
-        username: process.env.PDFSHIFT_API_KEY,
-        password: '',
-      },
-      responseType: 'arraybuffer',
-    }
-  );
-
-  return Buffer.from(response.data);
-}
 
 // ---------- History ----------
 router.get('/history', async (req, res, next) => {
@@ -257,7 +141,7 @@ router.post('/history', async (req, res, next) => {
   }
 });
 
-// ---------- Raw JSON Endpoint ----------
+// ---------- Raw JSON endpoint (also used by the preview) ----------
 router.get('/:type', async (req, res, next) => {
   try {
     const { type } = req.params;
@@ -265,14 +149,13 @@ router.get('/:type', async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid report type.' });
     }
 
-    const rows = await loaders[type](req.query);
-    res.json(rows);
+    res.json(await loaders[type](req.query));
   } catch (e) {
     next(e);
   }
 });
 
-// ---------- File export (the one the frontend calls) ----------
+// ---------- File export ----------
 router.get('/:type/export', async (req, res, next) => {
   try {
     const { type } = req.params;
@@ -297,10 +180,10 @@ router.get('/:type/export', async (req, res, next) => {
     try {
       file =
         format === 'pdf'
-          ? await generatePdfShift(type, rows, summary)
+          ? await buildPdf(type, rows, summary)
           : await buildXlsx(type, rows, summary);
     } catch (err) {
-      console.error('Report generation failed:', err.response?.data?.toString() || err.message);
+      console.error('Report generation failed:', err.message);
       return res.status(502).json({ message: 'Could not generate the file. Please try again.' });
     }
 

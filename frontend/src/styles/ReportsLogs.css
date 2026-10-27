@@ -279,6 +279,89 @@
   padding: 2px;
 }
 
+/* Preview modal */
+.rl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(44, 26, 20, 0.45);
+  backdrop-filter: blur(2px);
+}
+.rl-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: 90vh;
+  padding: 28px 32px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 24px;
+  box-shadow: 0 12px 32px rgba(44, 26, 20, 0.18);
+  font-family:
+    'Poppins',
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+.rl-modal h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-dark, #2c1a14);
+  margin: 0 0 4px;
+}
+.rl-modal .rl-muted {
+  margin: 0 0 8px;
+}
+
+.rl-modal-scroll {
+  flex: 1;
+  overflow: auto;
+  margin: 8px 0 16px;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 16px;
+}
+.rl-modal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  color: var(--text-dark, #2c1a14);
+}
+.rl-modal th {
+  position: sticky;
+  top: 0;
+  padding: 10px 14px;
+  background: var(--btn-dark, #2c1a14);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.rl-modal td {
+  padding: 9px 14px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+  color: var(--text-body, #594d46);
+}
+.rl-modal tbody tr:first-child td {
+  border-top: none;
+}
+.rl-modal tbody tr:nth-child(even) td {
+  background: #faf7f2;
+}
+.rl-modal tbody tr:hover td {
+  background: #f5efe6;
+}
+
+.rl-modal .rl-card-actions {
+  grid-column: auto;
+  grid-row: auto;
+  justify-content: flex-end;
+}
+
 /* Responsive: stack the card once the 3 fixed columns no longer fit */
 @media (max-width: 1150px) {
   .rl-card {
@@ -319,6 +402,19 @@
   .rl-btn-secondary {
     justify-content: center;
     width: 100%;
+  }
+
+  .rl-modal {
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .rl-modal .rl-card-actions {
+    flex-direction: row;
+  }
+  .rl-modal .rl-btn-primary,
+  .rl-modal .rl-btn-secondary {
+    width: auto;
+    flex: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
