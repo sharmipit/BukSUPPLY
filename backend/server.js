@@ -35,6 +35,7 @@ app.use(
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], // PATCH added
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Disposition'], // lets the browser read the report filename
   })
 );
 
@@ -49,6 +50,7 @@ app.use('/api/admin/users', require('./routes/adminUserRoutes')); // new
 app.use('/api/requisitions', require('./routes/requisitionRoutes')); //for requisitions
 app.use('/api/inventory', require('./routes/inventory')); //for inventory
 app.use('/api/notifications', require('./routes/notificationRoutes')); //for notifications
+app.use('/api/reports', require('./routes/reportRoutes')); //for reports
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'buksupply-backend' });
