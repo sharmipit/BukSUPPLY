@@ -1,20 +1,10 @@
-const ExcelJS = require('exceljs');
-
-// Same palette as the website (hex for the PDF, ARGB for Excel)
+// Same palette as the website
 const THEME = {
   dark: '#2c1a14', // headers, titles
   body: '#594d46', // normal text
   accent: '#8c5839', // brown accent
   border: '#dfd8cc',
   stripe: '#faf7f2',
-};
-const XL = {
-  dark: 'FF2C1A14',
-  body: 'FF594D46',
-  accent: 'FF8C5839',
-  border: 'FFDFD8CC',
-  stripe: 'FFFAF7F2',
-  white: 'FFFFFFFF',
 };
 
 const TITLES = {
@@ -128,59 +118,49 @@ async function buildPdf(type, rows, summary) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-async function buildXlsx(type, rows, summary) {
+// Excel is built from a plain HTML table. Converters read tables, so skip fonts, stripes and CSS.
+function buildXlsxHtml(type, rows, summary) {
   const cols = COLUMNS[type];
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'BukSUPPLY';
-  const ws = wb.addWorksheet(TITLES[type], {
-    views: [{ state: 'frozen', ySplit: 5 }], // keep the header row visible while scrolling
+  const span = cols.length;
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body>
+  <table>
+    <tr><td colspan="${span}"><b>BukSUPPLY – ${esc(TITLES[type])}</b></td></tr>
+    <tr><td colspan="${span}">${esc(summary)}</td></tr>
+    <tr><td colspan="${span}">Generated ${esc(generatedAt())} · ${rows.length} record(s)</td></tr>
+    <tr>${cols.map((c) => `<th>${esc(c.header)}</th>`).join('')}</tr>
+    ${rows
+      .map((r) => `<tr>${cols.map((c) => `<td>${esc(cell(r, c))}</td>`).join('')}</tr>`)
+      .join('')}
+  </table></body></html>`;
+}
+
+// ---- External API call. Confirm endpoint/options in Nutrient's docs. ----
+async function buildXlsx(type, rows, summary) {
+  if (!process.env.NUTRIENT_API_KEY) throw new Error('Excel service is not configured.');
+
+  const form = new FormData(); // global in Node 18+, same as fetch
+  form.append(
+    'document',
+    new Blob([buildXlsxHtml(type, rows, summary)], { type: 'text/html' }),
+    'report.html'
+  );
+  form.append(
+    'instructions',
+    JSON.stringify({ parts: [{ html: 'document' }], output: { type: 'xlsx' } })
+  );
+
+  // Don't set Content-Type yourself; fetch adds the multipart boundary
+  const res = await fetch('https://api.nutrient.io/build', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.NUTRIENT_API_KEY}` },
+    body: form,
   });
 
-  // Title block (rows 1-4)
-  const title = ws.addRow([`BukSUPPLY – ${TITLES[type]}`]);
-  title.font = { bold: true, size: 16, color: { argb: XL.dark } };
-  title.height = 26;
-
-  ws.addRow([summary]).font = { color: { argb: XL.body } };
-  ws.addRow([`Generated ${generatedAt()} · ${rows.length} record(s)`]).font = {
-    bold: true,
-    color: { argb: XL.accent },
-  };
-  ws.addRow([]);
-
-  // Header row (row 5)
-  const head = ws.addRow(cols.map((c) => c.header));
-  head.height = 22;
-  head.eachCell((c) => {
-    c.font = { bold: true, color: { argb: XL.white } };
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.dark } };
-    c.alignment = { vertical: 'middle', horizontal: 'left' };
-    c.border = { bottom: { style: 'thin', color: { argb: XL.border } } };
-  });
-
-  // Data rows with cream striping and warm borders
-  rows.forEach((r, i) => {
-    const row = ws.addRow(cols.map((c) => cell(r, c)));
-    row.eachCell((c) => {
-      c.font = { color: { argb: XL.dark } };
-      c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-      c.border = { bottom: { style: 'thin', color: { argb: XL.border } } };
-      if (i % 2 === 1) {
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.stripe } };
-      }
-    });
-  });
-
-  // Column widths
-  cols.forEach((c, i) => {
-    const longest = Math.max(c.header.length, ...rows.map((r) => String(cell(r, c)).length));
-    ws.getColumn(i + 1).width = Math.min(Math.max(longest + 2, 10), 50);
-  });
-
-  // Filter dropdowns on the header row
-  ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: cols.length } };
-
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  if (!res.ok) {
+    console.error('Excel service error:', res.status, await res.text().catch(() => ''));
+    throw new Error(`Excel service failed (${res.status}).`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 module.exports = { buildPdf, buildXlsx };
