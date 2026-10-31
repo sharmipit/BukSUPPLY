@@ -1,0 +1,320 @@
+/* ==========================================================================
+   BukSUPPLY - System Settings
+   Builds on Dashboard.css (header card, section cards, buttons, toast).
+   ========================================================================== */
+
+.ss-page {
+  padding-bottom: 40px;
+}
+
+/* ---------- Setting cards ---------- */
+.ss-card {
+  margin-bottom: 24px;
+}
+
+.ss-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 32px;
+  border-bottom: 1px solid var(--card-border, #dfd8cc);
+}
+
+.ss-card-icon {
+  margin-left: 0;
+}
+
+.ss-card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-dark, #2c1a14);
+}
+
+.ss-card-sub {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-body, #594d46);
+}
+
+.ss-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 32px 28px;
+}
+
+.ss-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.ss-split .ss-card {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+/* ---------- Fields ---------- */
+.ss-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.ss-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ss-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ss-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ss-field label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark, #2c1a14);
+}
+
+.ss-hint {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-body, #594d46);
+}
+
+.ss-input-wrap {
+  position: relative;
+}
+
+.ss-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 12px;
+  background-color: #faf7f2;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-dark, #2c1a14);
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.ss-input:focus {
+  outline: none;
+  border-color: #8c5839;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
+}
+
+.ss-input-wrap .ss-input {
+  padding-right: 84px;
+}
+
+.ss-suffix {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--text-body, #594d46);
+  pointer-events: none;
+}
+
+/* ---------- Toggle rows ---------- */
+.ss-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ss-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ss-row-label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-dark, #2c1a14);
+  cursor: pointer;
+}
+
+.ss-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50px;
+  background-color: #dfd8cc;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ss-switch.on {
+  background-color: #8c5839;
+}
+
+.ss-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(44, 26, 20, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.ss-switch.on .ss-switch-knob {
+  transform: translateX(20px);
+}
+
+.ss-switch:focus-visible {
+  outline: 2px solid var(--text-light-brown, #8c5839);
+  outline-offset: 2px;
+}
+
+.ss-divider {
+  height: 1px;
+  background-color: var(--card-border, #dfd8cc);
+}
+
+/* ---------- Save bar ---------- */
+.ss-savebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 32px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
+}
+
+.ss-savebar-text {
+  font-size: 0.9rem;
+  color: var(--text-body, #594d46);
+}
+
+.ss-savebar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1200px) {
+  .ss-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .ss-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ss-grid-2,
+  .ss-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .ss-card-head,
+  .ss-card-body,
+  .ss-savebar {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .ss-savebar-actions {
+    width: 100%;
+  }
+
+  .ss-savebar-actions button {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- Technical settings extras ---------- */
+.ss-card-headtext {
+  flex: 1;
+  min-width: 0;
+}
+
+.ss-status {
+  flex-shrink: 0;
+}
+
+.ss-error {
+  margin-bottom: 24px;
+}
+
+.ss-input-secret {
+  padding-right: 48px;
+}
+
+.ss-eye {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-body, #594d46);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ss-eye:hover {
+  background-color: #efe9df;
+}
+
+.ss-eye:focus-visible {
+  outline: 2px solid var(--text-light-brown, #8c5839);
+}
+
+.ss-select {
+  padding-right: 46px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 18px center;
+  background-size: 12px 8px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+@media (max-width: 560px) {
+  .ss-card-head {
+    flex-wrap: wrap;
+  }
+}
