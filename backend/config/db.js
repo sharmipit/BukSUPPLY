@@ -1,19 +1,27 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const settings = require('../services/settings');
 
 /**
  * Connects to the BukSUPPLY MongoDB Atlas cluster using Mongoose.
- * Reads the connection string from process.env.MONGODB_URI.
+ * Reads the connection string from the system settings (data/settings.json).
+ * On first run, it falls back to process.env.MONGODB_URI.
  */
 const connectDB = async () => {
-  if (!process.env.MONGODB_URI) {
+  const { mongoUri, mongoDbName } = settings.get();
+
+  if (!mongoUri) {
     console.error(
-      "MONGODB_URI is not set. Copy .env.example to .env and fill in your Atlas connection string."
+      'No MongoDB connection string found. Set MONGODB_URI in your .env file, ' +
+        'or save one in the System Settings page.'
     );
     process.exit(1);
   }
 
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    // Only force a database name if one was saved in System Settings.
+    // Otherwise Mongoose uses the name inside the connection string.
+    const options = mongoDbName ? { dbName: mongoDbName } : {};
+    const conn = await mongoose.connect(mongoUri, options);
     console.log(`MongoDB connected: ${conn.connection.host}`);
     return conn;
   } catch (err) {

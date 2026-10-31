@@ -37,3 +37,6 @@ Thumbs.db
 # ===== Misc =====
 coverage/
 *.tmp
+
+# ===== System Settings =====
+data/

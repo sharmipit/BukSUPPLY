@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+const settings = require('./services/settings'); // NEW
 
 const app = express();
 
@@ -33,9 +34,9 @@ app.use(
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], // PATCH added
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Content-Disposition'], // lets the browser read the report filename
+    exposedHeaders: ['Content-Disposition'],
   })
 );
 
@@ -46,11 +47,23 @@ app.use(cookieParser());
 // --- API Routes ---
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/user', require('./routes/userRoutes'));
-app.use('/api/admin/users', require('./routes/adminUserRoutes')); // new
-app.use('/api/requisitions', require('./routes/requisitionRoutes')); //for requisitions
-app.use('/api/inventory', require('./routes/inventory')); //for inventory
-app.use('/api/notifications', require('./routes/notificationRoutes')); //for notifications
-app.use('/api/reports', require('./routes/reportRoutes')); //for reports
+app.use('/api/admin/users', require('./routes/adminUserRoutes'));
+app.use('/api/admin/settings', require('./routes/settings')); // NEW: system settings
+app.use('/api/requisitions', require('./routes/requisitionRoutes'));
+app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
+
+// NEW: public values the login page needs (no secrets)
+app.get('/api/public-config', (req, res) => {
+  const s = settings.get();
+  res.json({
+    googleEnabled: s.googleEnabled && !!s.googleClientId,
+    googleClientId: s.googleClientId,
+    recaptchaEnabled: s.recaptchaEnabled && !!s.recaptchaSiteKey,
+    recaptchaSiteKey: s.recaptchaSiteKey,
+  });
+});
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'buksupply-backend' });
