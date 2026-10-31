@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
+import usePublicConfig from '../hooks/usePublicConfig';
 import css from '../styles/signin.css?raw';
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
@@ -45,6 +46,7 @@ export default function Signin() {
   usePage(css, 'Sign In | BukSUPPLY');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const config = usePublicConfig(); // keys and on/off switches from System Settings
 
   // ---------- Sign in form ----------
   const [email, setEmail] = useState('');
@@ -84,8 +86,8 @@ export default function Signin() {
       return;
     }
 
-    // reCAPTCHA check
-    if (!captchaToken) {
+    // reCAPTCHA check (only when it is turned on in System Settings)
+    if (config.recaptchaEnabled && !captchaToken) {
       setBanner({ message: 'Please confirm you are not a robot.', type: 'error' });
       return;
     }
@@ -153,7 +155,9 @@ export default function Signin() {
 
   useEffect(() => {
     if (!modalOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setModalOpen(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setModalOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [modalOpen]);
@@ -213,10 +217,11 @@ export default function Signin() {
           </Link>
 
           <header className="login-header">
-            <h1 className="login-title">Log in to your <span>account</span></h1>
+            <h1 className="login-title">
+              Log in to your <span>account</span>
+            </h1>
             <p className="login-subtitle">
-              Welcome! Enter your institutional credentials to access{' '}
-              <strong>BukSUPPLY</strong>
+              Welcome! Enter your institutional credentials to access <strong>BukSUPPLY</strong>
             </p>
           </header>
 
@@ -231,7 +236,10 @@ export default function Signin() {
                 className="form-input"
                 placeholder="Enter your institutional email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setBanner(NO_BANNER); }}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setBanner(NO_BANNER);
+                }}
                 required
               />
             </div>
@@ -244,7 +252,10 @@ export default function Signin() {
                 id="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setBanner(NO_BANNER); }}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setBanner(NO_BANNER);
+                }}
                 visible={showPassword}
                 onToggle={() => setShowPassword((v) => !v)}
               />
@@ -255,52 +266,66 @@ export default function Signin() {
               </div>
             </div>
 
-            {/* reCAPTCHA */}
-            <div className="recaptcha-group">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={(token) => {
-                  setCaptchaToken(token);
-                  setBanner(NO_BANNER);
-                }}
-                onExpired={() => setCaptchaToken(null)}
-              />
-            </div>
+            {/* reCAPTCHA (hidden when turned off in System Settings) */}
+            {config.recaptchaEnabled && (
+              <div className="recaptcha-group">
+                <ReCAPTCHA
+                  key={config.recaptchaSiteKey}
+                  ref={recaptchaRef}
+                  sitekey={config.recaptchaSiteKey}
+                  onChange={(token) => {
+                    setCaptchaToken(token);
+                    setBanner(NO_BANNER);
+                  }}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
 
             <Banner banner={banner} />
 
             <div className="btn-wrapper">
-              <button type="submit" className="btn-submit" disabled={busy}>
+              <button type="submit" className="btn-submit" disabled={busy || !config.loaded}>
                 {busy ? 'Signing in...' : 'Log In'}
               </button>
             </div>
           </form>
 
-          <div className="social-section" id="socialSection">
-            <div className="divider"><span>or Log In with</span></div>
+          {/* Google (hidden when turned off in System Settings) */}
+          {config.googleEnabled && (
+            <div className="social-section" id="socialSection">
+              <div className="divider">
+                <span>or Log In with</span>
+              </div>
 
-            <div className="google-sso-wrapper">
-              <button type="button" className="sso-google-btn">
-                <i className="bi bi-google"></i> Continue with Google
-              </button>
-              <div className="google-overlay">
-                <GoogleLogin
-                  theme="outline"
-                  size="large"
-                  width="320"
-                  text="continue_with"
-                  onSuccess={(res) => handleGoogle(res.credential)}
-                  onError={() => setBanner({ message: 'Google sign-in failed.', type: 'error' })}
-                />
+              <div className="google-sso-wrapper">
+                <button type="button" className="sso-google-btn">
+                  <i className="bi bi-google"></i> Continue with Google
+                </button>
+                <div className="google-overlay">
+                  <GoogleOAuthProvider clientId={config.googleClientId}>
+                    <GoogleLogin
+                      theme="outline"
+                      size="large"
+                      width="320"
+                      text="continue_with"
+                      onSuccess={(res) => handleGoogle(res.credential)}
+                      onError={() =>
+                        setBanner({ message: 'Google sign-in failed.', type: 'error' })
+                      }
+                    />
+                  </GoogleOAuthProvider>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="login-footer" id="signupFooter">
             <p>
               Don&rsquo;t have an account?{' '}
-              <Link to="/signup" className="create-account-link">Create Account</Link>
+              <Link to="/signup" className="create-account-link">
+                Create Account
+              </Link>
             </p>
           </div>
         </div>
@@ -310,17 +335,26 @@ export default function Signin() {
       {modalOpen && (
         <div
           className="modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <div className="modal-card">
-            <button type="button" className="modal-close-btn" title="Close Modal" onClick={closeModal}>
+            <button
+              type="button"
+              className="modal-close-btn"
+              title="Close Modal"
+              onClick={closeModal}
+            >
               <i className="bi bi-x-lg"></i>
             </button>
 
             {/* STEP 1 */}
             <div className={`modal-step${step === 1 ? '' : ' hidden'}`}>
               <header className="modal-header">
-                <h2 className="modal-title">Reset your <span>Password</span></h2>
+                <h2 className="modal-title">
+                  Reset your <span>Password</span>
+                </h2>
                 <p className="modal-subtitle">
                   Enter your institutional email and we&apos;ll send you a verification code to
                   reset your password.
@@ -356,7 +390,9 @@ export default function Signin() {
             {/* STEP 2 */}
             <div className={`modal-step${step === 2 ? '' : ' hidden'}`}>
               <header className="modal-header">
-                <h2 className="modal-title">Set New <span>Password</span></h2>
+                <h2 className="modal-title">
+                  Set New <span>Password</span>
+                </h2>
                 <p className="modal-subtitle">
                   Enter the 6-digit code sent to your email along with your new password.
                 </p>

@@ -4,29 +4,34 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
 
-// Starting values. Replace with a fetch from your settings API.
-// Secrets should NEVER be sent back to the browser: the server only says
-// whether one is saved (the *Set flags), and the form field stays empty.
+// Backend address (frontend .env: VITE_API_URL=http://localhost:5001, no /api at the end)
+const API = import.meta.env.VITE_API_URL || '';
+
+// Your app stores the login token in sessionStorage under "token" (see AuthContext.jsx)
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${sessionStorage.getItem('token')}`,
+});
+
+// Starting values (replaced by what the server returns).
+// Secrets are NEVER sent back to the browser: the server only says whether
+// one is saved (the *Set flags), and the form field stays empty.
 const INITIAL = {
-  // Database (MongoDB Atlas) - always on
   mongoDbName: '',
   mongoUri: '',
   mongoUriSet: false,
 
-  // Google sign-in
   googleEnabled: true,
   googleClientId: '',
   googleClientSecret: '',
   googleClientSecretSet: false,
 
-  // reCAPTCHA
   recaptchaEnabled: false,
   recaptchaVersion: 'v2',
   recaptchaSiteKey: '',
   recaptchaSecretKey: '',
   recaptchaSecretKeySet: false,
 
-  // Email (SMTP)
   smtpEnabled: true,
   smtpHost: '',
   smtpPort: 587,
@@ -35,12 +40,10 @@ const INITIAL = {
   smtpPasswordSet: false,
   smtpFrom: '',
 
-  // PDF reports (PDFShift)
   pdfshiftEnabled: true,
   pdfshiftApiKey: '',
   pdfshiftApiKeySet: false,
 
-  // Excel reports (Nutrient)
   nutrientEnabled: true,
   nutrientApiKey: '',
   nutrientApiKeySet: false,
@@ -79,9 +82,21 @@ const Field = ({ id, label, hint, children }) => (
   </div>
 );
 
-const Status = ({ ok, enabled = true }) => {
-  if (!ok) return null;
-  return <span className="db-badge active ss-status">Configured</span>;
+// Three states, based on what is SAVED on the server (not what is being typed):
+// complete = turned on and all required values saved
+// setup    = turned on but something is missing
+// off      = turned off by the admin
+const STATUS_LABEL = { complete: 'Complete', setup: 'Needs setup', off: 'Off' };
+
+const Status = ({ state }) => (
+  <span className={`db-badge ss-status ss-status-${state} ${state === 'complete' ? 'active' : ''}`}>
+    {STATUS_LABEL[state]}
+  </span>
+);
+
+const getStatus = (enabled, complete) => {
+  if (!enabled) return 'off';
+  return complete ? 'complete' : 'setup';
 };
 
 const ToggleRow = ({ id, label, hint, checked, onChange }) => (
@@ -108,11 +123,28 @@ const ToggleRow = ({ id, label, hint, checked, onChange }) => (
 export default function SystemSettings() {
   const [saved, setSaved] = useState(INITIAL);
   const [form, setForm] = useState(INITIAL);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
+
+  // Load the saved settings from the server
+  useEffect(() => {
+    fetch(`${API}/api/admin/settings`, { headers: authHeaders() })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.message || 'Could not load the settings.');
+        return data;
+      })
+      .then((data) => {
+        setSaved(data);
+        setForm(data);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -123,14 +155,24 @@ export default function SystemSettings() {
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
   const onText = (field) => (e) => set(field)(e.target.value);
 
-  const mongoOk = !!form.mongoDbName.trim() && (form.mongoUriSet || !!form.mongoUri);
-  const googleOk =
-    !!form.googleClientId.trim() && (form.googleClientSecretSet || !!form.googleClientSecret);
+  // Still used by handleSave to validate the reCAPTCHA keys
   const recaptchaOk =
     !!form.recaptchaSiteKey.trim() && (form.recaptchaSecretKeySet || !!form.recaptchaSecretKey);
-  const smtpOk = !!form.smtpHost.trim() && !!form.smtpFrom.trim();
-  const pdfshiftOk = form.pdfshiftApiKeySet || !!form.pdfshiftApiKey;
-  const nutrientOk = form.nutrientApiKeySet || !!form.nutrientApiKey;
+
+  // Badges reflect what is saved on the server, so they don't flicker while typing
+  const status = {
+    google: getStatus(
+      saved.googleEnabled,
+      !!saved.googleClientId.trim() && saved.googleClientSecretSet
+    ),
+    recaptcha: getStatus(
+      saved.recaptchaEnabled,
+      !!saved.recaptchaSiteKey.trim() && saved.recaptchaSecretKeySet
+    ),
+    smtp: getStatus(saved.smtpEnabled, !!saved.smtpHost.trim() && !!saved.smtpFrom.trim()),
+    pdfshift: getStatus(saved.pdfshiftEnabled, saved.pdfshiftApiKeySet),
+    nutrient: getStatus(saved.nutrientEnabled, saved.nutrientApiKeySet),
+  };
 
   const handleSave = async () => {
     if (!dirty || saving) return;
@@ -149,35 +191,28 @@ export default function SystemSettings() {
       return setError('Enter an SMTP port between 1 and 65535.');
     }
 
+    // Database changes only apply after the server restarts
+    const dbChanged = !!form.mongoUri || form.mongoDbName.trim() !== saved.mongoDbName;
+
     setSaving(true);
     try {
-      // TODO: send `form` to your settings API. Only send a secret when its
-      // field is not empty; an empty secret means "keep the saved one".
-      const next = {
-        ...form,
-        mongoDbName: form.mongoDbName.trim(),
-        googleClientId: form.googleClientId.trim(),
-        recaptchaSiteKey: form.recaptchaSiteKey.trim(),
-        smtpHost: form.smtpHost.trim(),
-        smtpUser: form.smtpUser.trim(),
-        smtpFrom: form.smtpFrom.trim(),
-        smtpPort: port || 587,
-        mongoUriSet: form.mongoUriSet || !!form.mongoUri,
-        googleClientSecretSet: form.googleClientSecretSet || !!form.googleClientSecret,
-        recaptchaSecretKeySet: form.recaptchaSecretKeySet || !!form.recaptchaSecretKey,
-        smtpPasswordSet: form.smtpPasswordSet || !!form.smtpPassword,
-        pdfshiftApiKeySet: form.pdfshiftApiKeySet || !!form.pdfshiftApiKey,
-        nutrientApiKeySet: form.nutrientApiKeySet || !!form.nutrientApiKey,
-        mongoUri: '',
-        googleClientSecret: '',
-        recaptchaSecretKey: '',
-        smtpPassword: '',
-        pdfshiftApiKey: '',
-        nutrientApiKey: '',
-      };
-      setForm(next);
-      setSaved(next);
-      setNotice({ type: 'success', text: 'System settings were saved.' });
+      // Empty secret = server keeps the saved one
+      const res = await fetch(`${API}/api/admin/settings`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ ...form, smtpPort: port || 587 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not save the settings.');
+
+      setForm(data); // server returns the safe version (secrets cleared, *Set flags updated)
+      setSaved(data);
+      setNotice({
+        type: 'success',
+        text: dbChanged
+          ? 'Saved. Restart the server to apply the database changes.'
+          : 'System settings were saved.',
+      });
     } catch (err) {
       setError(err.message || 'Could not save the settings.');
     } finally {
@@ -189,6 +224,9 @@ export default function SystemSettings() {
     setError('');
     setForm(saved);
   };
+
+  // Must come after all hooks
+  if (loading) return <div className="dashboard ss-page">Loading…</div>;
 
   return (
     <div className="dashboard ss-page">
@@ -220,14 +258,13 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">Database (MongoDB Atlas)</h2>
             <p className="ss-card-sub">Cloud database that stores inventory, requests and users.</p>
           </div>
-          <Status ok={mongoOk} />
         </div>
         <div className="ss-card-body">
           <div className="ss-grid ss-grid-2">
             <Field
               id="ss-mongo-uri"
               label="Connection string"
-              hint="Private. Changes apply after the server restarts."
+              hint="Private. Leave empty to keep the current connection. Changes apply after the server restarts."
             >
               <SecretInput
                 id="ss-mongo-uri"
@@ -237,14 +274,18 @@ export default function SystemSettings() {
                 placeholder="mongodb+srv://user:password@cluster.mongodb.net"
               />
             </Field>
-            <Field id="ss-mongo-db" label="Database name">
+            <Field
+              id="ss-mongo-db"
+              label="Database name"
+              hint="Public. Leave unchanged to keep the current database."
+            >
               <input
                 id="ss-mongo-db"
                 type="text"
                 className="ss-input"
                 value={form.mongoDbName}
                 onChange={onText('mongoDbName')}
-                placeholder="buksupply"
+                placeholder="buksupply_dev"
                 spellCheck={false}
               />
             </Field>
@@ -262,7 +303,7 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">Google sign-in</h2>
             <p className="ss-card-sub">OAuth credentials from Google Cloud Console.</p>
           </div>
-          <Status ok={googleOk} enabled={form.googleEnabled} />
+          <Status state={status.google} />
         </div>
         <div className="ss-card-body">
           <ToggleRow
@@ -276,7 +317,11 @@ export default function SystemSettings() {
           <div className="ss-divider"></div>
 
           <div className="ss-grid ss-grid-2">
-            <Field id="ss-g-id" label="Client ID">
+            <Field
+              id="ss-g-id"
+              label="Client ID"
+              hint="Public. Shown to Google when users sign in."
+            >
               <input
                 id="ss-g-id"
                 type="text"
@@ -287,7 +332,7 @@ export default function SystemSettings() {
                 spellCheck={false}
               />
             </Field>
-            <Field id="ss-g-secret" label="Client secret">
+            <Field id="ss-g-secret" label="Client secret" hint="Private. Used by the server.">
               <SecretInput
                 id="ss-g-secret"
                 value={form.googleClientSecret}
@@ -310,7 +355,7 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">reCAPTCHA</h2>
             <p className="ss-card-sub">Blocks bots on the login and sign-up forms.</p>
           </div>
-          <Status ok={recaptchaOk} enabled={form.recaptchaEnabled} />
+          <Status state={status.recaptcha} />
         </div>
         <div className="ss-card-body">
           <ToggleRow
@@ -323,7 +368,7 @@ export default function SystemSettings() {
 
           <div className="ss-divider"></div>
 
-          <div className="ss-grid ss-grid-3">
+          <div className="ss-grid ss-grid-2">
             <Field id="ss-rc-site" label="Site key" hint="Public. Used in the browser.">
               <input
                 id="ss-rc-site"
@@ -331,6 +376,7 @@ export default function SystemSettings() {
                 className="ss-input"
                 value={form.recaptchaSiteKey}
                 onChange={onText('recaptchaSiteKey')}
+                placeholder="6Lc..."
                 spellCheck={false}
               />
             </Field>
@@ -340,6 +386,7 @@ export default function SystemSettings() {
                 value={form.recaptchaSecretKey}
                 isSet={form.recaptchaSecretKeySet}
                 onChange={set('recaptchaSecretKey')}
+                placeholder="6Lc..."
               />
             </Field>
           </div>
@@ -356,7 +403,7 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">Email (SMTP)</h2>
             <p className="ss-card-sub">Used for password resets and request notices.</p>
           </div>
-          <Status ok={smtpOk} enabled={form.smtpEnabled} />
+          <Status state={status.smtp} />
         </div>
         <div className="ss-card-body">
           <ToggleRow
@@ -370,7 +417,11 @@ export default function SystemSettings() {
           <div className="ss-divider"></div>
 
           <div className="ss-grid ss-grid-3">
-            <Field id="ss-smtp-host" label="Host">
+            <Field
+              id="ss-smtp-host"
+              label="Host"
+              hint="Public. Your email provider's server address."
+            >
               <input
                 id="ss-smtp-host"
                 type="text"
@@ -381,7 +432,7 @@ export default function SystemSettings() {
                 spellCheck={false}
               />
             </Field>
-            <Field id="ss-smtp-port" label="Port" hint="Usually 587 (TLS) or 465 (SSL).">
+            <Field id="ss-smtp-port" label="Port" hint="Public. Usually 587 (TLS) or 465 (SSL).">
               <input
                 id="ss-smtp-port"
                 type="number"
@@ -390,19 +441,28 @@ export default function SystemSettings() {
                 className="ss-input"
                 value={form.smtpPort}
                 onChange={onText('smtpPort')}
+                placeholder="587"
               />
             </Field>
-            <Field id="ss-smtp-from" label="Send from">
+            <Field
+              id="ss-smtp-from"
+              label="Send from"
+              hint="Public. Name and address recipients will see."
+            >
               <input
                 id="ss-smtp-from"
-                type="email"
+                type="text"
                 className="ss-input"
                 value={form.smtpFrom}
                 onChange={onText('smtpFrom')}
-                placeholder="supply@buksu.edu.ph"
+                placeholder="BukSUPPLY Support <supply@buksu.edu.ph>"
               />
             </Field>
-            <Field id="ss-smtp-user" label="Username">
+            <Field
+              id="ss-smtp-user"
+              label="Username"
+              hint="Private. Usually your full email address."
+            >
               <input
                 id="ss-smtp-user"
                 type="text"
@@ -410,15 +470,21 @@ export default function SystemSettings() {
                 className="ss-input"
                 value={form.smtpUser}
                 onChange={onText('smtpUser')}
+                placeholder="supply@buksu.edu.ph"
                 spellCheck={false}
               />
             </Field>
-            <Field id="ss-smtp-pass" label="Password or app password">
+            <Field
+              id="ss-smtp-pass"
+              label="Password or app password"
+              hint="Private. Use an app password if 2-step verification is on."
+            >
               <SecretInput
                 id="ss-smtp-pass"
                 value={form.smtpPassword}
                 isSet={form.smtpPasswordSet}
                 onChange={set('smtpPassword')}
+                placeholder="16-character app password"
               />
             </Field>
           </div>
@@ -435,7 +501,7 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">PDF reports (PDFShift)</h2>
             <p className="ss-card-sub">Converts report pages into downloadable PDF files.</p>
           </div>
-          <Status ok={pdfshiftOk} enabled={form.pdfshiftEnabled} />
+          <Status state={status.pdfshift} />
         </div>
         <div className="ss-card-body">
           <ToggleRow
@@ -476,7 +542,7 @@ export default function SystemSettings() {
             <h2 className="ss-card-title">Excel reports (Nutrient)</h2>
             <p className="ss-card-sub">Converts report data into downloadable Excel files.</p>
           </div>
-          <Status ok={nutrientOk} enabled={form.nutrientEnabled} />
+          <Status state={status.nutrient} />
         </div>
         <div className="ss-card-body">
           <ToggleRow

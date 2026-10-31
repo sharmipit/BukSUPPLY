@@ -313,6 +313,16 @@
   appearance: none;
 }
 
+.ss-status-setup {
+  background: #fff4e0;
+  color: #9a5b00;
+}
+
+.ss-status-off {
+  background: #eceff3;
+  color: #5b6573;
+}
+
 @media (max-width: 560px) {
   .ss-card-head {
     flex-wrap: wrap;

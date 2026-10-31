@@ -1,3 +1,12 @@
+const settings = require('./settings');
+const { buildLocalPdf, buildLocalXlsx } = require('./localReportFiles');
+
+// After an external service fails (limit reached, bad key, outage), skip it for this long
+// and use the self-hosted builder instead. After the pause, the external service is tried
+// again, so it switches back on its own once credits are restored.
+const COOLDOWN_MS = 15 * 60 * 1000;
+const pausedUntil = { pdf: 0, xlsx: 0 };
+
 // Same palette as the website
 const THEME = {
   dark: '#2c1a14', // headers, titles
@@ -68,6 +77,13 @@ const esc = (s) =>
 
 const generatedAt = () => new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
 
+// An error whose message is safe to show to the user
+const userError = (message) => {
+  const e = new Error(message);
+  e.userFacing = true;
+  return e;
+};
+
 function buildHtml(type, rows, summary) {
   const cols = COLUMNS[type];
   return `<!doctype html><html><head><meta charset="utf-8">
@@ -98,15 +114,15 @@ function buildHtml(type, rows, summary) {
 }
 
 // ---- External API call. Confirm endpoint/options in PDFShift's docs. ----
-async function buildPdf(type, rows, summary) {
-  if (!process.env.PDFSHIFT_API_KEY) throw new Error('PDF service is not configured.');
+async function buildPdfExternal(type, rows, summary) {
+  const s = settings.get();
+  if (!s.pdfshiftApiKey) throw new Error('PDF service is not configured.');
 
   const res = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization:
-        'Basic ' + Buffer.from(`api:${process.env.PDFSHIFT_API_KEY}`).toString('base64'),
+      Authorization: 'Basic ' + Buffer.from(`api:${s.pdfshiftApiKey}`).toString('base64'),
     },
     body: JSON.stringify({ source: buildHtml(type, rows, summary), landscape: true }),
   });
@@ -135,8 +151,9 @@ function buildXlsxHtml(type, rows, summary) {
 }
 
 // ---- External API call. Confirm endpoint/options in Nutrient's docs. ----
-async function buildXlsx(type, rows, summary) {
-  if (!process.env.NUTRIENT_API_KEY) throw new Error('Excel service is not configured.');
+async function buildXlsxExternal(type, rows, summary) {
+  const s = settings.get();
+  if (!s.nutrientApiKey) throw new Error('Excel service is not configured.');
 
   const form = new FormData(); // global in Node 18+, same as fetch
   form.append(
@@ -152,7 +169,7 @@ async function buildXlsx(type, rows, summary) {
   // Don't set Content-Type yourself; fetch adds the multipart boundary
   const res = await fetch('https://api.nutrient.io/build', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.NUTRIENT_API_KEY}` },
+    headers: { Authorization: `Bearer ${s.nutrientApiKey}` },
     body: form,
   });
 
@@ -161,6 +178,58 @@ async function buildXlsx(type, rows, summary) {
     throw new Error(`Excel service failed (${res.status}).`);
   }
   return Buffer.from(await res.arrayBuffer());
+}
+
+// ---- External first, self-hosted as the fallback ----
+const tableData = (type, rows) => ({
+  headers: COLUMNS[type].map((c) => c.header),
+  body: rows.map((r) => COLUMNS[type].map((c) => cell(r, c))),
+});
+
+async function withFallback(kind, external, local) {
+  if (Date.now() >= pausedUntil[kind]) {
+    try {
+      const file = await external();
+      console.log(`[reports] ${kind}: built by the external service`);
+      return file;
+    } catch (err) {
+      pausedUntil[kind] = Date.now() + COOLDOWN_MS;
+      console.error(
+        `External ${kind} failed (${err.message}). Using the self-hosted builder for the next ${COOLDOWN_MS / 60000} minutes.`
+      );
+    }
+  }
+  console.log(`[reports] ${kind}: built by the self-hosted builder`);
+  return local();
+}
+
+async function buildPdf(type, rows, summary) {
+  // The admin switch still turns downloads off completely
+  if (!settings.get().pdfshiftEnabled) {
+    throw userError('PDF downloads are turned off by the administrator.');
+  }
+  return withFallback(
+    'pdf',
+    () => buildPdfExternal(type, rows, summary),
+    () => buildLocalPdf(buildHtml(type, rows, summary))
+  );
+}
+
+async function buildXlsx(type, rows, summary) {
+  if (!settings.get().nutrientEnabled) {
+    throw userError('Excel downloads are turned off by the administrator.');
+  }
+  return withFallback(
+    'xlsx',
+    () => buildXlsxExternal(type, rows, summary),
+    () =>
+      buildLocalXlsx({
+        title: `BukSUPPLY – ${TITLES[type]}`,
+        summary,
+        meta: `Generated ${generatedAt()} · ${rows.length} record(s)`,
+        ...tableData(type, rows),
+      })
+  );
 }
 
 module.exports = { buildPdf, buildXlsx };

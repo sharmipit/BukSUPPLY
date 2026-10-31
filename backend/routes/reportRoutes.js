@@ -184,6 +184,8 @@ router.get('/:type/export', async (req, res, next) => {
           : await buildXlsx(type, rows, summary);
     } catch (err) {
       console.error('Report generation failed:', err.message);
+      // "Turned off by the administrator" is safe to show; other errors stay generic
+      if (err.userFacing) return res.status(403).json({ message: err.message });
       return res.status(502).json({ message: 'Could not generate the file. Please try again.' });
     }
 

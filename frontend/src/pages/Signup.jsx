@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
+import usePublicConfig from '../hooks/usePublicConfig';
 import css from '../styles/signup.css?raw';
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
@@ -30,23 +31,56 @@ const LEGAL = {
   terms: {
     title: 'Terms & Conditions',
     sections: [
-      ['1. Acceptance of Terms', 'By creating a BukSUPPLY account, you agree to follow these terms and all applicable BukSU policies.'],
-      ['2. Eligibility', 'Accounts are limited to currently enrolled students and active BukSU personnel with a valid institutional email address.'],
-      ['3. Account Responsibility', 'You are responsible for keeping your password confidential and for all activity under your account. Report unauthorized use to PSMO immediately.'],
-      ['4. Requisitions & Reservations', 'Requests must be accurate and made for official university purposes only. PSMO may approve, modify, or decline any request.'],
-      ['5. Acceptable Use', 'You may not misuse the system, submit false information, or attempt to access data or accounts that are not yours.'],
+      [
+        '1. Acceptance of Terms',
+        'By creating a BukSUPPLY account, you agree to follow these terms and all applicable BukSU policies.',
+      ],
+      [
+        '2. Eligibility',
+        'Accounts are limited to currently enrolled students and active BukSU personnel with a valid institutional email address.',
+      ],
+      [
+        '3. Account Responsibility',
+        'You are responsible for keeping your password confidential and for all activity under your account. Report unauthorized use to PSMO immediately.',
+      ],
+      [
+        '4. Requisitions & Reservations',
+        'Requests must be accurate and made for official university purposes only. PSMO may approve, modify, or decline any request.',
+      ],
+      [
+        '5. Acceptable Use',
+        'You may not misuse the system, submit false information, or attempt to access data or accounts that are not yours.',
+      ],
       ['6. Suspension', 'PSMO may suspend or terminate accounts that violate these terms.'],
     ],
   },
   privacy: {
     title: 'Privacy Policy',
     sections: [
-      ['1. Information We Collect', 'Your name, institutional email, ID number, and records of your requisitions and reservations.'],
-      ['2. How We Use It', 'To verify your identity, process requests, and keep records for inventory and audit purposes.'],
-      ['3. Google Sign-In', 'If you sign up with Google, we receive your name and email from Google. We do not receive your Google password.'],
-      ['4. Data Sharing', 'Your data is shared only with authorized BukSU offices and is never sold to third parties.'],
-      ['5. Your Rights', 'Under the Data Privacy Act of 2012 (RA 10173), you may access, correct, or request deletion of your personal data by contacting PSMO.'],
-      ['6. Security', 'We apply reasonable technical and organizational safeguards, but no system is completely secure.'],
+      [
+        '1. Information We Collect',
+        'Your name, institutional email, ID number, and records of your requisitions and reservations.',
+      ],
+      [
+        '2. How We Use It',
+        'To verify your identity, process requests, and keep records for inventory and audit purposes.',
+      ],
+      [
+        '3. Google Sign-In',
+        'If you sign up with Google, we receive your name and email from Google. We do not receive your Google password.',
+      ],
+      [
+        '4. Data Sharing',
+        'Your data is shared only with authorized BukSU offices and is never sold to third parties.',
+      ],
+      [
+        '5. Your Rights',
+        'Under the Data Privacy Act of 2012 (RA 10173), you may access, correct, or request deletion of your personal data by contacting PSMO.',
+      ],
+      [
+        '6. Security',
+        'We apply reasonable technical and organizational safeguards, but no system is completely secure.',
+      ],
     ],
   },
 };
@@ -54,13 +88,17 @@ const LEGAL = {
 // Label / placeholder for the ID field, based on the email domain
 const idTexts = (kind) => ({
   label:
-    kind === 'Student' ? 'Student ID Number'
-    : kind === 'Regular Staff' ? 'Employee / Personnel ID'
-    : 'ID Number',
+    kind === 'Student'
+      ? 'Student ID Number'
+      : kind === 'Regular Staff'
+        ? 'Employee / Personnel ID'
+        : 'ID Number',
   placeholder:
-    kind === 'Student' ? 'e.g. 2400000000 (Student ID)'
-    : kind === 'Regular Staff' ? 'e.g. P-0000 (Employee ID)'
-    : 'Student ID or Personnel ID Number',
+    kind === 'Student'
+      ? 'e.g. 2400000000 (Student ID)'
+      : kind === 'Regular Staff'
+        ? 'e.g. P-0000 (Employee ID)'
+        : 'Student ID or Personnel ID Number',
 });
 
 // Defined outside Signup so inputs keep focus while typing
@@ -79,6 +117,7 @@ function Field({ id, label, icon, full, error, children }) {
 export default function Signup() {
   usePage(css, 'Create Account | BukSUPPLY');
   const navigate = useNavigate();
+  const config = usePublicConfig(); // keys and on/off switches from System Settings
 
   const [values, setValues] = useState(INITIAL);
   const [errors, setErrors] = useState({});
@@ -160,8 +199,7 @@ export default function Signup() {
       found.email = 'Please use a valid BukSU institutional email address.';
 
     if (!values.password) found.password = 'Password is required';
-    else if (values.password.length < 8)
-      found.password = 'Password must be at least 8 characters';
+    else if (values.password.length < 8) found.password = 'Password must be at least 8 characters';
 
     if (!values.confirmPassword) found.confirmPassword = 'Please confirm your password';
     else if (values.password !== values.confirmPassword)
@@ -181,8 +219,8 @@ export default function Signup() {
     setErrors(found);
     if (Object.keys(found).length) return;
 
-    // reCAPTCHA check
-    if (!captchaToken) {
+    // reCAPTCHA check (only when it is turned on in System Settings)
+    if (config.recaptchaEnabled && !captchaToken) {
       setFormError('Please confirm you are not a robot.');
       return;
     }
@@ -272,7 +310,9 @@ export default function Signup() {
           </Link>
 
           <div className="signup-header">
-            <h1 className="signup-title">Create your <span>account</span></h1>
+            <h1 className="signup-title">
+              Create your <span>account</span>
+            </h1>
             <p className="signup-subtitle">Register to submit requisitions and reservations</p>
           </div>
 
@@ -280,30 +320,49 @@ export default function Signup() {
             <div className="form-grid">
               <Field id="firstName" label="First Name" error={errors.firstName}>
                 <input
-                  type="text" id="firstName" name="firstName" className="form-input"
-                  placeholder="e.g. Juan" value={values.firstName} onChange={onChange}
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  className="form-input"
+                  placeholder="e.g. Juan"
+                  value={values.firstName}
+                  onChange={onChange}
                 />
               </Field>
 
               <Field id="lastName" label="Last Name" error={errors.lastName}>
                 <input
-                  type="text" id="lastName" name="lastName" className="form-input"
-                  placeholder="e.g. Dela Cruz" value={values.lastName} onChange={onChange}
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  className="form-input"
+                  placeholder="e.g. Dela Cruz"
+                  value={values.lastName}
+                  onChange={onChange}
                 />
               </Field>
 
               <Field id="email" label="Institutional Email" full error={errors.email}>
                 <input
-                  type="email" id="email" name="email" className="form-input"
+                  type="email"
+                  id="email"
+                  name="email"
+                  className="form-input"
                   placeholder="Enter your institutional email"
-                  value={values.email} onChange={onChange}
+                  value={values.email}
+                  onChange={onChange}
                 />
               </Field>
 
               <Field id="idNumber" label={idLabel} full error={errors.idNumber}>
                 <input
-                  type="text" id="idNumber" name="idNumber" className="form-input"
-                  placeholder={idPlaceholder} value={values.idNumber} onChange={onChange}
+                  type="text"
+                  id="idNumber"
+                  name="idNumber"
+                  className="form-input"
+                  placeholder={idPlaceholder}
+                  value={values.idNumber}
+                  onChange={onChange}
                 />
               </Field>
 
@@ -311,22 +370,32 @@ export default function Signup() {
                 <div className="input-icon-wrapper">
                   <input
                     type={visible.password ? 'text' : 'password'}
-                    id="password" name="password" className="form-input with-suffix"
-                    placeholder="••••••••" value={values.password} onChange={onChange}
+                    id="password"
+                    name="password"
+                    className="form-input with-suffix"
+                    placeholder="••••••••"
+                    value={values.password}
+                    onChange={onChange}
                   />
                   {eyeToggle('password')}
                 </div>
               </Field>
 
               <Field
-                id="confirmPassword" label="Confirm Password" icon="bi-lock"
+                id="confirmPassword"
+                label="Confirm Password"
+                icon="bi-lock"
                 error={errors.confirmPassword}
               >
                 <div className="input-icon-wrapper">
                   <input
                     type={visible.confirmPassword ? 'text' : 'password'}
-                    id="confirmPassword" name="confirmPassword" className="form-input with-suffix"
-                    placeholder="••••••••" value={values.confirmPassword} onChange={onChange}
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    className="form-input with-suffix"
+                    placeholder="••••••••"
+                    value={values.confirmPassword}
+                    onChange={onChange}
                   />
                   {eyeToggle('confirmPassword')}
                 </div>
@@ -336,8 +405,11 @@ export default function Signup() {
             <div className={`terms-group${errors.termsAgreement ? ' has-error' : ''}`}>
               <label className="custom-checkbox-container">
                 <input
-                  type="checkbox" id="termsAgreement" name="termsAgreement"
-                  checked={values.termsAgreement} onChange={onChange}
+                  type="checkbox"
+                  id="termsAgreement"
+                  name="termsAgreement"
+                  checked={values.termsAgreement}
+                  onChange={onChange}
                 />
                 <span className="checkmark"></span>
                 <span className="checkbox-label">
@@ -355,52 +427,71 @@ export default function Signup() {
               <span className="error-msg">{errors.termsAgreement}</span>
             </div>
 
-            {/* reCAPTCHA */}
-            <div className="recaptcha-group">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={(token) => {
-                  setCaptchaToken(token);
-                  setFormError('');
-                }}
-                onExpired={() => setCaptchaToken(null)}
-              />
-            </div>
+            {/* reCAPTCHA (hidden when turned off in System Settings) */}
+            {config.recaptchaEnabled && (
+              <div className="recaptcha-group">
+                <ReCAPTCHA
+                  key={config.recaptchaSiteKey}
+                  ref={recaptchaRef}
+                  sitekey={config.recaptchaSiteKey}
+                  onChange={(token) => {
+                    setCaptchaToken(token);
+                    setFormError('');
+                  }}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
 
-            <p className="form-error" id="formError">{formError}</p>
+            <p className="form-error" id="formError">
+              {formError}
+            </p>
 
             <div className="btn-wrapper">
-              <button type="submit" className="btn-submit" id="btnSubmit" disabled={busy}>
+              <button
+                type="submit"
+                className="btn-submit"
+                id="btnSubmit"
+                disabled={busy || !config.loaded}
+              >
                 {busy ? 'Creating account...' : 'Create Account'}
               </button>
             </div>
           </form>
 
-          <div className="social-section">
-            <div className="divider"><span>or Sign Up with</span></div>
+          {/* Google (hidden when turned off in System Settings) */}
+          {config.googleEnabled && (
+            <div className="social-section">
+              <div className="divider">
+                <span>or Sign Up with</span>
+              </div>
 
-            <div className="google-sso-wrapper">
-              <button type="button" className="sso-google-btn">
-                <i className="bi bi-google"></i> Continue with Google
-              </button>
-              <div className="google-overlay">
-                <GoogleLogin
-                  theme="outline"
-                  size="large"
-                  width="320"
-                  text="signup_with"
-                  onSuccess={(res) => handleGoogle(res.credential)}
-                  onError={() => setFormError('Google sign-up failed. Please try again.')}
-                />
+              <div className="google-sso-wrapper">
+                <button type="button" className="sso-google-btn">
+                  <i className="bi bi-google"></i> Continue with Google
+                </button>
+                <div className="google-overlay">
+                  <GoogleOAuthProvider clientId={config.googleClientId}>
+                    <GoogleLogin
+                      theme="outline"
+                      size="large"
+                      width="320"
+                      text="signup_with"
+                      onSuccess={(res) => handleGoogle(res.credential)}
+                      onError={() => setFormError('Google sign-up failed. Please try again.')}
+                    />
+                  </GoogleOAuthProvider>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="signup-footer">
             <p>
               Already have an account?{' '}
-              <Link to="/signin" className="create-account-link">Sign In</Link>
+              <Link to="/signin" className="create-account-link">
+                Sign In
+              </Link>
             </p>
           </div>
         </div>
@@ -417,13 +508,10 @@ export default function Signup() {
         >
           <div className="modal-card legal-card" onClick={(e) => e.stopPropagation()}>
             <div className="legal-header">
-              <h2 className="modal-title" id="legalTitle">{LEGAL[legal].title}</h2>
-              <button
-                type="button"
-                className="legal-close"
-                aria-label="Close"
-                onClick={closeLegal}
-              >
+              <h2 className="modal-title" id="legalTitle">
+                {LEGAL[legal].title}
+              </h2>
+              <button type="button" className="legal-close" aria-label="Close" onClick={closeLegal}>
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
@@ -447,8 +535,8 @@ export default function Signup() {
 
             {pendingGoogle && (
               <p className="legal-note">
-                Almost done! Enter your ID number and agree to the terms to finish signing up
-                with Google.
+                Almost done! Enter your ID number and agree to the terms to finish signing up with
+                Google.
               </p>
             )}
 
@@ -503,10 +591,12 @@ export default function Signup() {
             <div className="modal-icon-wrapper success-icon">
               <i className="bi bi-check-circle-fill"></i>
             </div>
-            <h2 className="modal-title" id="modalTitle">Account Created Successfully!</h2>
+            <h2 className="modal-title" id="modalTitle">
+              Account Created Successfully!
+            </h2>
             <p className="modal-description">
-              Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and
-              activated instantly. You can now proceed to sign in or access your dashboard.
+              Welcome to <strong>BukSUPPLY</strong>! Your account has been registered and activated
+              instantly. You can now proceed to sign in or access your dashboard.
             </p>
             <button
               type="button"

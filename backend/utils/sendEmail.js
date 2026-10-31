@@ -1,34 +1,40 @@
-const nodemailer = require("nodemailer");
+const nodemailer = require('nodemailer');
+const settings = require('../services/settings');
 
-// Cached transporter instance
+// Cached transporter. It is rebuilt automatically when the saved settings change.
 let cachedTransporter = null;
+let cachedSignature = '';
 
 const getTransporter = () => {
-  if (cachedTransporter) return cachedTransporter;
+  const s = settings.get();
 
-  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
-
-  if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS) {
+  if (!s.smtpEnabled) {
+    throw new Error('Email is turned off in System Settings.');
+  }
+  if (!s.smtpHost || !s.smtpUser || !s.smtpPassword) {
     throw new Error(
-      "Email is not configured. Set EMAIL_HOST, EMAIL_USER, and EMAIL_PASS in .env."
+      'Email is not configured. Fill in the Email (SMTP) section in System Settings.'
     );
   }
 
-  const port = Number(EMAIL_PORT) || 587;
+  const port = Number(s.smtpPort) || 587;
+  const signature = [s.smtpHost, port, s.smtpUser, s.smtpPassword].join('|');
+
+  if (cachedTransporter && signature === cachedSignature) return cachedTransporter;
 
   cachedTransporter = nodemailer.createTransport({
-    host: EMAIL_HOST,
+    host: s.smtpHost,
     port,
     secure: port === 465, // true for port 465, false for 587/others
     auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
+      user: s.smtpUser,
+      pass: s.smtpPassword,
     },
-    // Allows connection through development environments / proxies if needed
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === "production",
+      rejectUnauthorized: process.env.NODE_ENV === 'production',
     },
   });
+  cachedSignature = signature;
 
   return cachedTransporter;
 };
@@ -38,8 +44,9 @@ const getTransporter = () => {
  */
 const sendEmail = async ({ to, subject, html, text }) => {
   const transporter = getTransporter();
+  const s = settings.get();
 
-  const from = process.env.EMAIL_FROM || `BukSUPPLY Support <${process.env.EMAIL_USER}>`;
+  const from = s.smtpFrom || `BukSUPPLY Support <${s.smtpUser}>`;
 
   await transporter.sendMail({
     from,
@@ -54,7 +61,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
  * Sends the 6-digit OTP used in the forgot-password flow.
  */
 const sendOtpEmail = async (to, otp) => {
-  const subject = "BukSUPPLY Password Reset Code";
+  const subject = 'BukSUPPLY Password Reset Code';
   const text = `Your BukSUPPLY password reset code is ${otp}. This code expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
