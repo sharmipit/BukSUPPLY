@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
-// Dashboard styles first (shared tokens), then this page's styles.
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
 
-// Backend address (frontend .env: VITE_API_URL=http://localhost:5001, no /api at the end)
 const API = import.meta.env.VITE_API_URL || '';
 
-// Your app stores the login token in sessionStorage under "token" (see AuthContext.jsx)
 const authHeaders = () => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${sessionStorage.getItem('token')}`,
 });
 
-// Starting values (replaced by what the server returns).
-// Secrets are NEVER sent back to the browser: the server only says whether
-// one is saved (the *Set flags), and the form field stays empty.
 const INITIAL = {
   mongoDbName: '',
   mongoUri: '',
