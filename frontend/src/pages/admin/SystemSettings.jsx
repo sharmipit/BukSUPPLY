@@ -11,10 +11,6 @@ const authHeaders = () => ({
 });
 
 const INITIAL = {
-  mongoDbName: '',
-  mongoUri: '',
-  mongoUriSet: false,
-
   googleEnabled: true,
   googleClientId: '',
   googleClientSecret: '',
@@ -172,11 +168,6 @@ export default function SystemSettings() {
     if (!dirty || saving) return;
     setError('');
 
-    if (form.mongoUri && !/^mongodb(\+srv)?:\/\//.test(form.mongoUri.trim())) {
-      return setError(
-        'The MongoDB connection string must start with mongodb:// or mongodb+srv://.'
-      );
-    }
     if (form.recaptchaEnabled && !recaptchaOk) {
       return setError('Add both the reCAPTCHA site key and secret key, or turn reCAPTCHA off.');
     }
@@ -184,9 +175,6 @@ export default function SystemSettings() {
     if (form.smtpHost.trim() && !(port >= 1 && port <= 65535)) {
       return setError('Enter an SMTP port between 1 and 65535.');
     }
-
-    // Database changes only apply after the server restarts
-    const dbChanged = !!form.mongoUri || form.mongoDbName.trim() !== saved.mongoDbName;
 
     setSaving(true);
     try {
@@ -201,12 +189,7 @@ export default function SystemSettings() {
 
       setForm(data); // server returns the safe version (secrets cleared, *Set flags updated)
       setSaved(data);
-      setNotice({
-        type: 'success',
-        text: dbChanged
-          ? 'Saved. Restart the server to apply the database changes.'
-          : 'System settings were saved.',
-      });
+      setNotice({ type: 'success', text: 'System settings were saved.' });
     } catch (err) {
       setError(err.message || 'Could not save the settings.');
     } finally {
@@ -230,7 +213,8 @@ export default function SystemSettings() {
           <h1 className="db-title">System settings</h1>
           <p className="db-subtitle">
             Manage the keys and connections used by <strong>BukSUPPLY</strong>. Saved secrets are
-            hidden. Leave a secret field empty to keep its current value.
+            hidden. Leave a secret field empty to keep its current value. Database settings are
+            managed in the server configuration.
           </p>
         </div>
       </div>
@@ -241,51 +225,6 @@ export default function SystemSettings() {
           <p>{error}</p>
         </div>
       )}
-
-      {/* Database */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-database" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">Database (MongoDB Atlas)</h2>
-            <p className="ss-card-sub">Cloud database that stores inventory, requests and users.</p>
-          </div>
-        </div>
-        <div className="ss-card-body">
-          <div className="ss-grid ss-grid-2">
-            <Field
-              id="ss-mongo-uri"
-              label="Connection string"
-              hint="Private. Leave empty to keep the current connection. Changes apply after the server restarts."
-            >
-              <SecretInput
-                id="ss-mongo-uri"
-                value={form.mongoUri}
-                isSet={form.mongoUriSet}
-                onChange={set('mongoUri')}
-                placeholder="mongodb+srv://user:password@cluster.mongodb.net"
-              />
-            </Field>
-            <Field
-              id="ss-mongo-db"
-              label="Database name"
-              hint="Public. Leave unchanged to keep the current database."
-            >
-              <input
-                id="ss-mongo-db"
-                type="text"
-                className="ss-input"
-                value={form.mongoDbName}
-                onChange={onText('mongoDbName')}
-                placeholder="buksupply_dev"
-                spellCheck={false}
-              />
-            </Field>
-          </div>
-        </div>
-      </div>
 
       {/* Google sign-in */}
       <div className="db-section-card ss-card">
