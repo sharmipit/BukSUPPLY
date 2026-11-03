@@ -10,7 +10,6 @@ if (KEY.length !== 32) {
 }
 
 const SECRETS = [
-  'mongoUri',
   'googleClientSecret',
   'recaptchaSecretKey',
   'smtpPassword',
@@ -19,8 +18,6 @@ const SECRETS = [
 ];
 
 const DEFAULTS = {
-  mongoDbName: '',
-  mongoUri: '',
   googleEnabled: true,
   googleClientId: '',
   googleClientSecret: '',
@@ -71,6 +68,7 @@ function get() {
   const loaded = { ...DEFAULTS };
   try {
     for (const [k, v] of Object.entries(raw)) {
+      if (!(k in DEFAULTS)) continue; // ignore old keys such as mongoUri
       loaded[k] = SECRETS.includes(k) && v ? dec(v) : v;
     }
   } catch {
@@ -81,13 +79,11 @@ function get() {
   }
 
   // Fallback to .env until an admin saves the value from the System Settings page.
-  if (!loaded.mongoUri) loaded.mongoUri = process.env.MONGODB_URI || '';
-
   if (!loaded.googleClientId) loaded.googleClientId = process.env.GOOGLE_CLIENT_ID || '';
   if (!loaded.googleClientSecret)
     loaded.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 
-  if (!loaded.recaptchaSiteKey) loaded.recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || ''; // NEW
+  if (!loaded.recaptchaSiteKey) loaded.recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
   if (!loaded.recaptchaSecretKey)
     loaded.recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY || '';
 
@@ -108,6 +104,14 @@ function get() {
 
   cache = loaded;
   return cache;
+}
+
+// Database settings come ONLY from .env and can't be changed from the admin page.
+function database() {
+  return {
+    uri: process.env.MONGODB_URI || '',
+    name: process.env.MONGODB_DB || '',
+  };
 }
 
 // Safe version for the browser: secrets removed, "xxxSet" flags added
@@ -135,10 +139,6 @@ function update(patch) {
   }
 
   // Server-side validation (never trust the browser)
-  if (next.mongoUri && !/^mongodb(\+srv)?:\/\//.test(next.mongoUri)) {
-    throw new Error('The MongoDB connection string must start with mongodb:// or mongodb+srv://.');
-  }
-
   const port = Number(next.smtpPort);
   if (next.smtpHost && !(port >= 1 && port <= 65535)) {
     throw new Error('Enter an SMTP port between 1 and 65535.');
@@ -162,4 +162,4 @@ function update(patch) {
   return publicView();
 }
 
-module.exports = { get, publicView, update };
+module.exports = { get, publicView, update, database };

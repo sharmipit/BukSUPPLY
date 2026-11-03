@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 const settings = require('../services/settings');
 
 const connectDB = async () => {
-  const { mongoUri, mongoDbName } = settings.get();
-
+  const { uri: mongoUri, name: mongoDbName } = settings.database();
   if (!mongoUri) {
     console.error(
       'No MongoDB connection string found. Set MONGODB_URI in your .env file, ' +
