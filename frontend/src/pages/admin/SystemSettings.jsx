@@ -1,28 +1,33 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
+import SettingsUnlock from './SettingsUnlock';
 
 const API = import.meta.env.VITE_API_URL || '';
 
-const authHeaders = () => ({
+const authHeaders = (settingsToken) => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${sessionStorage.getItem('token')}`,
+  'X-Settings-Token': settingsToken || '',
 });
 
 const INITIAL = {
   googleEnabled: true,
   googleClientId: '',
+  googleClientIdSet: false,
+  googleClientIdMasked: '',
   googleClientSecret: '',
   googleClientSecretSet: false,
 
   recaptchaEnabled: false,
   recaptchaVersion: 'v2',
   recaptchaSiteKey: '',
+  recaptchaSiteKeySet: false,
+  recaptchaSiteKeyMasked: '',
   recaptchaSecretKey: '',
   recaptchaSecretKeySet: false,
 
-  smtpEnabled: true,
   smtpHost: '',
   smtpPort: 587,
   smtpUser: '',
@@ -39,6 +44,96 @@ const INITIAL = {
   nutrientApiKeySet: false,
 };
 
+// Fields that belong to each card. Each card saves on its own.
+const SECTION_FIELDS = {
+  google: ['googleEnabled', 'googleClientId', 'googleClientSecret'],
+  recaptcha: ['recaptchaEnabled', 'recaptchaSiteKey', 'recaptchaSecretKey'],
+  smtp: ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpFrom'],
+  pdfshift: ['pdfshiftEnabled', 'pdfshiftApiKey'],
+  nutrient: ['nutrientEnabled', 'nutrientApiKey'],
+};
+
+const SECTION_TITLE = {
+  google: 'Google sign-in',
+  recaptcha: 'reCAPTCHA',
+  smtp: 'Email (SMTP)',
+  pdfshift: 'PDF reports',
+  nutrient: 'Excel reports',
+};
+
+// Includes the server's "xxxSet" / "xxxMasked" helper keys
+const keysFor = (section) => SECTION_FIELDS[section].flatMap((f) => [f, `${f}Set`, `${f}Masked`]);
+
+// ---- validation (the server checks again) ----
+const RE = {
+  googleClientId: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/i,
+  recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
+  host: /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i,
+  from: /^(?:[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+};
+const t = (v) => (v || '').toString().trim();
+const badSecret = (v, min) => v.length < min || /\s/.test(v);
+
+const VALIDATE = {
+  google: (f) => {
+    const id = t(f.googleClientId);
+    const secret = t(f.googleClientSecret);
+    if (id && !RE.googleClientId.test(id))
+      return 'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.';
+    if (secret && badSecret(secret, 20))
+      return 'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.';
+    if (f.googleEnabled && !(id || f.googleClientIdSet))
+      return 'Add the Client ID, or turn Google sign-in off.';
+    if (f.googleEnabled && !(secret || f.googleClientSecretSet))
+      return 'Add the client secret, or turn Google sign-in off.';
+    return '';
+  },
+  recaptcha: (f) => {
+    const site = t(f.recaptchaSiteKey);
+    const secret = t(f.recaptchaSecretKey);
+    if (site && !RE.recaptchaKey.test(site))
+      return 'That does not look like a reCAPTCHA site key. It should start with 6L and be 40 characters long.';
+    if (secret && !RE.recaptchaKey.test(secret))
+      return 'That does not look like a reCAPTCHA secret key. It should start with 6L and be 40 characters long.';
+    if (f.recaptchaEnabled && !(site || f.recaptchaSiteKeySet))
+      return 'Add the reCAPTCHA site key, or turn reCAPTCHA off.';
+    if (f.recaptchaEnabled && !(secret || f.recaptchaSecretKeySet))
+      return 'Add the reCAPTCHA secret key, or turn reCAPTCHA off.';
+    return '';
+  },
+  smtp: (f) => {
+    const host = t(f.smtpHost);
+    const port = Number(f.smtpPort);
+    if (!host) return 'Enter the SMTP host.';
+    if (!RE.host.test(host)) return 'The SMTP host is not a valid server address.';
+    if (!Number.isInteger(port) || port < 1 || port > 65535)
+      return 'Enter an SMTP port between 1 and 65535.';
+    if (!t(f.smtpUser)) return 'Enter the SMTP username.';
+    if (!(t(f.smtpPassword) || f.smtpPasswordSet))
+      return 'Enter the SMTP password or app password.';
+    if (t(f.smtpFrom) && !RE.from.test(t(f.smtpFrom)))
+      return '"Send from" must be an email address or "Name <address@example.com>".';
+    return '';
+  },
+  pdfshift: (f) => {
+    const key = t(f.pdfshiftApiKey);
+    if (key && badSecret(key, 10))
+      return 'The PDFShift API key looks too short or contains spaces.';
+    if (f.pdfshiftEnabled && !(key || f.pdfshiftApiKeySet))
+      return 'Add the PDFShift API key, or turn PDF downloads off.';
+    return '';
+  },
+  nutrient: (f) => {
+    const key = t(f.nutrientApiKey);
+    if (key && badSecret(key, 10))
+      return 'The Nutrient API key looks too short or contains spaces.';
+    if (f.nutrientEnabled && !(key || f.nutrientApiKeySet))
+      return 'Add the Nutrient API key, or turn Excel downloads off.';
+    return '';
+  },
+};
+
+// ---- small components ----
 const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
   return (
@@ -64,6 +159,61 @@ const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
   );
 };
 
+// Public ID/key. When one is saved, only the first 5 characters are shown
+// (e.g. "6LcAb**************") as a locked value with a "Change" button.
+// Click "Change" to type a replacement. Parent remounts this (via `key`)
+// after every save/discard so it always returns to the locked state.
+const MaskedInput = ({ id, value, isSet, masked, onChange, placeholder }) => {
+  const [editing, setEditing] = useState(false);
+
+  if (isSet && !editing) {
+    return (
+      <div className="ss-input-wrap">
+        <input
+          id={id}
+          type="text"
+          className="ss-input ss-input-locked"
+          value={masked}
+          readOnly
+          tabIndex={-1}
+          aria-label="Saved value, only the first 5 characters are shown"
+        />
+        <button type="button" className="ss-change" onClick={() => setEditing(true)}>
+          Change
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ss-input-wrap">
+      <input
+        id={id}
+        type="text"
+        autoComplete="off"
+        spellCheck={false}
+        autoFocus={isSet}
+        className="ss-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+      {isSet && (
+        <button
+          type="button"
+          className="ss-change"
+          onClick={() => {
+            onChange('');
+            setEditing(false);
+          }}
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  );
+};
+
 const Field = ({ id, label, hint, children }) => (
   <div className="ss-field">
     <label htmlFor={id}>{label}</label>
@@ -72,7 +222,6 @@ const Field = ({ id, label, hint, children }) => (
   </div>
 );
 
-// Three states, based on what is SAVED on the server (not what is being typed):
 // complete = turned on and all required values saved
 // setup    = turned on but something is missing
 // off      = turned off by the admin
@@ -110,30 +259,94 @@ const ToggleRow = ({ id, label, hint, checked, onChange }) => (
   </div>
 );
 
-export default function SystemSettings() {
+// One card = one API = its own Save button
+const SettingsCard = ({
+  icon,
+  title,
+  sub,
+  status,
+  error,
+  dirty,
+  saving,
+  disabled,
+  onSave,
+  onDiscard,
+  children,
+}) => (
+  <div className="db-section-card ss-card">
+    <div className="ss-card-head">
+      <div className="db-stat-icon-circle ss-card-icon">
+        <i className={`bi ${icon}`} aria-hidden="true"></i>
+      </div>
+      <div className="ss-card-headtext">
+        <h2 className="ss-card-title">{title}</h2>
+        <p className="ss-card-sub">{sub}</p>
+      </div>
+      {status && <Status state={status} />}
+    </div>
+
+    <div className="ss-card-body">{children}</div>
+
+    {error && (
+      <div className="db-error-box ss-error ss-card-error" role="alert">
+        <strong>Could not save</strong>
+        <p>{error}</p>
+      </div>
+    )}
+
+    <div className="ss-card-foot">
+      <span className="ss-card-foot-text" role="status">
+        {dirty ? 'You have unsaved changes.' : 'All changes saved.'}
+      </span>
+      <button
+        type="button"
+        className="db-btn-secondary"
+        onClick={onDiscard}
+        disabled={!dirty || saving}
+      >
+        Discard
+      </button>
+      <button
+        type="button"
+        className="db-btn-primary"
+        onClick={onSave}
+        disabled={!dirty || saving || disabled}
+      >
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+    </div>
+  </div>
+);
+
+function SystemSettingsContent({ token, onLock }) {
   const [saved, setSaved] = useState(INITIAL);
   const [form, setForm] = useState(INITIAL);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [savingSection, setSavingSection] = useState(null);
+  const [errors, setErrors] = useState({}); // { google: '...', smtp: '...' }
+  const [loadError, setLoadError] = useState('');
   const [notice, setNotice] = useState(null);
-
-  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
+  // Bumped after save/discard so MaskedInput returns to its locked state
+  const [version, setVersion] = useState({});
 
   // Load the saved settings from the server
   useEffect(() => {
-    fetch(`${API}/api/admin/settings`, { headers: authHeaders() })
+    fetch(`${API}/api/admin/settings`, { headers: authHeaders(token) })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.message || 'Could not load the settings.');
+        if (!r.ok) {
+          if (data.code === 'SU_LOCKED') onLock();
+          throw new Error(data.message || 'Could not load the settings.');
+        }
         return data;
       })
       .then((data) => {
         setSaved(data);
         setForm(data);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -144,63 +357,95 @@ export default function SystemSettings() {
 
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
   const onText = (field) => (e) => set(field)(e.target.value);
+  const setError = (section, msg) => setErrors((prev) => ({ ...prev, [section]: msg }));
+  const bump = (section) => setVersion((v) => ({ ...v, [section]: (v[section] || 0) + 1 }));
 
-  // Still used by handleSave to validate the reCAPTCHA keys
-  const recaptchaOk =
-    !!form.recaptchaSiteKey.trim() && (form.recaptchaSecretKeySet || !!form.recaptchaSecretKey);
+  const isDirty = (section) =>
+    SECTION_FIELDS[section].some((k) => String(form[k]) !== String(saved[k]));
 
   // Badges reflect what is saved on the server, so they don't flicker while typing
   const status = {
-    google: getStatus(
-      saved.googleEnabled,
-      !!saved.googleClientId.trim() && saved.googleClientSecretSet
-    ),
+    google: getStatus(saved.googleEnabled, saved.googleClientIdSet && saved.googleClientSecretSet),
     recaptcha: getStatus(
       saved.recaptchaEnabled,
-      !!saved.recaptchaSiteKey.trim() && saved.recaptchaSecretKeySet
+      saved.recaptchaSiteKeySet && saved.recaptchaSecretKeySet
     ),
-    smtp: getStatus(saved.smtpEnabled, !!saved.smtpHost.trim() && !!saved.smtpFrom.trim()),
+    // Email has no on/off switch: it is either ready or it needs setup
+    smtp:
+      saved.smtpHost.trim() && saved.smtpUser.trim() && saved.smtpPasswordSet
+        ? 'complete'
+        : 'setup',
     pdfshift: getStatus(saved.pdfshiftEnabled, saved.pdfshiftApiKeySet),
     nutrient: getStatus(saved.nutrientEnabled, saved.nutrientApiKeySet),
   };
 
-  const handleSave = async () => {
-    if (!dirty || saving) return;
-    setError('');
+  const handleSave = async (section) => {
+    if (!isDirty(section) || savingSection) return;
+    setError(section, '');
 
-    if (form.recaptchaEnabled && !recaptchaOk) {
-      return setError('Add both the reCAPTCHA site key and secret key, or turn reCAPTCHA off.');
-    }
-    const port = Number(form.smtpPort);
-    if (form.smtpHost.trim() && !(port >= 1 && port <= 65535)) {
-      return setError('Enter an SMTP port between 1 and 65535.');
-    }
+    const problem = VALIDATE[section](form);
+    if (problem) return setError(section, problem);
 
-    setSaving(true);
+    setSavingSection(section);
     try {
-      // Empty secret = server keeps the saved one
-      const res = await fetch(`${API}/api/admin/settings`, {
+      // Send only this card's fields. Empty secret / public key = server keeps the saved one
+      const body = {};
+      SECTION_FIELDS[section].forEach((k) => {
+        body[k] = form[k];
+      });
+      if (section === 'smtp') body.smtpPort = Number(form.smtpPort) || 587;
+
+      const res = await fetch(`${API}/api/admin/settings/${section}`, {
         method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ ...form, smtpPort: port || 587 }),
+        headers: authHeaders(token),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Could not save the settings.');
+      if (!res.ok) {
+        if (data.code === 'SU_LOCKED') onLock();
+        throw new Error(data.message || 'Could not save the settings.');
+      }
 
-      setForm(data); // server returns the safe version (secrets cleared, *Set flags updated)
       setSaved(data);
-      setNotice({ type: 'success', text: 'System settings were saved.' });
+      // Refresh only this card's fields so edits in other cards are kept
+      setForm((prev) => {
+        const next = { ...prev };
+        keysFor(section).forEach((k) => {
+          if (k in data) next[k] = data[k];
+        });
+        return next;
+      });
+      bump(section);
+      setNotice({ type: 'success', text: `${SECTION_TITLE[section]} settings were saved.` });
     } catch (err) {
-      setError(err.message || 'Could not save the settings.');
+      setError(section, err.message || 'Could not save the settings.');
     } finally {
-      setSaving(false);
+      setSavingSection(null);
     }
   };
 
-  const handleReset = () => {
-    setError('');
-    setForm(saved);
+  const handleDiscard = (section) => {
+    setError(section, '');
+    setForm((prev) => {
+      const next = { ...prev };
+      SECTION_FIELDS[section].forEach((k) => {
+        next[k] = saved[k];
+      });
+      return next;
+    });
+    bump(section);
   };
+
+  // Shared props for each card
+  const cardProps = (section) => ({
+    status: status[section],
+    error: errors[section],
+    dirty: isDirty(section),
+    saving: savingSection === section,
+    disabled: !!savingSection && savingSection !== section,
+    onSave: () => handleSave(section),
+    onDiscard: () => handleDiscard(section),
+  });
 
   // Must come after all hooks
   if (loading) return <div className="dashboard ss-page">Loading…</div>;
@@ -212,324 +457,270 @@ export default function SystemSettings() {
         <div className="db-header-text">
           <h1 className="db-title">System settings</h1>
           <p className="db-subtitle">
-            Manage the keys and connections used by <strong>BukSUPPLY</strong>. Saved secrets are
-            hidden. Leave a secret field empty to keep its current value. Database settings are
-            managed in the server configuration.
+            Manage the keys and connections used by <strong>BukSUPPLY</strong>. Each section is
+            saved on its own. Saved keys are hidden; leave a field empty to keep its current value.
+            Database settings are managed in the server configuration.
           </p>
         </div>
       </div>
 
-      {error && (
-        <div className="db-error-box ss-error">
-          <strong>Could not save</strong>
-          <p>{error}</p>
+      {loadError && (
+        <div className="db-error-box ss-error" role="alert">
+          <strong>Could not load</strong>
+          <p>{loadError}</p>
         </div>
       )}
 
       {/* Google sign-in */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-google" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">Google sign-in</h2>
-            <p className="ss-card-sub">OAuth credentials from Google Cloud Console.</p>
-          </div>
-          <Status state={status.google} />
-        </div>
-        <div className="ss-card-body">
-          <ToggleRow
-            id="ss-g-on"
-            label="Turn on Google sign-in"
-            hint="When off, the “Sign in with Google” button is hidden."
-            checked={form.googleEnabled}
-            onChange={set('googleEnabled')}
-          />
+      <SettingsCard
+        icon="bi-google"
+        title="Google sign-in"
+        sub="OAuth credentials from Google Cloud Console."
+        {...cardProps('google')}
+      >
+        <ToggleRow
+          id="ss-g-on"
+          label="Turn on Google sign-in"
+          hint="When off, the “Sign in with Google” button is hidden."
+          checked={form.googleEnabled}
+          onChange={set('googleEnabled')}
+        />
 
-          <div className="ss-divider"></div>
+        <div className="ss-divider"></div>
 
-          <div className="ss-grid ss-grid-2">
-            <Field
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-g-id"
+            label="Client ID"
+            hint={
+              form.googleClientIdSet
+                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
+                : 'Public. Shown to Google when users sign in.'
+            }
+          >
+            <MaskedInput
+              key={`g-${version.google || 0}`}
               id="ss-g-id"
-              label="Client ID"
-              hint="Public. Shown to Google when users sign in."
-            >
-              <input
-                id="ss-g-id"
-                type="text"
-                className="ss-input"
-                value={form.googleClientId}
-                onChange={onText('googleClientId')}
-                placeholder="123456789-abc.apps.googleusercontent.com"
-                spellCheck={false}
-              />
-            </Field>
-            <Field id="ss-g-secret" label="Client secret" hint="Private. Used by the server.">
-              <SecretInput
-                id="ss-g-secret"
-                value={form.googleClientSecret}
-                isSet={form.googleClientSecretSet}
-                onChange={set('googleClientSecret')}
-                placeholder="GOCSPX-..."
-              />
-            </Field>
-          </div>
+              value={form.googleClientId}
+              isSet={form.googleClientIdSet}
+              masked={form.googleClientIdMasked}
+              onChange={set('googleClientId')}
+              placeholder="123456789-abc.apps.googleusercontent.com"
+            />
+          </Field>
+          <Field id="ss-g-secret" label="Client secret" hint="Private. Used by the server.">
+            <SecretInput
+              id="ss-g-secret"
+              value={form.googleClientSecret}
+              isSet={form.googleClientSecretSet}
+              onChange={set('googleClientSecret')}
+              placeholder="GOCSPX-..."
+            />
+          </Field>
         </div>
-      </div>
+      </SettingsCard>
 
       {/* reCAPTCHA */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-shield-check" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">reCAPTCHA</h2>
-            <p className="ss-card-sub">Blocks bots on the login and sign-up forms.</p>
-          </div>
-          <Status state={status.recaptcha} />
+      <SettingsCard
+        icon="bi-shield-check"
+        title="reCAPTCHA"
+        sub="Blocks bots on the login and sign-up forms."
+        {...cardProps('recaptcha')}
+      >
+        <ToggleRow
+          id="ss-rc-on"
+          label="Turn on reCAPTCHA"
+          hint="Forms will ask visitors to pass the check."
+          checked={form.recaptchaEnabled}
+          onChange={set('recaptchaEnabled')}
+        />
+
+        <div className="ss-divider"></div>
+
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-rc-site"
+            label="Site key"
+            hint={
+              form.recaptchaSiteKeySet
+                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
+                : 'Public. Used in the browser.'
+            }
+          >
+            <MaskedInput
+              key={`rc-${version.recaptcha || 0}`}
+              id="ss-rc-site"
+              value={form.recaptchaSiteKey}
+              isSet={form.recaptchaSiteKeySet}
+              masked={form.recaptchaSiteKeyMasked}
+              onChange={set('recaptchaSiteKey')}
+              placeholder="6LcA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S"
+            />
+          </Field>
+          <Field
+            id="ss-rc-secret"
+            label="Secret key"
+            hint="Private. Checked with Google before it is saved."
+          >
+            <SecretInput
+              id="ss-rc-secret"
+              value={form.recaptchaSecretKey}
+              isSet={form.recaptchaSecretKeySet}
+              onChange={set('recaptchaSecretKey')}
+              placeholder="6Lc..."
+            />
+          </Field>
         </div>
-        <div className="ss-card-body">
-          <ToggleRow
-            id="ss-rc-on"
-            label="Turn on reCAPTCHA"
-            hint="Forms will ask visitors to pass the check."
-            checked={form.recaptchaEnabled}
-            onChange={set('recaptchaEnabled')}
-          />
+      </SettingsCard>
 
-          <div className="ss-divider"></div>
-
-          <div className="ss-grid ss-grid-2">
-            <Field id="ss-rc-site" label="Site key" hint="Public. Used in the browser.">
-              <input
-                id="ss-rc-site"
-                type="text"
-                className="ss-input"
-                value={form.recaptchaSiteKey}
-                onChange={onText('recaptchaSiteKey')}
-                placeholder="6Lc..."
-                spellCheck={false}
-              />
-            </Field>
-            <Field id="ss-rc-secret" label="Secret key" hint="Private. Used by the server.">
-              <SecretInput
-                id="ss-rc-secret"
-                value={form.recaptchaSecretKey}
-                isSet={form.recaptchaSecretKeySet}
-                onChange={set('recaptchaSecretKey')}
-                placeholder="6Lc..."
-              />
-            </Field>
-          </div>
-        </div>
-      </div>
-
-      {/* Email */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-envelope" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">Email (SMTP)</h2>
-            <p className="ss-card-sub">Used for password resets and request notices.</p>
-          </div>
-          <Status state={status.smtp} />
-        </div>
-        <div className="ss-card-body">
-          <ToggleRow
-            id="ss-smtp-on"
-            label="Turn on email"
-            hint="When off, no emails are sent."
-            checked={form.smtpEnabled}
-            onChange={set('smtpEnabled')}
-          />
-
-          <div className="ss-divider"></div>
-
-          <div className="ss-grid ss-grid-3">
-            <Field
+      {/* Email: always on, so no toggle */}
+      <SettingsCard
+        icon="bi-envelope"
+        title="Email (SMTP)"
+        sub="Used for password resets and request notices."
+        {...cardProps('smtp')}
+      >
+        <div className="ss-grid ss-grid-3">
+          <Field
+            id="ss-smtp-host"
+            label="Host"
+            hint="Public. Your email provider's server address."
+          >
+            <input
               id="ss-smtp-host"
-              label="Host"
-              hint="Public. Your email provider's server address."
-            >
-              <input
-                id="ss-smtp-host"
-                type="text"
-                className="ss-input"
-                value={form.smtpHost}
-                onChange={onText('smtpHost')}
-                placeholder="smtp.gmail.com"
-                spellCheck={false}
-              />
-            </Field>
-            <Field id="ss-smtp-port" label="Port" hint="Public. Usually 587 (TLS) or 465 (SSL).">
-              <input
-                id="ss-smtp-port"
-                type="number"
-                min="1"
-                max="65535"
-                className="ss-input"
-                value={form.smtpPort}
-                onChange={onText('smtpPort')}
-                placeholder="587"
-              />
-            </Field>
-            <Field
+              type="text"
+              className="ss-input"
+              value={form.smtpHost}
+              onChange={onText('smtpHost')}
+              placeholder="smtp.gmail.com"
+              spellCheck={false}
+            />
+          </Field>
+          <Field id="ss-smtp-port" label="Port" hint="Public. Usually 587 (TLS) or 465 (SSL).">
+            <input
+              id="ss-smtp-port"
+              type="number"
+              min="1"
+              max="65535"
+              className="ss-input"
+              value={form.smtpPort}
+              onChange={onText('smtpPort')}
+              placeholder="587"
+            />
+          </Field>
+          <Field
+            id="ss-smtp-from"
+            label="Send from"
+            hint="Public. Name and address recipients will see."
+          >
+            <input
               id="ss-smtp-from"
-              label="Send from"
-              hint="Public. Name and address recipients will see."
-            >
-              <input
-                id="ss-smtp-from"
-                type="text"
-                className="ss-input"
-                value={form.smtpFrom}
-                onChange={onText('smtpFrom')}
-                placeholder="BukSUPPLY Support <supply@buksu.edu.ph>"
-              />
-            </Field>
-            <Field
+              type="text"
+              className="ss-input"
+              value={form.smtpFrom}
+              onChange={onText('smtpFrom')}
+              placeholder="BukSUPPLY Support <supply@buksu.edu.ph>"
+            />
+          </Field>
+          <Field
+            id="ss-smtp-user"
+            label="Username"
+            hint="Private. Usually your full email address."
+          >
+            <input
               id="ss-smtp-user"
-              label="Username"
-              hint="Private. Usually your full email address."
-            >
-              <input
-                id="ss-smtp-user"
-                type="text"
-                autoComplete="off"
-                className="ss-input"
-                value={form.smtpUser}
-                onChange={onText('smtpUser')}
-                placeholder="supply@buksu.edu.ph"
-                spellCheck={false}
-              />
-            </Field>
-            <Field
+              type="text"
+              autoComplete="off"
+              className="ss-input"
+              value={form.smtpUser}
+              onChange={onText('smtpUser')}
+              placeholder="supply@buksu.edu.ph"
+              spellCheck={false}
+            />
+          </Field>
+          <Field
+            id="ss-smtp-pass"
+            label="Password or app password"
+            hint="Private. Use an app password if 2-step verification is on."
+          >
+            <SecretInput
               id="ss-smtp-pass"
-              label="Password or app password"
-              hint="Private. Use an app password if 2-step verification is on."
-            >
-              <SecretInput
-                id="ss-smtp-pass"
-                value={form.smtpPassword}
-                isSet={form.smtpPasswordSet}
-                onChange={set('smtpPassword')}
-                placeholder="16-character app password"
-              />
-            </Field>
-          </div>
+              value={form.smtpPassword}
+              isSet={form.smtpPasswordSet}
+              onChange={set('smtpPassword')}
+              placeholder="16-character app password"
+            />
+          </Field>
         </div>
-      </div>
+      </SettingsCard>
 
       {/* PDF reports */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-file-earmark-pdf" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">PDF reports (PDFShift)</h2>
-            <p className="ss-card-sub">Converts report pages into downloadable PDF files.</p>
-          </div>
-          <Status state={status.pdfshift} />
-        </div>
-        <div className="ss-card-body">
-          <ToggleRow
-            id="ss-pdf-on"
-            label="Turn on PDF downloads"
-            hint="When off, PDF downloads are unavailable."
-            checked={form.pdfshiftEnabled}
-            onChange={set('pdfshiftEnabled')}
-          />
+      <SettingsCard
+        icon="bi-file-earmark-pdf"
+        title="PDF reports (PDFShift)"
+        sub="Converts report pages into downloadable PDF files."
+        {...cardProps('pdfshift')}
+      >
+        <ToggleRow
+          id="ss-pdf-on"
+          label="Turn on PDF downloads"
+          hint="When off, PDF downloads are unavailable."
+          checked={form.pdfshiftEnabled}
+          onChange={set('pdfshiftEnabled')}
+        />
 
-          <div className="ss-divider"></div>
+        <div className="ss-divider"></div>
 
-          <div className="ss-grid ss-grid-2">
-            <Field
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-pdf-key"
+            label="API key"
+            hint="Private. Each PDF download uses one PDFShift credit."
+          >
+            <SecretInput
               id="ss-pdf-key"
-              label="API key"
-              hint="Private. Each PDF download uses one PDFShift credit."
-            >
-              <SecretInput
-                id="ss-pdf-key"
-                value={form.pdfshiftApiKey}
-                isSet={form.pdfshiftApiKeySet}
-                onChange={set('pdfshiftApiKey')}
-                placeholder="sk_..."
-              />
-            </Field>
-          </div>
+              value={form.pdfshiftApiKey}
+              isSet={form.pdfshiftApiKeySet}
+              onChange={set('pdfshiftApiKey')}
+              placeholder="sk_..."
+            />
+          </Field>
         </div>
-      </div>
+      </SettingsCard>
 
       {/* Excel reports */}
-      <div className="db-section-card ss-card">
-        <div className="ss-card-head">
-          <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-file-earmark-excel" aria-hidden="true"></i>
-          </div>
-          <div className="ss-card-headtext">
-            <h2 className="ss-card-title">Excel reports (Nutrient)</h2>
-            <p className="ss-card-sub">Converts report data into downloadable Excel files.</p>
-          </div>
-          <Status state={status.nutrient} />
-        </div>
-        <div className="ss-card-body">
-          <ToggleRow
-            id="ss-xlsx-on"
-            label="Turn on Excel downloads"
-            hint="When off, Excel downloads are unavailable."
-            checked={form.nutrientEnabled}
-            onChange={set('nutrientEnabled')}
-          />
+      <SettingsCard
+        icon="bi-file-earmark-excel"
+        title="Excel reports (Nutrient)"
+        sub="Converts report data into downloadable Excel files."
+        {...cardProps('nutrient')}
+      >
+        <ToggleRow
+          id="ss-xlsx-on"
+          label="Turn on Excel downloads"
+          hint="When off, Excel downloads are unavailable."
+          checked={form.nutrientEnabled}
+          onChange={set('nutrientEnabled')}
+        />
 
-          <div className="ss-divider"></div>
+        <div className="ss-divider"></div>
 
-          <div className="ss-grid ss-grid-2">
-            <Field
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-xlsx-key"
+            label="API key"
+            hint="Private. Each Excel download uses Nutrient credits."
+          >
+            <SecretInput
               id="ss-xlsx-key"
-              label="API key"
-              hint="Private. Each Excel download uses Nutrient credits."
-            >
-              <SecretInput
-                id="ss-xlsx-key"
-                value={form.nutrientApiKey}
-                isSet={form.nutrientApiKeySet}
-                onChange={set('nutrientApiKey')}
-                placeholder="pdf_live_..."
-              />
-            </Field>
-          </div>
+              value={form.nutrientApiKey}
+              isSet={form.nutrientApiKeySet}
+              onChange={set('nutrientApiKey')}
+              placeholder="pdf_live_..."
+            />
+          </Field>
         </div>
-      </div>
-
-      {/* Save bar */}
-      <div className="ss-savebar">
-        <span className="ss-savebar-text" role="status">
-          {dirty ? 'You have unsaved changes.' : 'All changes saved.'}
-        </span>
-        <div className="ss-savebar-actions">
-          <button
-            type="button"
-            className="db-btn-secondary"
-            onClick={handleReset}
-            disabled={!dirty || saving}
-          >
-            Discard changes
-          </button>
-          <button
-            type="button"
-            className="db-btn-primary"
-            onClick={handleSave}
-            disabled={!dirty || saving}
-          >
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
-        </div>
-      </div>
+      </SettingsCard>
 
       {/* Toast */}
       {notice && (
@@ -547,4 +738,13 @@ export default function SystemSettings() {
       )}
     </div>
   );
+}
+
+// Gate: the unlock token lives in memory only, so leaving the page
+// or refreshing shows the lock screen again.
+export default function SystemSettings() {
+  const [token, setToken] = useState('');
+
+  if (!token) return <SettingsUnlock onUnlock={setToken} />;
+  return <SystemSettingsContent token={token} onLock={() => setToken('')} />;
 }

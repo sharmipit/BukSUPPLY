@@ -404,11 +404,6 @@ exports.requestOtp = async (req, res) => {
       return res.status(400).json({ message: 'Email is required.' });
     }
 
-    // Email turned off in System Settings
-    if (!settings.get().smtpEnabled) {
-      return res.status(503).json({ message: 'Password reset by email is currently unavailable.' });
-    }
-
     // Same response whether or not the account exists (no email enumeration)
     const genericResponse = {
       message: 'If that email is registered, a verification code has been sent.',

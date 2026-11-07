@@ -8,9 +8,6 @@ let cachedSignature = '';
 const getTransporter = () => {
   const s = settings.get();
 
-  if (!s.smtpEnabled) {
-    throw new Error('Email is turned off in System Settings.');
-  }
   if (!s.smtpHost || !s.smtpUser || !s.smtpPassword) {
     throw new Error(
       'Email is not configured. Fill in the Email (SMTP) section in System Settings.'

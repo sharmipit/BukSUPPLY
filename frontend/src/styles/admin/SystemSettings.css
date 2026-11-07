@@ -24,6 +24,11 @@
   margin-left: 0;
 }
 
+.ss-card-headtext {
+  flex: 1;
+  min-width: 0;
+}
+
 .ss-card-title {
   margin: 0;
   font-size: 1.15rem;
@@ -44,17 +49,28 @@
   padding: 24px 32px 28px;
 }
 
-.ss-split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  align-items: start;
+/* ---------- Card footer (per-card Save / Discard) ---------- */
+.ss-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 32px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+}
+
+.ss-card-foot-text {
+  margin-right: auto;
+  font-size: 0.85rem;
+  color: var(--text-body, #594d46);
+}
+
+.ss-error {
   margin-bottom: 24px;
 }
 
-.ss-split .ss-card {
-  margin-bottom: 0;
-  min-width: 0;
+.ss-error.ss-card-error {
+  margin: 0 32px 20px;
 }
 
 /* ---------- Fields ---------- */
@@ -119,6 +135,11 @@
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
+.ss-input::placeholder {
+  color: #a89d94;
+}
+
+/* Room for the Change / Cancel button inside the input */
 .ss-input-wrap .ss-input {
   padding-right: 84px;
 }
@@ -131,6 +152,101 @@
   font-size: 0.85rem;
   color: var(--text-body, #594d46);
   pointer-events: none;
+}
+
+/* Secret inputs (password with eye icon) */
+.ss-input-wrap .ss-input.ss-input-secret {
+  padding-right: 48px;
+}
+
+.ss-eye {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-body, #594d46);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ss-eye:hover {
+  background-color: #efe9df;
+}
+
+.ss-eye:focus-visible {
+  outline: 2px solid var(--text-light-brown, #8c5839);
+}
+
+/* Saved public ID/key shown as "12345**************" (locked) */
+.ss-input.ss-input-locked {
+  cursor: default;
+  user-select: none;
+  color: #a89d94;
+}
+
+.ss-input.ss-input-locked:focus {
+  border-color: var(--card-border, #dfd8cc);
+  background-color: #efe9df;
+  box-shadow: none;
+}
+
+.ss-change {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #8c5839;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ss-change:hover {
+  background-color: #e6dccd;
+}
+
+.ss-change:focus-visible {
+  outline: 2px solid var(--text-light-brown, #8c5839);
+}
+
+.ss-select {
+  padding-right: 46px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 18px center;
+  background-size: 12px 8px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* ---------- Status badges ---------- */
+.ss-status {
+  flex-shrink: 0;
+}
+
+.ss-status-setup {
+  background: #fff4e0;
+  color: #9a5b00;
+}
+
+.ss-status-off {
+  background: #eceff3;
+  color: #5b6573;
 }
 
 /* ---------- Toggle rows ---------- */
@@ -199,42 +315,14 @@
   background-color: var(--card-border, #dfd8cc);
 }
 
-/* ---------- Save bar ---------- */
-.ss-savebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 16px 32px;
-  background-color: var(--card-bg, #ffffff);
-  border: 1px solid var(--card-border, #dfd8cc);
-  border-radius: 24px;
-  box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
-}
-
-.ss-savebar-text {
-  font-size: 0.9rem;
-  color: var(--text-body, #594d46);
-}
-
-.ss-savebar-actions {
-  display: flex;
-  gap: 10px;
+.ss-unlock {
+  max-width: 520px;
+  margin: 40px auto 0;
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1200px) {
-  .ss-split {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 900px) {
-  .ss-grid {
-    grid-template-columns: 1fr;
-  }
-
+  .ss-grid,
   .ss-grid-2,
   .ss-grid-3 {
     grid-template-columns: 1fr;
@@ -242,89 +330,31 @@
 
   .ss-card-head,
   .ss-card-body,
-  .ss-savebar {
+  .ss-card-foot {
     padding-left: 20px;
     padding-right: 20px;
   }
-}
 
-@media (max-width: 560px) {
-  .ss-savebar-actions {
-    width: 100%;
+  .ss-error.ss-card-error {
+    margin-left: 20px;
+    margin-right: 20px;
   }
-
-  .ss-savebar-actions button {
-    flex: 1 1 auto;
-  }
-}
-
-/* ---------- Technical settings extras ---------- */
-.ss-card-headtext {
-  flex: 1;
-  min-width: 0;
-}
-
-.ss-status {
-  flex-shrink: 0;
-}
-
-.ss-error {
-  margin-bottom: 24px;
-}
-
-.ss-input-secret {
-  padding-right: 48px;
-}
-
-.ss-eye {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 50%;
-  background: none;
-  color: var(--text-body, #594d46);
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.ss-eye:hover {
-  background-color: #efe9df;
-}
-
-.ss-eye:focus-visible {
-  outline: 2px solid var(--text-light-brown, #8c5839);
-}
-
-.ss-select {
-  padding-right: 46px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 18px center;
-  background-size: 12px 8px;
-  cursor: pointer;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
-
-.ss-status-setup {
-  background: #fff4e0;
-  color: #9a5b00;
-}
-
-.ss-status-off {
-  background: #eceff3;
-  color: #5b6573;
 }
 
 @media (max-width: 560px) {
   .ss-card-head {
     flex-wrap: wrap;
+  }
+
+  .ss-card-foot {
+    flex-wrap: wrap;
+  }
+
+  .ss-card-foot-text {
+    flex: 1 0 100%;
+  }
+
+  .ss-card-foot button {
+    flex: 1 1 auto;
   }
 }
