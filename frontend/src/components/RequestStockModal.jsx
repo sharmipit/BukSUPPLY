@@ -7,7 +7,7 @@ export function validateStockLines(lines, inventory) {
     const inv = inventory.find((p) => String(p._id) === String(line.inventoryItemId));
     if (!inv) return `"${line.name}" is no longer in the inventory. Please remove it.`;
     if (inv.quantity <= 0) {
-      return `"${inv.name}" is out of stock now. Remove it or request a purchase instead.`;
+      return `"${inv.name}" is out of stock now. Please remove it from your slip.`;
     }
 
     const qty = Math.floor(Number(line.qty));
@@ -21,13 +21,7 @@ export function validateStockLines(lines, inventory) {
   return '';
 }
 
-export default function RequestStockModal({
-  inventory,
-  selected,
-  onSave,
-  onClose,
-  onRequestPurchase,
-}) {
+export default function RequestStockModal({ inventory, selected, onSave, onClose }) {
   const [lines, setLines] = useState(() => selected.map((l) => ({ ...l })));
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState(ALL);
@@ -207,42 +201,37 @@ export default function RequestStockModal({
                     {out ? 'Out of stock' : `${item.quantity} ${item.unit} available`}
                   </span>
 
-                  <div className="req-pick-action">
-                    {out ? (
-                      <button
-                        type="button"
-                        className="req-btn-soft req-btn-soft--sm"
-                        onClick={() => onRequestPurchase(item.name, lines)}
-                      >
-                        <i className="bi bi-cart-plus"></i> Request purchase
-                      </button>
-                    ) : line ? (
-                      <>
-                        <input
-                          type="number"
-                          min="1"
-                          max={item.quantity}
-                          className="form-control custom-input req-pick-qty"
-                          value={line.qty}
-                          onChange={(e) => changeQty(item, e.target.value)}
-                          aria-label={`Quantity of ${item.name}`}
-                        />
-                        <button
-                          type="button"
-                          className="btn-remove-item"
-                          onClick={() => removeLine(item._id)}
-                          title="Remove item"
-                          aria-label={`Remove ${item.name}`}
-                        >
-                          <i className="bi bi-x-lg"></i>
+                  {/* Out-of-stock items cannot be requested */}
+                  {!out && (
+                    <div className="req-pick-action">
+                      {line ? (
+                        <>
+                          <input
+                            type="number"
+                            min="1"
+                            max={item.quantity}
+                            className="form-control custom-input req-pick-qty"
+                            value={line.qty}
+                            onChange={(e) => changeQty(item, e.target.value)}
+                            aria-label={`Quantity of ${item.name}`}
+                          />
+                          <button
+                            type="button"
+                            className="btn-remove-item"
+                            onClick={() => removeLine(item._id)}
+                            title="Remove item"
+                            aria-label={`Remove ${item.name}`}
+                          >
+                            <i className="bi bi-x-lg"></i>
+                          </button>
+                        </>
+                      ) : (
+                        <button type="button" className="req-pick-add" onClick={() => addItem(item)}>
+                          <i className="bi bi-plus-lg"></i> Add
                         </button>
-                      </>
-                    ) : (
-                      <button type="button" className="req-pick-add" onClick={() => addItem(item)}>
-                        <i className="bi bi-plus-lg"></i> Add
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {overLimit && (
@@ -273,19 +262,15 @@ export default function RequestStockModal({
                 <p className="req-cta-text">There are no items in the inventory yet.</p>
               ) : typed ? (
                 <p className="req-cta-text">
-                  No available item matches <strong>“{typed}”</strong>.
+                  No item matches <strong>“{typed}”</strong>.
                 </p>
               ) : (
                 <p className="req-cta-text">No items in this category.</p>
               )}
-              <button
-                type="button"
-                className="req-cta-btn"
-                onClick={() => onRequestPurchase(typed, lines)}
-              >
-                <i className="bi bi-cart-plus"></i>{' '}
-                {typed ? `Request item purchase for “${typed}”` : 'Request item purchase'}
-              </button>
+              <p className="req-cta-text">
+                Only items kept by the property office can be requested here. For anything not
+                listed, please coordinate with the Property Office.
+              </p>
             </li>
           )}
         </ul>
@@ -297,19 +282,9 @@ export default function RequestStockModal({
         )}
 
         <div className="req-picker-footer">
-          <div className="req-picker-footer-left">
-            <span className="req-picker-count">
-              {lines.length} item{lines.length === 1 ? '' : 's'} selected
-            </span>
-
-            <button
-              type="button"
-              className="req-btn-soft"
-              onClick={() => onRequestPurchase('', lines)}
-            >
-              <i className="bi bi-cart-plus"></i> Item not listed? Request item purchase
-            </button>
-          </div>
+          <span className="req-picker-count">
+            {lines.length} item{lines.length === 1 ? '' : 's'} selected
+          </span>
           <div className="req-picker-footer-right">
             <button type="button" className="btn-modal-cancel" onClick={onClose}>
               Cancel

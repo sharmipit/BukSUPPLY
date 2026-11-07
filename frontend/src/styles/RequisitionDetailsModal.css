@@ -1,6 +1,6 @@
 /* ==========================================================================
-   BukSUPPLY - Requisition Details Modal Styles
-   ========================================================================== */
+    BukSUPPLY - Requisition Details Modal Styles
+    ========================================================================== */
 
 .details-modal-overlay {
   position: fixed;
@@ -160,8 +160,9 @@
 }
 
 /* ==========================================================================
-   Item lists (stock items and purchase items)
-   ========================================================================== */
+    Item lists (stock items and purchase items)
+    ========================================================================== */
+
 .details-item-list {
   list-style: none;
   margin: 0;
@@ -236,6 +237,34 @@
   border-top: 1px solid #DFD8CC;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   background-color: #FAF7F2;
   flex-shrink: 0;
+}
+
+.details-btn-slip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 50px;
+  background-color: #2C1A14;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.details-btn-slip:hover {
+  background-color: #8C5839;
+}
+
+.details-btn-slip:focus-visible {
+  outline: 2px solid #8C5839;
+  outline-offset: 2px;
 }

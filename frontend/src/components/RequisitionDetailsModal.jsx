@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/RequisitionDetailsModal.css';
 
-function ItemList({ items, noteLabel, alwaysNote = false, showUnit = false }) {
+function ItemList({ items, noteLabel, showUnit = false }) {
   return (
     <ul className="details-item-list">
       {items.map((it, idx) => (
@@ -14,10 +14,10 @@ function ItemList({ items, noteLabel, alwaysNote = false, showUnit = false }) {
             </span>
           </div>
 
-          {noteLabel && (alwaysNote || it.reason) && (
+          {noteLabel && it.reason && (
             <div className="details-item-note">
               <span className="details-item-note-label">{noteLabel}</span>
-              <p>{it.reason || '-'}</p>
+              <p>{it.reason}</p>
             </div>
           )}
         </li>
@@ -26,11 +26,14 @@ function ItemList({ items, noteLabel, alwaysNote = false, showUnit = false }) {
   );
 }
 
-export default function RequisitionDetailsModal({ isOpen, onClose, requisition }) {
+// The Request & Issuance Slip can be previewed once the request is approved
+const SLIP_STATUSES = ['Approved', 'Accepted'];
+
+export default function RequisitionDetailsModal({ isOpen, onClose, requisition, onViewSlip }) {
   if (!isOpen || !requisition) return null;
 
   const stockItems = Array.isArray(requisition.itemsList) ? requisition.itemsList : null;
-  const purchaseItems = Array.isArray(requisition.purchaseItems) ? requisition.purchaseItems : [];
+  const canViewSlip = SLIP_STATUSES.includes(requisition.status);
 
   return (
     <div className={`details-modal-overlay ${isOpen ? 'active' : ''}`} role="dialog" aria-modal="true">
@@ -40,7 +43,9 @@ export default function RequisitionDetailsModal({ isOpen, onClose, requisition }
             <h3 className="details-modal-title">
               Requisition Details <span className="text-accent">#{requisition.id}</span>
             </h3>
-            <p className="details-modal-subtitle">Comprehensive summary of slip information and processing status.</p>
+            <p className="details-modal-subtitle">
+              Comprehensive summary of slip information and processing status.
+            </p>
           </div>
           <button className="details-modal-close-btn" onClick={onClose} type="button">
             <i className="bi bi-x-lg"></i>
@@ -86,7 +91,7 @@ export default function RequisitionDetailsModal({ isOpen, onClose, requisition }
           </div>
 
           <div className="detail-section">
-            <span className="detail-label">Requested Items (Bodega Stock)</span>
+            <span className="detail-label">Requested Items</span>
             <div className="detail-card-box">
               {stockItems === null ? (
                 <p className="detail-text">{requisition.item || '-'}</p>
@@ -103,19 +108,6 @@ export default function RequisitionDetailsModal({ isOpen, onClose, requisition }
           </div>
 
           <div className="detail-section">
-            <span className="detail-label text-warning-dark">External Purchase / Out-of-Stock Items</span>
-            {purchaseItems.length > 0 ? (
-              <div className="detail-card-box border-warning">
-                <ItemList items={purchaseItems} noteLabel="Justification" alwaysNote />
-              </div>
-            ) : (
-              <div className="detail-card-box">
-                <p className="detail-text text-body-secondary">-</p>
-              </div>
-            )}
-          </div>
-
-          <div className="detail-section">
             <span className="detail-label">Admin Remarks / Window Notes</span>
             <div className="detail-card-box">
               <p className="detail-text text-body-secondary">{requisition.remarks || '-'}</p>
@@ -127,6 +119,13 @@ export default function RequisitionDetailsModal({ isOpen, onClose, requisition }
           <button type="button" className="btn-modal-cancel" onClick={onClose}>
             Close
           </button>
+          {canViewSlip && (
+            // TODO: wire this up once the office's Request & Issuance Slip format is available.
+            // Pass an `onViewSlip` handler from the page to open the preview.
+            <button type="button" className="details-btn-slip" onClick={onViewSlip}>
+              <i className="bi bi-file-earmark-text"></i> Request &amp; Issuance Slip
+            </button>
+          )}
         </div>
       </div>
     </div>

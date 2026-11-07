@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useInventory from '../hooks/useInventory';
 import RequestStockModal, { validateStockLines } from './RequestStockModal';
-import RequestPurchaseModal from './RequestPurchaseModal';
 import '../styles/EditRequisitionModal.css';
 
 const PURPOSE_MAX_LENGTH = 250;
@@ -20,13 +19,9 @@ export default function EditRequisitionModal({
   const [title, setTitle] = useState('');
   const [purpose, setPurpose] = useState('');
 
-  // The two item lists, edited in their own modals
+  // Items from stock, edited in their own modal
   const [stockLines, setStockLines] = useState([]);
-  const [purchaseItems, setPurchaseItems] = useState([]);
-
-  // Which item modal is open: null | 'stock' | 'purchase'
-  const [picker, setPicker] = useState(null);
-  const [purchasePrefill, setPurchasePrefill] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Toasts and saving state
   const [showToast, setShowToast] = useState(false);
@@ -46,10 +41,8 @@ export default function EditRequisitionModal({
           .filter((i) => i.name && String(i.name).trim())
           .map((i) => ({ ...i }))
       );
-      setPurchaseItems((requisitionData.purchaseItems || []).map((p) => ({ ...p })));
 
-      setPicker(null);
-      setPurchasePrefill('');
+      setPickerOpen(false);
       setErrorMessage('');
       setShowErrorToast(false);
       setSaving(false);
@@ -70,7 +63,7 @@ export default function EditRequisitionModal({
   };
 
   const handleClose = () => {
-    setPicker(null);
+    setPickerOpen(false);
     onClose();
   };
 
@@ -81,13 +74,13 @@ export default function EditRequisitionModal({
     e.preventDefault();
     if (saving) return; // ignore double clicks
 
-    if (stockLines.length === 0 && purchaseItems.length === 0) {
-      showError('Add at least one item: choose from stock, or request an item purchase.');
+    if (stockLines.length === 0) {
+      showError('Add at least one item from stock.');
       return;
     }
 
     // Quick check against current stock. The server checks again.
-    if (stockLines.length > 0 && inventory.length > 0) {
+    if (inventory.length > 0) {
       const problem = validateStockLines(stockLines, inventory);
       if (problem) {
         showError(problem);
@@ -106,11 +99,10 @@ export default function EditRequisitionModal({
       title,
       purpose,
       itemsList: stockLines,
-      purchaseItems,
-      item: [...stockLines, ...purchaseItems].map((i) => `${i.name} (${i.qty})`).join(', '),
+      item: stockLines.map((i) => `${i.name} (${i.qty})`).join(', '),
       date: requisitionData?.date || currentDate,
       status: requisitionData?.status || 'Pending',
-      remarks: requisitionData?.remarks || 'Awaiting admin review.',
+      remarks: requisitionData?.remarks || 'Awaiting moderator review.',
     };
 
     setSaving(true);
@@ -119,7 +111,7 @@ export default function EditRequisitionModal({
     } catch (err) {
       showError(err?.response?.data?.message || 'Could not save. Please try again.');
       setSaving(false);
-      return; 
+      return;
     }
     setSaving(false);
 
@@ -157,7 +149,7 @@ export default function EditRequisitionModal({
             </h3>
             <p className="req-modal-subtitle">
               {isCreateMode
-                ? 'Fill in the details, then add items from stock, request a purchase, or both.'
+                ? 'Fill in the details, then add the items you need from stock.'
                 : 'Update your requested items or requisition details before moderator approval.'}
             </p>
           </div>
@@ -168,7 +160,6 @@ export default function EditRequisitionModal({
 
         <form onSubmit={handleSubmit} className="req-modal-form">
           <div className="req-modal-body">
-
             <div className="form-group">
               <label className="form-label">Department or Organization</label>
               <input
@@ -223,11 +214,11 @@ export default function EditRequisitionModal({
                     <i className="bi bi-box-seam"></i>
                   </span>
                   <div>
-                    <h4 className="req-section-title">Items from stock</h4>
+                    <h4 className="req-section-title">Requested items</h4>
                     <p className="req-section-desc">Supplies the property office has on hand.</p>
                   </div>
                 </div>
-                <button type="button" className="req-section-btn" onClick={() => setPicker('stock')}>
+                <button type="button" className="req-section-btn" onClick={() => setPickerOpen(true)}>
                   <i className={`bi ${stockLines.length ? 'bi-pencil-square' : 'bi-plus-lg'}`}></i>{' '}
                   {stockLines.length ? 'Edit items' : 'Add items'}
                 </button>
@@ -259,60 +250,7 @@ export default function EditRequisitionModal({
                   ))}
                 </ul>
               ) : (
-                <p className="req-section-empty">No stock items added yet.</p>
-              )}
-            </section>
-
-            {/* Items to purchase: picked in their own modal */}
-            <section className="req-section req-section--purchase">
-              <div className="req-section-head">
-                <div className="req-section-id">
-                  <span className="req-section-icon" aria-hidden="true">
-                    <i className="bi bi-cart3"></i>
-                  </span>
-                  <div>
-                    <h4 className="req-section-title">Items to purchase</h4>
-                    <p className="req-section-desc">
-                      Out of stock or not listed? The university will buy them.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="req-section-btn"
-                  onClick={() => {
-                    setPurchasePrefill('');
-                    setPicker('purchase');
-                  }}
-                >
-                  <i className={`bi ${purchaseItems.length ? 'bi-pencil-square' : 'bi-plus-lg'}`}></i>{' '}
-                  {purchaseItems.length ? 'Edit items' : 'Request item purchase'}
-                </button>
-              </div>
-
-              {purchaseItems.length > 0 ? (
-                <ul className="req-summary-list">
-                  {purchaseItems.map((item, idx) => (
-                    <li key={item.id || idx} className="req-summary-item">
-                      <div className="req-summary-text">
-                        <div className="req-summary-name">{item.name}</div>
-                        {item.reason && <div className="req-summary-sub">{item.reason}</div>}
-                      </div>
-                      <span className="req-summary-qty">{item.qty}</span>
-                      <button
-                        type="button"
-                        className="btn-remove-item req-summary-remove"
-                        onClick={() => setPurchaseItems((prev) => prev.filter((_, i) => i !== idx))}
-                        title="Remove item"
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <i className="bi bi-x-lg"></i>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="req-section-empty">No purchase requests added.</p>
+                <p className="req-section-empty">No items added yet.</p>
               )}
             </section>
           </div>
@@ -329,34 +267,16 @@ export default function EditRequisitionModal({
         </form>
       </div>
 
-      {/* Item modals open on top of the slip form */}
-      {picker === 'stock' && (
+      {/* Item picker opens on top of the slip form */}
+      {pickerOpen && (
         <RequestStockModal
           inventory={inventory}
           selected={stockLines}
           onSave={(lines) => {
             setStockLines(lines);
-            setPicker(null);
+            setPickerOpen(false);
           }}
-          onClose={() => setPicker(null)}
-
-          onRequestPurchase={(name, lines) => {
-            setStockLines(lines);
-            setPurchasePrefill(name);
-            setPicker('purchase');
-          }}
-        />
-      )}
-
-      {picker === 'purchase' && (
-        <RequestPurchaseModal
-          items={purchaseItems}
-          prefillName={purchasePrefill}
-          onSave={(rows) => {
-            setPurchaseItems(rows);
-            setPicker(null);
-          }}
-          onClose={() => setPicker(null)}
+          onClose={() => setPickerOpen(false)}
         />
       )}
     </div>

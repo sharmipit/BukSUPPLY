@@ -3,6 +3,7 @@ const Requisition = require('../models/Requisition');
 const Notification = require('../models/Notification');
 const InventoryItem = require('../models/InventoryItem');
 const { deductForRequisition } = require('../services/stock');
+const { logActivity } = require('../services/activityLog');
 
 const SERVER_ERROR = { message: 'Something went wrong. Please try again.' };
 
@@ -14,23 +15,20 @@ const personName = (u) =>
   [u.firstName, u.lastName].filter((n) => n && n !== '-').join(' ') || u.email || 'Unknown user';
 
 // What the requester sees under "Remarks" when no moderator note was written.
-// Worked out each time a slip is read and never saved, so it always matches the
-// slip's current status and a moderator's own note always takes priority.
+// Worked out on every read (never saved), so it always matches the current status
+// and a moderator's own note always takes priority.
 // Denied is left out on purpose: a denial always carries the moderator's reason.
 const DEFAULT_REMARKS = {
   Pending: 'Awaiting moderator review.',
   Processing: 'Acknowledged by the moderator and now being processed.',
-  Purchasing: 'Waiting for items to be purchased or restocked.',
-  Accepted: 'Approved. Please proceed to the Property Window for pickup.',
+  Approved: 'Approved. Your items are ready for release at the Property Window.',
+  Accepted: 'Items received. This request is complete.',
   Cancelled: 'Cancelled by the requester.',
 };
 
 // Shapes a DB document into what the React pages expect
 const toClient = (r) => {
-  const parts = [
-    ...r.itemsList.map((i) => `${i.name} (${i.qty})`),
-    ...r.purchaseItems.map((i) => `${i.name} (${i.qty})`),
-  ];
+  const parts = r.itemsList.map((i) => `${i.name} (${i.qty})`);
 
   // Only present when the requester was populated (staff views)
   const requester =
@@ -52,6 +50,7 @@ const toClient = (r) => {
     item: parts.join(', '),
     date: fmtDate(r.createdAt),
     dateFiled: fmtDate(r.createdAt),
+    dateApproved: r.approvedAt ? fmtDate(r.approvedAt) : undefined,
     dateProcessed: r.processedAt ? fmtDate(r.processedAt) : 'Pending',
     status: r.status,
     requestedBy: requester ? requester.name : undefined,
@@ -60,21 +59,9 @@ const toClient = (r) => {
     denyReason: r.status === 'Denied' ? r.remarks || undefined : undefined,
     remarks: r.remarks || DEFAULT_REMARKS[r.status] || '',
     itemsList: r.itemsList,
-    purchaseItems: r.purchaseItems,
     requester,
   };
 };
-
-// External purchase items: free text, nothing to look up
-const cleanItems = (arr) =>
-  (Array.isArray(arr) ? arr : [])
-    .filter((i) => i && typeof i.name === 'string' && i.name.trim())
-    .map((i) => ({
-      name: i.name.trim(),
-      qty: Math.floor(Number(i.qty)),
-      reason: String(i.reason || '').trim(),
-      maxNormal: Number(i.maxNormal) || undefined,
-    }));
 
 // In-stock lines must point at a real inventory item.
 // Name, unit and limit come from the database, not from the browser.
@@ -83,7 +70,7 @@ const buildStockLines = async (arr) => {
   if (!rows.length) return { lines: [] };
 
   if (rows.some((i) => !mongoose.isValidObjectId(i.inventoryItemId))) {
-    return { error: 'Pick each stock item from the inventory list.' };
+    return { error: 'Pick each item from the inventory list.' };
   }
 
   const found = await InventoryItem.find({
@@ -92,12 +79,16 @@ const buildStockLines = async (arr) => {
   const byId = new Map(found.map((d) => [String(d._id), d]));
 
   const lines = [];
+  const seen = new Set();
   for (const i of rows) {
     const inv = byId.get(String(i.inventoryItemId));
     const qty = Math.floor(Number(i.qty));
     const reason = String(i.reason || '').trim();
 
     if (!inv) return { error: `"${i.name}" is no longer in the inventory.` };
+    if (seen.has(String(inv._id))) return { error: `${inv.name} is listed more than once.` };
+    seen.add(String(inv._id));
+
     if (!(qty >= 1)) return { error: 'Every item needs a quantity of at least 1.' };
     if (qty > inv.quantity)
       return { error: `Only ${inv.quantity} ${inv.unit} of ${inv.name} in stock.` };
@@ -122,25 +113,46 @@ const parseBody = async (body) => {
   const purpose = String(body.purpose || '').trim();
   if (!title || !purpose) return { error: 'Title and purpose are required.' };
 
-  const purchaseItems = cleanItems(body.purchaseItems);
-  if (purchaseItems.some((i) => !(i.qty >= 1))) {
-    return { error: 'Every item needs a quantity of at least 1.' };
-  }
-
   const { lines: itemsList, error: stockError } = await buildStockLines(body.itemsList);
   if (stockError) return { error: stockError };
-
-  if (!itemsList.length && !purchaseItems.length) return { error: 'Add at least one item.' };
+  if (!itemsList.length) return { error: 'Add at least one item.' };
 
   return {
     data: {
       title,
       purpose,
       itemsList,
-      purchaseItems,
       department: String(body.department || '').trim(),
     },
   };
+};
+
+/**
+ * Checks that every line of a slip can be released. Stock already promised to other
+ * Approved slips (not yet received) is counted as taken. Read-only: nothing is deducted here.
+ */
+const findShortage = async (doc) => {
+  const ids = doc.itemsList.map((i) => i.inventoryItemId).filter(Boolean);
+  const [found, reservedRows] = await Promise.all([
+    InventoryItem.find({ _id: { $in: ids } }).select('name unit quantity'),
+    Requisition.aggregate([
+      { $match: { status: 'Approved', _id: { $ne: doc._id } } },
+      { $unwind: '$itemsList' },
+      { $group: { _id: '$itemsList.inventoryItemId', qty: { $sum: '$itemsList.qty' } } },
+    ]),
+  ]);
+  const byId = new Map(found.map((d) => [String(d._id), d]));
+  const reserved = new Map(reservedRows.map((r) => [String(r._id), r.qty]));
+
+  for (const line of doc.itemsList) {
+    const inv = byId.get(String(line.inventoryItemId));
+    if (!inv) return `"${line.name}" is no longer in the inventory.`;
+    const available = inv.quantity - (reserved.get(String(inv._id)) || 0);
+    if (line.qty > available) {
+      return `Not enough ${inv.name}: ${Math.max(available, 0)} ${inv.unit} available (after items reserved for other approved slips), but ${line.qty} requested.`;
+    }
+  }
+  return '';
 };
 
 /** GET /api/requisitions: the logged-in user's own slips */
@@ -188,6 +200,17 @@ exports.create = async (req, res) => {
       link: '/user/requests',
     });
 
+    await logActivity(
+      req.user,
+      {
+        category: 'Requisition',
+        action: 'REQUISITION_FILED',
+        description: `Filed requisition slip "${doc.title}"`,
+        reference: doc.slipNumber,
+      },
+      req
+    );
+
     res.status(201).json({ requisition: toClient(doc) });
   } catch (err) {
     console.error('create requisition error:', err);
@@ -209,6 +232,18 @@ exports.update = async (req, res) => {
 
     Object.assign(doc, data);
     await doc.save();
+
+    await logActivity(
+      req.user,
+      {
+        category: 'Requisition',
+        action: 'REQUISITION_EDITED',
+        description: `Edited requisition slip "${doc.title}"`,
+        reference: doc.slipNumber,
+      },
+      req
+    );
+
     res.json({ requisition: toClient(doc) });
   } catch (err) {
     console.error('update requisition error:', err);
@@ -229,6 +264,17 @@ exports.cancel = async (req, res) => {
     doc.cancelledAt = new Date();
     await doc.save();
 
+    await logActivity(
+      req.user,
+      {
+        category: 'Requisition',
+        action: 'REQUISITION_CANCELLED',
+        description: `Cancelled requisition slip "${doc.title}"`,
+        reference: doc.slipNumber,
+      },
+      req
+    );
+
     res.json({ requisition: toClient(doc) });
   } catch (err) {
     console.error('cancel requisition error:', err);
@@ -236,22 +282,22 @@ exports.cancel = async (req, res) => {
   }
 };
 
-// What the student is told for each status change
+// What the requester is told for each status change
 const STATUS_NOTIF = {
   Processing: { type: 'info', text: 'is now being processed.' },
-  Purchasing: { type: 'info', text: 'has been forwarded for purchasing.' },
-  Accepted: {
+  Approved: {
     type: 'success',
-    text: 'has been approved. Please proceed to the Property Window for pickup.',
+    text: 'has been approved. Your items are ready for release. Please proceed to the Property Window.',
   },
+  Accepted: { type: 'success', text: 'is complete. The items were released and received.' },
   Denied: { type: 'warning', text: 'was denied.' },
 };
 
 // The moderator workflow only moves forward
 const TRANSITIONS = {
   Pending: ['Processing', 'Denied'],
-  Processing: ['Purchasing', 'Accepted', 'Denied'],
-  Purchasing: ['Accepted', 'Denied'],
+  Processing: ['Approved', 'Denied'],
+  Approved: ['Accepted', 'Denied'], // Accepted = requester received the items; Denied = e.g. never claimed
 };
 
 /** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
@@ -275,13 +321,16 @@ exports.setStatus = async (req, res) => {
     if (status === 'Denied' && !remarks) {
       return res.status(400).json({ message: 'Please give a reason for the denial.' });
     }
-    if (status === 'Accepted' && doc.status === 'Processing' && doc.purchaseItems.length > 0) {
-      return res
-        .status(409)
-        .json({ message: 'This request has items to buy. Send it to purchasing first.' });
+
+    // Approving means "ready for release", so the items must really be available.
+    // Nothing is deducted yet.
+    if (status === 'Approved') {
+      const shortage = await findShortage(doc);
+      if (shortage) return res.status(409).json({ message: shortage });
     }
 
-    // Approving takes the items out of the inventory. If anything is short, nothing changes.
+    // Accepted = the requester received the items. Only now is the inventory reduced.
+    // If anything is short, nothing changes.
     let stock = null;
     if (status === 'Accepted') {
       try {
@@ -292,9 +341,10 @@ exports.setStatus = async (req, res) => {
     }
 
     doc.status = status;
-    if (remarks) doc.remarks = remarks; // for Denied this is the reason the student sees
+    if (remarks) doc.remarks = remarks; // for Denied this is the reason the requester sees
     doc.reviewedBy = personName(req.user);
     doc.reviewedAt = new Date();
+    if (status === 'Approved') doc.approvedAt = new Date();
     if (status === 'Accepted' || status === 'Denied') doc.processedAt = new Date();
     await doc.save();
 
@@ -306,6 +356,17 @@ exports.setStatus = async (req, res) => {
       type: n.type,
       link: '/user/requests',
     });
+
+    await logActivity(
+      req.user,
+      {
+        category: 'Requisition',
+        action: 'REQUISITION_STATUS',
+        description: `Changed requisition slip "${doc.title}" to ${status}`,
+        reference: doc.slipNumber,
+      },
+      req
+    );
 
     res.json({ requisition: toClient(doc), stock });
   } catch (err) {

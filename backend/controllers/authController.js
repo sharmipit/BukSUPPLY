@@ -4,6 +4,7 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { sendOtpEmail } = require('../utils/sendEmail');
 const settings = require('../services/settings');
+const { logActivity } = require('../services/activityLog');
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
@@ -189,6 +190,12 @@ exports.signUp = async (req, res) => {
 
     await user.save();
 
+    await logActivity(
+      user,
+      { category: 'Account', action: 'SIGN_UP', description: 'Created an account' },
+      req
+    );
+
     return res.status(201).json({ message: 'Account created successfully!' });
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -236,6 +243,12 @@ exports.signIn = async (req, res) => {
     if (user.accountStatus === 'Deactivated') {
       return res.status(403).json({ message: 'Your account has been deactivated.' });
     }
+
+    await logActivity(
+      user,
+      { category: 'Account', action: 'SIGN_IN', description: 'Signed in with email and password' },
+      req
+    );
 
     return res.status(200).json({
       message: 'Signed in successfully.',
@@ -345,6 +358,14 @@ exports.googleSignIn = async (req, res) => {
       user.avatar = payload.picture;
       await user.save();
     }
+
+    await logActivity(
+      user,
+      isNewUser
+        ? { category: 'Account', action: 'SIGN_UP', description: 'Created an account with Google' }
+        : { category: 'Account', action: 'SIGN_IN', description: 'Signed in with Google' },
+      req
+    );
 
     return res.status(200).json({
       message: 'Signed in successfully.',

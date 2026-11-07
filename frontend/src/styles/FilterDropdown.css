@@ -1,7 +1,6 @@
 /* ==========================================================================
-   BukSUPPLY - Filter Dropdown (reusable)
-   Every class is prefixed with "fd-", so nothing here can affect other pages.
-   ========================================================================== */
+    BukSUPPLY - Filter Dropdown 
+    ========================================================================== */
 
 .fd {
   position: relative;
@@ -179,15 +178,23 @@
 .fd-dot--pending {
   background-color: #f59e0b;
 }
+
 .fd-dot--processing {
   background-color: #3b82f6;
 }
-.fd-dot--purchasing {
-  background-color: #8b5cf6;
+
+.fd-dot--approved {
+  background-color: #14b8a6;
 }
+
+.fd-dot--cancelled {
+  background-color: #6c757d;
+}
+
 .fd-dot--accepted {
   background-color: #10b981;
 }
+
 .fd-dot--denied {
   background-color: #ef4444;
 }
@@ -198,7 +205,6 @@
   }
 }
 
-/* Narrow screens: the dropdown fills its row and the menu matches its width */
 @media (max-width: 900px) {
   .fd {
     display: block;

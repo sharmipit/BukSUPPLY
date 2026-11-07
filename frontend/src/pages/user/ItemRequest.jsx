@@ -12,7 +12,7 @@ const STATUS_OPTIONS = [
   { value: 'All', label: 'All statuses' },
   { value: 'Pending', label: 'Pending', tone: 'pending' },
   { value: 'Processing', label: 'Processing', tone: 'processing' },
-  { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
+  { value: 'Approved', label: 'Approved', tone: 'approved' },
   { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
   { value: 'Denied', label: 'Denied', tone: 'denied' },
   { value: 'Cancelled', label: 'Cancelled', tone: 'cancelled' },
@@ -100,8 +100,7 @@ export default function ItemRequest() {
       department: req.department,
       title: req.title,
       purpose: req.purpose,
-      itemsList: req.itemsList || [],
-      purchaseItems: req.purchaseItems || [],
+      itemsList: (req.itemsList || []).map((l) => ({ ...l })),
     });
     setCreateModalOpen(true);
   };
@@ -112,8 +111,7 @@ export default function ItemRequest() {
       department: '',
       title: '',
       purpose: '',
-      itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
-      purchaseItems: [],
+      itemsList: [],
     });
     setCreateModalOpen(true);
   };
@@ -204,8 +202,9 @@ export default function ItemRequest() {
                   : currentItems.length > 0
                     ? currentItems.map((req) => {
                         const isPending = req.status === 'Pending';
-                        const isProcessingOrPurchasing =
-                          req.status === 'Processing' || req.status === 'Purchasing';
+                        const isProcessing = req.status === 'Processing';
+                        const isApproved = req.status === 'Approved';
+                        const isAccepted = req.status === 'Accepted';
                         const canRequestAgain =
                           req.status === 'Denied' || req.status === 'Cancelled';
 
@@ -258,15 +257,19 @@ export default function ItemRequest() {
                                     </button>
                                   </>
                                 )}
-                                {isProcessingOrPurchasing && (
+                                {isProcessing && (
                                   <span className="locked-badge-pill text-muted small">
-                                    <i className="bi bi-lock-fill"></i> Locked ({req.status})
+                                    <i className="bi bi-lock-fill"></i> Locked (Processing)
                                   </span>
                                 )}
-                                {req.status === 'Accepted' && (
+                                {isApproved && (
+                                  <span className="locked-badge-pill ready-pill">
+                                    <i className="bi bi-box-seam"></i> Ready for release
+                                  </span>
+                                )}
+                                {isAccepted && (
                                   <span className="locked-badge-pill">
-                                    <i className="bi bi-check-circle-fill text-success"></i> Locked
-                                    (Approved)
+                                    <i className="bi bi-check-circle-fill text-success"></i> Completed
                                   </span>
                                 )}
                                 {canRequestAgain && (

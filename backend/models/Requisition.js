@@ -8,19 +8,8 @@ const Counter =
     new mongoose.Schema({ _id: String, seq: { type: Number, default: 0 } })
   );
 
-// External purchase items: free text, not linked to the inventory
-const stockItem = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    qty: { type: Number, required: true, min: 1 },
-    reason: { type: String, trim: true, default: '' },
-    maxNormal: Number,
-  },
-  { _id: false }
-);
-
-// In-stock (bodega) items: linked to a real inventory item so stock can be deducted
-const bodegaItem = new mongoose.Schema(
+// In-stock items: linked to a real inventory item so stock can be deducted
+const stockLine = new mongoose.Schema(
   {
     inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem' },
     name: { type: String, required: true, trim: true },
@@ -39,18 +28,19 @@ const RequisitionSchema = new mongoose.Schema(
     department: { type: String, trim: true, default: '' },
     title: { type: String, required: [true, 'Title is required'], trim: true },
     purpose: { type: String, required: [true, 'Purpose is required'], trim: true },
-    itemsList: [bodegaItem], // in-stock items
-    purchaseItems: [stockItem], // special purchase items
+    itemsList: [stockLine],
+    // Pending -> Processing -> Approved (ready for release) -> Accepted (received by requester)
+    // Denied is possible before Accepted. Cancelled is set by the requester while Pending.
     status: {
       type: String,
-      enum: ['Pending', 'Processing', 'Purchasing', 'Accepted', 'Denied', 'Cancelled'],
+      enum: ['Pending', 'Processing', 'Approved', 'Accepted', 'Denied', 'Cancelled'],
       default: 'Pending',
     },
     remarks: { type: String, default: '' },
-    processedAt: Date,
-    reviewedBy: { type: String, default: '' }, // name of the moderator/admin who last handled it
+    approvedAt: Date, // when the items were marked ready for release
+    processedAt: Date, // when the slip reached its final state (Accepted or Denied)
+    reviewedBy: { type: String, default: '' }, // moderator/admin who last handled it
     reviewedAt: Date,
-    // Set when the requester cancels a Pending slip (the slip is kept, not deleted)
     cancelledAt: Date,
     // Set once stock has been deducted for this slip, so it can never be deducted twice
     stockDeducted: { type: Boolean, default: false },

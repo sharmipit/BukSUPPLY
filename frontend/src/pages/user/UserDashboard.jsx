@@ -8,13 +8,17 @@ import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import { errMsg } from '../../api/client';
 import '../../styles/user/UserDashboard.css';
 
+const ACTIVE_STATUSES = ['Pending', 'Processing', 'Approved', 'Denied'];
+const HISTORY_STATUSES = ['Accepted', 'Denied', 'Cancelled'];
+
 export default function UserDashboard() {
   useEffect(() => {
     document.title = 'Dashboard | BukSUPPLY';
   }, []);
 
   const { user } = useAuth();
-  const { requisitions, loading, error, create, update, remove } = useRequisitions();
+  // The hook exposes cancel() (it used to be called remove() here, which does not exist)
+  const { requisitions, loading, error, create, update, cancel } = useRequisitions();
 
   // Google accounts without a surname are stored with "-", so skip that
   const displayName = user?.firstName || '';
@@ -41,28 +45,26 @@ export default function UserDashboard() {
       colorClass: 'stat-pending',
     },
     {
-      title: 'Processing / Purchasing',
-      count: count('Processing', 'Purchasing'),
+      title: 'Processing / Approved',
+      count: count('Processing', 'Approved'),
       icon: 'bi-arrow-repeat',
       colorClass: 'stat-processing',
     },
   ];
 
+  const recentRequests = requisitions.filter((r) => ACTIVE_STATUSES.includes(r.status)).slice(0, 5);
 
-  const recentRequests = requisitions
-    .filter((r) => ['Pending', 'Processing', 'Purchasing', 'Denied'].includes(r.status))
-    .slice(0, 5);
-
-  // History table pagination
+  // History table: finished slips only
+  const historyRecords = requisitions.filter((r) => HISTORY_STATUSES.includes(r.status));
   const [historyPage, setHistoryPage] = useState(1);
   const itemsPerPage = 5;
   const indexOfLastItem = historyPage * itemsPerPage;
-  const currentHistoryItems = requisitions.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
+  const currentHistoryItems = historyRecords.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(requisitions.length / itemsPerPage));
+    const totalPages = Math.max(1, Math.ceil(historyRecords.length / itemsPerPage));
     if (historyPage > totalPages) setHistoryPage(totalPages);
-  }, [requisitions.length, historyPage]);
+  }, [historyRecords.length, historyPage]);
 
   // Modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -86,8 +88,7 @@ export default function UserDashboard() {
       department: user?.department || '',
       title: '',
       purpose: '',
-      itemsList: [{ id: '1', name: '', qty: 1, reason: '', maxNormal: 10 }],
-      purchaseItems: [],
+      itemsList: [],
     });
     setCreateModalOpen(true);
   };
@@ -99,7 +100,6 @@ export default function UserDashboard() {
       title: `${req.title} (Re-filed)`,
       purpose: req.purpose || '',
       itemsList: (req.itemsList || []).map((l) => ({ ...l })),
-      purchaseItems: (req.purchaseItems || []).map((p) => ({ ...p })),
     });
     setCreateModalOpen(true);
   };
@@ -111,7 +111,7 @@ export default function UserDashboard() {
 
   const handleConfirmCancel = async () => {
     try {
-      await remove(selectedReqId);
+      await cancel(selectedReqId);
     } catch (err) {
       alert(errMsg(err));
     }
@@ -197,17 +197,13 @@ export default function UserDashboard() {
             </thead>
             <tbody>
               {loading
-                ? emptyRow(
-                    5,
-                    'bi-hourglass-split',
-                    'Loading...',
-                    'Fetching your requisition slips.'
-                  )
+                ? emptyRow(5, 'bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
                 : error
                   ? emptyRow(5, 'bi-exclamation-circle', 'Could not load requisitions', error)
                   : recentRequests.length > 0
                     ? recentRequests.map((req) => {
                         const isPending = req.status === 'Pending';
+                        const isApproved = req.status === 'Approved';
                         const isDenied = req.status === 'Denied';
                         return (
                           <tr
@@ -257,6 +253,10 @@ export default function UserDashboard() {
                                   >
                                     <i className="bi bi-arrow-repeat"></i> Request Again
                                   </button>
+                                ) : isApproved ? (
+                                  <span className="locked-badge-pill ready-pill small">
+                                    <i className="bi bi-box-seam"></i> Ready for release
+                                  </span>
                                 ) : (
                                   <span className="locked-badge-pill text-muted small">
                                     <i className="bi bi-lock-fill"></i> Locked ({req.status})
@@ -291,7 +291,7 @@ export default function UserDashboard() {
           <div>
             <h3 className="section-card-title">Transaction & Request History</h3>
             <p className="section-card-desc">
-              Audit archive of pending, completed, or processed requisitions.
+              Your finished requisitions: received, denied, or cancelled.
             </p>
           </div>
         </div>
@@ -338,7 +338,7 @@ export default function UserDashboard() {
                     5,
                     'bi-clock-history',
                     'No Transaction History',
-                    'You have no past or archived requisition slips at the moment.'
+                    'You have no finished requisition slips at the moment.'
                   )}
             </tbody>
           </table>
@@ -346,7 +346,7 @@ export default function UserDashboard() {
 
         <div className="table-footer-bar history-footer-bar">
           <Link to="/user/history" className="footer-link text-decoration-none">
-            Open Full Request History <i className="bi bi-arrow-right"></i>
+            Open My Requests <i className="bi bi-arrow-right"></i>
           </Link>
           <div className="pagination-controls-wrapper">
             <button
@@ -360,7 +360,7 @@ export default function UserDashboard() {
             <button
               className="btn-action btn-edit"
               onClick={() => setHistoryPage((p) => p + 1)}
-              disabled={indexOfLastItem >= requisitions.length}
+              disabled={indexOfLastItem >= historyRecords.length}
             >
               Next
             </button>
@@ -371,7 +371,7 @@ export default function UserDashboard() {
       <DeleteModal
         isOpen={cancelModalOpen}
         title="Cancel Requisition Slip?"
-        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? This action cannot be undone.`}
+        message={`Are you sure you want to cancel requisition slip ${selectedReqId}? It will be marked as Cancelled and can no longer be edited.`}
         onConfirm={handleConfirmCancel}
         onClose={() => setCancelModalOpen(false)}
       />
