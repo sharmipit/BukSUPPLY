@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 
-const CATEGORIES = ['Account', 'Requisition', 'Inventory', 'Report', 'User Management', 'System'];
+const CATEGORIES = [
+  'Account',
+  'Requisition',
+  'Inventory',
+  'Report',
+  'User Management',
+  'System',
+  'System Settings',
+];
 
 const ActivityLogSchema = new mongoose.Schema(
   {

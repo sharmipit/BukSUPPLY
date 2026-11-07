@@ -18,6 +18,9 @@ const ACTION_META = {
   REQUISITION_EDITED: { label: 'Slip edited', tone: 'info' },
   REQUISITION_CANCELLED: { label: 'Slip cancelled', tone: 'danger' },
   REQUISITION_STATUS: { label: 'Status changed', tone: 'info' },
+  SETTINGS_UNLOCKED: { label: 'Settings unlocked', tone: 'info' },
+  SETTINGS_UNLOCK_FAILED: { label: 'Unlock failed', tone: 'danger' },
+  SETTINGS_UPDATED: { label: 'Settings updated', tone: 'success' },
 };
 const FALLBACK_META = { label: 'Activity', tone: 'neutral' };
 
@@ -32,6 +35,11 @@ const STAFF_CATEGORIES = [
   { value: 'Inventory', label: 'Inventory' },
   { value: 'Report', label: 'Reports' },
   { value: 'User Management', label: 'User management' },
+];
+
+const ADMIN_CATEGORIES = [
+  ...STAFF_CATEGORIES,
+  { value: 'System Settings', label: 'System settings' },
 ];
 
 // Calendar helpers (dates are kept as YYYY-MM-DD strings)
@@ -69,6 +77,7 @@ const formatDate = (iso) => {
 export default function ActivityLog() {
   const { user } = useAuth();
   const isStaff = STAFF_ROLES.includes(user?.role);
+  const isAdmin = user?.role === 'Administrator';
 
   useEffect(() => {
     document.title = 'Activity Log | BukSUPPLY';
@@ -273,7 +282,11 @@ export default function ActivityLog() {
         </button>
 
         {isOpen && (
-          <div className="al-calendar" role="dialog" aria-label={`Choose ${label.toLowerCase()} date`}>
+          <div
+            className="al-calendar"
+            role="dialog"
+            aria-label={`Choose ${label.toLowerCase()} date`}
+          >
             <div className="al-cal-head">
               <button
                 type="button"
@@ -394,7 +407,9 @@ export default function ActivityLog() {
             type="text"
             className="al-input"
             placeholder={
-              showUserColumn ? 'Search by user, activity, or slip number...' : 'Search activity or slip number...'
+              showUserColumn
+                ? 'Search by user, activity, or slip number...'
+                : 'Search activity or slip number...'
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -409,7 +424,7 @@ export default function ActivityLog() {
         <FilterDropdown
           icon="bi-funnel"
           ariaLabel="Filter by category"
-          options={isStaff ? STAFF_CATEGORIES : USER_CATEGORIES}
+          options={isAdmin ? ADMIN_CATEGORIES : isStaff ? STAFF_CATEGORIES : USER_CATEGORIES}
           value={category}
           onChange={(value) => {
             setCategory(value);
@@ -440,7 +455,11 @@ export default function ActivityLog() {
                     ? logs.map((log) => {
                         const meta = ACTION_META[log.action] || FALLBACK_META;
                         return (
-                          <tr key={log.id} className="al-row-clickable" onClick={() => openDetails(log)}>
+                          <tr
+                            key={log.id}
+                            className="al-row-clickable"
+                            onClick={() => openDetails(log)}
+                          >
                             <td className="al-nowrap">{log.date}</td>
                             {showUserColumn && (
                               <td>
@@ -565,7 +584,9 @@ export default function ActivityLog() {
                 {showUserColumn && (
                   <div className="al-modal-field">
                     <span className="al-modal-label">User</span>
-                    <span className="al-modal-value al-modal-strong">{selectedLog.user || '-'}</span>
+                    <span className="al-modal-value al-modal-strong">
+                      {selectedLog.user || '-'}
+                    </span>
                     {selectedLog.role && <span className="al-modal-sub">{selectedLog.role}</span>}
                   </div>
                 )}

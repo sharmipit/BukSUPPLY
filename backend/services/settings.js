@@ -9,6 +9,7 @@ if (KEY.length !== 32) {
   throw new Error('SETTINGS_KEY must be 64 hex characters (32 bytes). Check your .env.');
 }
 
+// Encrypted on disk, never sent to the browser
 const SECRETS = [
   'googleClientSecret',
   'recaptchaSecretKey',
@@ -16,6 +17,20 @@ const SECRETS = [
   'pdfshiftApiKey',
   'nutrientApiKey',
 ];
+
+// Public values that are shown masked ("12345**************") and never sent in full
+const MASKED = ['googleClientId', 'recaptchaSiteKey'];
+
+// Empty value on save = keep the saved one
+const KEEP_IF_EMPTY = [...SECRETS, ...MASKED];
+
+const SECTIONS = {
+  google: ['googleEnabled', 'googleClientId', 'googleClientSecret'],
+  recaptcha: ['recaptchaEnabled', 'recaptchaSiteKey', 'recaptchaSecretKey'],
+  smtp: ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpFrom'],
+  pdfshift: ['pdfshiftEnabled', 'pdfshiftApiKey'],
+  nutrient: ['nutrientEnabled', 'nutrientApiKey'],
+};
 
 const DEFAULTS = {
   googleEnabled: true,
@@ -25,7 +40,6 @@ const DEFAULTS = {
   recaptchaVersion: 'v2',
   recaptchaSiteKey: '',
   recaptchaSecretKey: '',
-  smtpEnabled: true,
   smtpHost: '',
   smtpPort: 587,
   smtpUser: '',
@@ -68,7 +82,7 @@ function get() {
   const loaded = { ...DEFAULTS };
   try {
     for (const [k, v] of Object.entries(raw)) {
-      if (!(k in DEFAULTS)) continue; // ignore old keys such as mongoUri
+      if (!(k in DEFAULTS)) continue; // ignores old keys such as mongoUri and smtpEnabled
       loaded[k] = SECRETS.includes(k) && v ? dec(v) : v;
     }
   } catch {
@@ -114,7 +128,11 @@ function database() {
   };
 }
 
-// Safe version for the browser: secrets removed, "xxxSet" flags added
+// "123456789-abc..." -> "12345**************" (fixed length, so the real length isn't leaked)
+const mask = (v) => (v ? `${v.slice(0, 5)}${'*'.repeat(14)}` : '');
+
+// Safe version for the browser: secrets and public keys removed,
+// "xxxSet" flags added (and "xxxMasked" previews for public keys)
 function publicView() {
   const s = get();
   const out = {};
@@ -122,6 +140,10 @@ function publicView() {
     if (SECRETS.includes(k)) {
       out[k] = '';
       out[`${k}Set`] = !!s[k];
+    } else if (MASKED.includes(k)) {
+      out[k] = '';
+      out[`${k}Set`] = !!s[k];
+      out[`${k}Masked`] = mask(s[k]);
     } else {
       out[k] = s[k];
     }
@@ -129,25 +151,132 @@ function publicView() {
   return out;
 }
 
-function update(patch) {
-  const next = { ...get() };
+// ---- validation ----
+const RE = {
+  googleClientId: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/i,
+  recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
+  host: /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i,
+  from: /^(?:[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+};
 
-  for (const k of Object.keys(DEFAULTS)) {
+const fail = (msg) => {
+  throw new Error(msg);
+};
+
+const badSecret = (v, min) => v.length < min || /\s/.test(v);
+
+// next = merged settings, typed = only the values the admin just entered
+const VALIDATORS = {
+  google(next, typed) {
+    if (typed.googleClientId && !RE.googleClientId.test(typed.googleClientId)) {
+      fail(
+        'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.'
+      );
+    }
+    if (typed.googleClientSecret && badSecret(typed.googleClientSecret, 20)) {
+      fail(
+        'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.'
+      );
+    }
+    if (next.googleEnabled && (!next.googleClientId || !next.googleClientSecret)) {
+      fail('Add both the Client ID and client secret, or turn Google sign-in off.');
+    }
+  },
+
+  recaptcha(next, typed) {
+    if (typed.recaptchaSiteKey && !RE.recaptchaKey.test(typed.recaptchaSiteKey)) {
+      fail(
+        'That does not look like a reCAPTCHA site key. It should start with 6L and be 40 characters long.'
+      );
+    }
+    if (typed.recaptchaSecretKey && !RE.recaptchaKey.test(typed.recaptchaSecretKey)) {
+      fail(
+        'That does not look like a reCAPTCHA secret key. It should start with 6L and be 40 characters long.'
+      );
+    }
+    if (next.recaptchaEnabled && (!next.recaptchaSiteKey || !next.recaptchaSecretKey)) {
+      fail('Add both the reCAPTCHA site key and secret key, or turn reCAPTCHA off.');
+    }
+  },
+
+  smtp(next) {
+    if (!next.smtpHost) fail('Enter the SMTP host.');
+    if (!RE.host.test(next.smtpHost)) fail('The SMTP host is not a valid server address.');
+    const port = Number(next.smtpPort);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      fail('Enter an SMTP port between 1 and 65535.');
+    }
+    if (!next.smtpUser) fail('Enter the SMTP username.');
+    if (!next.smtpPassword) fail('Enter the SMTP password or app password.');
+    if (next.smtpFrom && !RE.from.test(next.smtpFrom)) {
+      fail('"Send from" must be an email address or "Name <address@example.com>".');
+    }
+  },
+
+  pdfshift(next, typed) {
+    if (typed.pdfshiftApiKey && badSecret(typed.pdfshiftApiKey, 10)) {
+      fail('The PDFShift API key looks too short or contains spaces.');
+    }
+    if (next.pdfshiftEnabled && !next.pdfshiftApiKey) {
+      fail('Add the PDFShift API key, or turn PDF downloads off.');
+    }
+  },
+
+  nutrient(next, typed) {
+    if (typed.nutrientApiKey && badSecret(typed.nutrientApiKey, 10)) {
+      fail('The Nutrient API key looks too short or contains spaces.');
+    }
+    if (next.nutrientEnabled && !next.nutrientApiKey) {
+      fail('Add the Nutrient API key, or turn Excel downloads off.');
+    }
+  },
+};
+
+// Google answers "invalid-input-secret" only when the secret itself is wrong.
+// With a valid secret and a dummy response it answers "invalid-input-response".
+async function verifyRecaptchaSecret(secret) {
+  let data;
+  try {
+    const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret, response: 'settings-check' }),
+      signal: AbortSignal.timeout(8000),
+    });
+    data = await res.json();
+  } catch {
+    // Change this to `return;` if you'd rather allow saving when Google is unreachable.
+    fail('Could not reach Google to check the secret key. Try again in a moment.');
+  }
+  if ((data['error-codes'] || []).includes('invalid-input-secret')) {
+    fail('Google rejected this secret key. Copy it again from the reCAPTCHA admin console.');
+  }
+}
+
+async function update(section, patch = {}) {
+  const fields = SECTIONS[section];
+  if (!fields) fail('Unknown settings section.');
+
+  // Only the values typed for THIS section
+  const typed = {};
+  for (const k of fields) {
     if (!(k in patch)) continue;
-    if (SECRETS.includes(k) && !patch[k]) continue; // empty secret = keep saved one
-    next[k] = typeof patch[k] === 'string' ? patch[k].trim() : patch[k];
+    let v = patch[k];
+    if (typeof v === 'string') v = v.trim();
+    if (KEEP_IF_EMPTY.includes(k) && !v) continue; // empty = keep saved one
+    if (k.endsWith('Enabled')) v = !!v;
+    if (k === 'smtpPort') v = Number(v) || 587;
+    typed[k] = v;
   }
 
   // Server-side validation (never trust the browser)
-  const port = Number(next.smtpPort);
-  if (next.smtpHost && !(port >= 1 && port <= 65535)) {
-    throw new Error('Enter an SMTP port between 1 and 65535.');
+  VALIDATORS[section]({ ...get(), ...typed }, typed);
+  if (section === 'recaptcha' && typed.recaptchaSecretKey) {
+    await verifyRecaptchaSecret(typed.recaptchaSecretKey);
   }
-  next.smtpPort = port || 587;
 
-  if (next.recaptchaEnabled && (!next.recaptchaSiteKey || !next.recaptchaSecretKey)) {
-    throw new Error('Add both the reCAPTCHA site key and secret key, or turn reCAPTCHA off.');
-  }
+  // Re-read after the await so a parallel save of another section isn't overwritten
+  const next = { ...get(), ...typed };
 
   // Encrypt secrets and write to disk
   const out = {};
