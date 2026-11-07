@@ -1,6 +1,6 @@
 /* ==========================================================================
-   BukSUPPLY - Item Request Hub Styles
-   ========================================================================== */
+    BukSUPPLY - Item Request Hub Styles
+    ========================================================================== */
 
 .item-request-container {
   padding: 32px 40px;
@@ -162,8 +162,9 @@
 }
 
 /* ==========================================================================
-   Table Styles
-   ========================================================================== */
+    Table Styles
+    ========================================================================== */
+
 .dashboard-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -193,18 +194,23 @@
 .custom-table .col-slip {
   width: 170px;
 }
+
 .custom-table .col-title {
   width: auto;
 }
+
 .custom-table .col-items {
   width: auto;
 }
+
 .custom-table .col-date {
   width: 150px;
 }
+
 .custom-table .col-status {
   width: 140px;
 }
+
 .custom-table .col-actions {
   width: 250px;
 }
@@ -288,9 +294,15 @@
   color: #1e40af;
 }
 
-.badge-status.purchasing {
-  background-color: #fef3c7;
-  color: #b45309;
+.badge-status.approved {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+/* "Ready for release" pill shown in the Actions column for Approved slips */
+.locked-badge-pill.ready-pill {
+  background-color: #ccfbf1;
+  color: #0f766e;
 }
 
 .badge-status.accepted {
@@ -445,8 +457,9 @@
 }
 
 /* ==========================================================================
-   Responsive
-   ========================================================================== */
+    Responsive
+    ========================================================================== */
+
 @media (max-width: 900px) {
   .hub-header-card {
     flex-direction: column;

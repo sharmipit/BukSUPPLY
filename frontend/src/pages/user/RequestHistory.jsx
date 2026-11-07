@@ -4,11 +4,12 @@ import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import FilterDropdown from '../../components/FilterDropdown';
 import '../../styles/user/RequestHistory.css';
 
+// History only holds slips that reached a final outcome.
+// Active slips (Pending, Processing, Approved) live in the Requisitions Hub.
+const HISTORY_STATUSES = ['Accepted', 'Denied', 'Cancelled'];
+
 const STATUS_OPTIONS = [
   { value: 'All', label: 'All statuses' },
-  { value: 'Pending', label: 'Pending', tone: 'pending' },
-  { value: 'Processing', label: 'Processing', tone: 'processing' },
-  { value: 'Purchasing', label: 'Purchasing', tone: 'purchasing' },
   { value: 'Accepted', label: 'Accepted', tone: 'accepted' },
   { value: 'Denied', label: 'Denied', tone: 'denied' },
   { value: 'Cancelled', label: 'Cancelled', tone: 'cancelled' },
@@ -16,11 +17,12 @@ const STATUS_OPTIONS = [
 
 export default function RequestHistory() {
   useEffect(() => {
-    document.title = 'Request History | BukSUPPLY';
+    document.title = 'My Requests | BukSUPPLY';
   }, []);
 
   // Real data from the API
-  const { requisitions: historyRecords, loading, error } = useRequisitions();
+  const { requisitions, loading, error } = useRequisitions();
+  const historyRecords = requisitions.filter((r) => HISTORY_STATUSES.includes(r.status));
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,10 +77,10 @@ export default function RequestHistory() {
       {/* Top Banner Header */}
       <div className="hub-header-card">
         <div>
-          <h1 className="hub-title">Request History & Archives</h1>
+          <h1 className="hub-title">My Requests</h1>
           <p className="hub-subtitle">
-            Complete audit trail of all pending, processed, approved, and archived requisitions
-            submitted under your account.
+            A record of your finished requisition slips: requests you received, requests that were
+            denied, and requests you cancelled. Ongoing requests are in the Requisitions Hub.
           </p>
         </div>
       </div>
@@ -90,7 +92,7 @@ export default function RequestHistory() {
           <input
             type="text"
             className="form-control custom-input"
-            placeholder="Search history by ID, title, items, or purpose..."
+            placeholder="Search by ID, title, items, or purpose..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -127,9 +129,9 @@ export default function RequestHistory() {
             </thead>
             <tbody>
               {loading
-                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching your request history.')
+                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching your requests.')
                 : error
-                  ? messageRow('bi-exclamation-circle', 'Could not load history', error)
+                  ? messageRow('bi-exclamation-circle', 'Could not load your requests', error)
                   : currentHistoryItems.length > 0
                     ? currentHistoryItems.map((record) => (
                         <tr
@@ -166,8 +168,8 @@ export default function RequestHistory() {
                       ))
                     : messageRow(
                         'bi-clock-history',
-                        'No History Records Found',
-                        'You have no past or archived requisition slips matching your search criteria.'
+                        'No Finished Requests Yet',
+                        'Requests you received, that were denied, or that you cancelled will appear here.'
                       )}
             </tbody>
           </table>
@@ -176,7 +178,7 @@ export default function RequestHistory() {
         {/* Table Pagination Bar */}
         <div className="table-footer-bar">
           <span>
-            Showing {currentHistoryItems.length} of {filteredHistory.length} history records
+            Showing {currentHistoryItems.length} of {filteredHistory.length} records
           </span>
           <div className="pagination-controls-wrapper">
             <button

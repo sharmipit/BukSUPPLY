@@ -13,6 +13,7 @@ import Notifications from "./pages/user/Notifications";
 import Requests from "./pages/Requests";
 import Inventory from "./pages/Inventory";
 import ReportsLogs from "./pages/ReportsLogs";
+import ActivityLog from "./pages/ActivityLog";
 
 // User pages
 import UserDashboard from "./pages/user/UserDashboard";
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="requests" element={<ItemRequest />} />
         <Route path="history" element={<RequestHistory />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="activity" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
         <Route path="help" element={<HelpSupport />} />
       </Route>
@@ -88,6 +90,7 @@ export default function App() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="reports-logs" element={<ReportsLogs />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="activity" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 
@@ -107,6 +110,7 @@ export default function App() {
         <Route path="settings" element={<AdminSystemSettings />} />
         <Route path="reports-logs" element={<ReportsLogs />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="activity" element={<ActivityLog />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

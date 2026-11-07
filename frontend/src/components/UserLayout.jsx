@@ -8,7 +8,6 @@ import LogoutModal from '../components/LogoutModal';
 
 import { DEFAULT_AVATAR, getAvatar } from '../utils/avatar';
 
-// Media query for mobile screens (used in JS to match CSS breakpoints)
 const MOBILE_QUERY = '(max-width: 768px)';
 
 // Navigation configuration for Regular Users (Student / Regular Staff)
@@ -18,18 +17,15 @@ const userNavSections = [
     className: 'main-nav',
     items: [
       { label: 'Dashboard', icon: 'bi-grid', to: '/user' },
-      {
-        label: 'Item Request',
-        icon: 'bi-file-earmark-plus',
-        to: '/user/requests',
-      },
-      { label: "My Requests", icon: "bi-clock-history", to: "/user/history" },
-      { label: "Notifications", icon: "bi-bell", to: "/user/notifications" },
+      { label: 'Item Request', icon: 'bi-file-earmark-plus', to: '/user/requests' },
+      { label: 'My Requests', icon: 'bi-clock-history', to: '/user/history' },
+      { label: 'Notifications', icon: 'bi-bell', to: '/user/notifications' },
     ],
   },
   {
     title: 'Account & Support',
     items: [
+      { label: 'Activity Log', icon: 'bi-journal-text', to: '/user/activity' },
       { label: 'Profile', icon: 'bi-person-gear', to: '/user/profile' },
       { label: 'Help & Support', icon: 'bi-question-circle', to: '/user/help' },
     ],
@@ -43,23 +39,18 @@ const moderatorNavSections = [
     className: 'main-nav',
     items: [
       { label: 'Dashboard', icon: 'bi-grid', to: '/staff' },
-      {
-        label: 'Requests',
-        icon: 'bi-file-earmark-text',
-        to: '/staff/requests',
-      },
+      { label: 'Requests', icon: 'bi-file-earmark-text', to: '/staff/requests' },
       { label: 'Inventory', icon: 'bi-box-seam', to: '/staff/inventory' },
-      {
-        label: 'Reports & Logs',
-        icon: 'bi-bar-chart',
-        to: '/staff/reports-logs',
-      },
+      { label: 'Reports & Logs', icon: 'bi-bar-chart', to: '/staff/reports-logs' },
       { label: 'Notifications', icon: 'bi-bell', to: '/staff/notifications' },
     ],
   },
   {
     title: 'Account',
-    items: [{ label: 'Profile', icon: 'bi-person-gear', to: '/staff/profile' }],
+    items: [
+      { label: 'Activity Log', icon: 'bi-journal-text', to: '/staff/activity' },
+      { label: 'Profile', icon: 'bi-person-gear', to: '/staff/profile' },
+    ],
   },
 ];
 
@@ -70,11 +61,7 @@ const adminNavSections = [
     className: 'main-nav',
     items: [
       { label: 'Dashboard', icon: 'bi-grid', to: '/admin' },
-      {
-        label: 'Requests',
-        icon: 'bi-file-earmark-text',
-        to: '/admin/requests',
-      },
+      { label: 'Requests', icon: 'bi-file-earmark-text', to: '/admin/requests' },
       { label: 'Inventory', icon: 'bi-box-seam', to: '/admin/inventory' },
       { label: 'Notifications', icon: 'bi-bell', to: '/admin/notifications' },
     ],
@@ -84,11 +71,8 @@ const adminNavSections = [
     items: [
       { label: 'User Management', icon: 'bi-people', to: '/admin/users' },
       { label: 'System Settings', icon: 'bi-gear', to: '/admin/settings' },
-      {
-        label: 'Reports & Logs',
-        icon: 'bi-bar-chart',
-        to: '/admin/reports-logs',
-      },
+      { label: 'Reports & Logs', icon: 'bi-bar-chart', to: '/admin/reports-logs' },
+      { label: 'Activity Log', icon: 'bi-journal-text', to: '/admin/activity' },
     ],
   },
   {
@@ -107,7 +91,6 @@ const roleConfig = {
 };
 const defaultConfig = { sections: userNavSections, base: '/user' };
 
-// Friendly labels shown under the name (lowercase keys; lookup ignores case)
 const roleLabels = {
   administrator: 'Administrator Account',
   admin: 'Administrator Account',
@@ -121,13 +104,11 @@ function getShortName(user) {
   const joined = [first, last].filter(Boolean).join(' ');
   if (joined) return joined;
 
-  // Fallback when only a single `name` string exists
   const parts = (user?.name || '').trim().split(/\s+/).filter(Boolean);
   if (parts.length > 1) return `${parts[0]} ${parts[parts.length - 1]}`;
   return parts[0] || 'User';
 }
 
-/** Tracks a CSS media query so JS and CSS breakpoints stay in sync. */
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(query).matches
@@ -244,9 +225,6 @@ export default function UserLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // Profile page only (/user/profile, /staff/profile, /admin/profile):
-  // the content is pulled up so the banner sits behind the top bar (no gap).
-  // The top bar itself is transparent on every page.
   const isProfilePage = /\/profile\/?$/.test(pathname);
 
   const isMobile = useMediaQuery(MOBILE_QUERY);
@@ -263,8 +241,6 @@ export default function UserLayout() {
   // Select navigation set based on role
   const { sections: navSections, base } = roleConfig[user?.role] || defaultConfig;
 
-  // Re-computed on every render, so a profile update in AuthContext
-  // refreshes the sidebar footer, top bar and dropdown right away.
   const displayName = getShortName(user);
   const displayRole = roleLabels[user?.role?.toLowerCase()] || user?.role || 'Member';
   const avatarSrc = getAvatar(user);
@@ -288,12 +264,10 @@ export default function UserLayout() {
     else toggleSidebar();
   };
 
-  // Close the mobile dropdown when the route changes
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Close it when the screen grows back to desktop size
   useEffect(() => {
     if (!isMobile) setMobileOpen(false);
   }, [isMobile]);
@@ -320,7 +294,7 @@ export default function UserLayout() {
 
   return (
     <div className={`layout ${collapsed ? 'collapsed' : ''}`} id="layout">
-      {/* SIDEBAR (hidden by CSS on small screens) */}
+      {/* SIDEBAR */}
       <aside className="sidebar" id="sidebar">
         <div className="sidebar-top">
           {/* BRAND: the whole logo (icon + text) toggles the sidebar */}
