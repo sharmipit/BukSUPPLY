@@ -8,6 +8,7 @@ const NotificationSchema = new mongoose.Schema(
     type: { type: String, enum: ["success", "info", "warning"], default: "info" },
     link: String,
     read: { type: Boolean, default: false },
+    hidden: { type: Boolean, default: false, index: true }, // true = cleared by the user, kept in the database
   },
   { timestamps: true }
 );
