@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
+import { shortName } from '../utils/formatName';
+import FilterDropdown from '../components/FilterDropdown';
 import '../styles/Inventory.css';
 
 // Starting categories. Any category typed into the form is added automatically.
@@ -14,6 +16,17 @@ const DEFAULT_CATEGORIES = [
 ];
 const NEW_CATEGORY = '__new__';
 const STATUS_TABS = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
+// Colour dots reuse the FilterDropdown tones (green / amber / red)
+const STATUS_TONES = {
+  'In Stock': 'accepted',
+  'Low Stock': 'pending',
+  'Out of Stock': 'denied',
+};
+const STATUS_OPTIONS = STATUS_TABS.map((s) => ({
+  value: s,
+  label: s === 'All' ? 'All statuses' : s,
+  tone: STATUS_TONES[s],
+}));
 
 const EMPTY_FORM = {
   name: '',
@@ -81,45 +94,14 @@ export default function Inventory() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Status and category dropdowns
-  const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef(null);
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const categoryRef = useRef(null);
-
-  // Close the category dropdown on outside click or Escape
-  useEffect(() => {
-    if (!categoryOpen) return;
-    const onDown = (e) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target)) setCategoryOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setCategoryOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [categoryOpen]);
-
-  // Close the status dropdown on outside click or Escape
-  useEffect(() => {
-    if (!filterOpen) return;
-    const onDown = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setFilterOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [filterOpen]);
+  // Dropdown options for the shared FilterDropdown
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'All', label: 'All categories' },
+      ...categories.map((c) => ({ value: c, label: c })),
+    ],
+    [categories]
+  );
 
   // If the selected category no longer exists (its last item was deleted), reset
   useEffect(() => {
@@ -167,16 +149,6 @@ export default function Inventory() {
     const out = items.filter((i) => getStockStatus(i) === 'Out of Stock').length;
     return { total: items.length, inStock: items.length - low - out, low, out };
   }, [items]);
-
-  const statusCounts = useMemo(
-    () => ({
-      All: items.length,
-      'In Stock': stats.inStock,
-      'Low Stock': stats.low,
-      'Out of Stock': stats.out,
-    }),
-    [items.length, stats]
-  );
 
   const statCards = [
     { title: 'Total Items', count: stats.total, icon: 'bi-boxes' },
@@ -423,120 +395,26 @@ export default function Inventory() {
         </div>
 
         <div className="inv-filter-group">
-          {/* Category dropdown (no dots or counts) */}
-          <div className="inv-dropdown" ref={categoryRef}>
-            <button
-              type="button"
-              className={`inv-dropdown-trigger ${categoryOpen ? 'open' : ''}`}
-              onClick={() => {
-                setCategoryOpen((o) => !o);
-                setFilterOpen(false);
-              }}
-              aria-haspopup="listbox"
-              aria-expanded={categoryOpen}
-              aria-label="Filter by category"
-            >
-              <i className="bi bi-tag"></i>
-              <span className="inv-dropdown-label">Category</span>
-              <span className="inv-dropdown-value">
-                <span className="inv-dropdown-value-text">
-                  {categoryFilter === 'All' ? 'All categories' : categoryFilter}
-                </span>
-              </span>
-              <i className="bi bi-chevron-down inv-dropdown-chevron"></i>
-            </button>
-
-            {categoryOpen && (
-              <ul className="inv-dropdown-menu" role="listbox">
-                {['All', ...categories].map((cat) => {
-                  const active = categoryFilter === cat;
-                  return (
-                    <li key={cat} role="presentation">
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        className={`inv-dropdown-item ${active ? 'active' : ''}`}
-                        onClick={() => {
-                          setCategoryFilter(cat);
-                          setCurrentPage(1);
-                          setCategoryOpen(false);
-                        }}
-                      >
-                        <span className="inv-dropdown-item-text">
-                          {cat === 'All' ? 'All categories' : cat}
-                        </span>
-                        <i
-                          className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}
-                        ></i>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          {/* Status dropdown */}
-          <div className="inv-dropdown" ref={filterRef}>
-            <button
-              type="button"
-              className={`inv-dropdown-trigger ${filterOpen ? 'open' : ''}`}
-              onClick={() => {
-                setFilterOpen((o) => !o);
-                setCategoryOpen(false);
-              }}
-              aria-haspopup="listbox"
-              aria-expanded={filterOpen}
-              aria-label="Filter by status"
-            >
-              <i className="bi bi-funnel"></i>
-              <span className="inv-dropdown-label">Status</span>
-              <span className="inv-dropdown-value">
-                <span
-                  className={`inv-dot ${statusFilter === 'All' ? 'all' : statusClass(statusFilter)}`}
-                />
-                {statusFilter === 'All' ? 'All statuses' : statusFilter}
-              </span>
-              <i className="bi bi-chevron-down inv-dropdown-chevron"></i>
-            </button>
-
-            {filterOpen && (
-              <ul className="inv-dropdown-menu" role="listbox">
-                {STATUS_TABS.map((status) => {
-                  const active = statusFilter === status;
-                  return (
-                    <li key={status} role="presentation">
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        className={`inv-dropdown-item ${active ? 'active' : ''}`}
-                        onClick={() => {
-                          setStatusFilter(status);
-                          setCurrentPage(1);
-                          setFilterOpen(false);
-                        }}
-                      >
-                        <span
-                          className={`inv-dot ${status === 'All' ? 'all' : statusClass(status)}`}
-                        />
-                        <span className="inv-dropdown-item-text">
-                          {status === 'All' ? 'All statuses' : status}
-                        </span>
-                        <span className="inv-dropdown-count">
-                          {loading ? '–' : statusCounts[status]}
-                        </span>
-                        <i
-                          className={`bi bi-check2 inv-dropdown-check ${active ? 'show' : ''}`}
-                        ></i>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          <FilterDropdown
+            icon="bi-tag"
+            ariaLabel="Filter by category"
+            options={categoryOptions}
+            value={categoryFilter}
+            onChange={(value) => {
+              setCategoryFilter(value);
+              setCurrentPage(1);
+            }}
+          />
+          <FilterDropdown
+            icon="bi-funnel"
+            ariaLabel="Filter by status"
+            options={STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       </div>
 
@@ -571,6 +449,7 @@ export default function Inventory() {
                             : item.quantity > 0
                               ? 100
                               : 0;
+                        const reorderNote = `Reorder at ${item.reorderLevel} · Usual limit ${item.maxNormal} per request`;
 
                         return (
                           <tr
@@ -582,7 +461,9 @@ export default function Inventory() {
                               <div className="inv-item-name inv-clamp" title={item.name}>
                                 {item.name}
                               </div>
-                              <div className="inv-item-id">{item.id}</div>
+                              <div className="inv-item-id inv-clamp" title={item.id}>
+                                {item.id}
+                              </div>
                             </td>
                             <td>
                               <div className="inv-clamp" title={item.category}>
@@ -599,15 +480,14 @@ export default function Inventory() {
                                   style={{ width: `${fill}%` }}
                                 ></div>
                               </div>
-                              <div className="inv-reorder-text">
-                                Reorder at {item.reorderLevel} · Usual limit {item.maxNormal} per
-                                request
+                              <div className="inv-reorder-text inv-clamp" title={reorderNote}>
+                                {reorderNote}
                               </div>
                             </td>
                             <td>
                               <div className="inv-nowrap">{fmtDate(item.updated)}</div>
                               <div className="inv-updated-by inv-clamp" title={item.updatedBy}>
-                                by {item.updatedBy}
+                                by {shortName(item.updatedBy)}
                               </div>
                             </td>
                             <td>

@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useAllRequisitions from '../hooks/useAllRequisitions';
 import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
+import { shortName } from '../utils/formatName';
+import FilterDropdown from '../components/FilterDropdown';
 import '../styles/Requests.css';
 
 const STATUS_TABS = [
@@ -15,6 +17,12 @@ const STATUS_TABS = [
   'Cancelled',
 ];
 const OPEN_STATUSES = ['Pending', 'Processing', 'Purchasing'];
+// Colour dots for the FilterDropdown ("All" gets the neutral dot)
+const STATUS_OPTIONS = STATUS_TABS.map((s) => ({
+  value: s,
+  label: s === 'All' ? 'All statuses' : s,
+  tone: s === 'All' ? undefined : s.toLowerCase(),
+}));
 // Same starting categories as the Inventory page
 const DEFAULT_CATEGORIES = [
   'Paper Products',
@@ -189,26 +197,6 @@ export default function Requests() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef(null);
-
-  // Close the status dropdown on outside click or Escape
-  useEffect(() => {
-    if (!filterOpen) return;
-    const onDown = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setFilterOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [filterOpen]);
-
   const [detailsId, setDetailsId] = useState(null);
   const [decision, setDecision] = useState(null);
   const [denyReason, setDenyReason] = useState('');
@@ -318,14 +306,6 @@ export default function Requests() {
     ],
     [requisitions]
   );
-
-  const statusCounts = useMemo(() => {
-    const counts = { All: requisitions.length };
-    STATUS_TABS.slice(1).forEach((s) => {
-      counts[s] = requisitions.filter((r) => r.status === s).length;
-    });
-    return counts;
-  }, [requisitions]);
 
   const filteredRequests = requisitions
     .filter((req) => {
@@ -552,55 +532,17 @@ export default function Requests() {
           />
         </div>
 
-        <div className="rq-dropdown" ref={filterRef}>
-          <button
-            type="button"
-            className={`rq-dropdown-trigger ${filterOpen ? 'open' : ''}`}
-            onClick={() => setFilterOpen((o) => !o)}
-            aria-haspopup="listbox"
-            aria-expanded={filterOpen}
-            aria-label="Filter by status"
-          >
-            <i className="bi bi-funnel"></i>
-            <span className="rq-dropdown-label">Status</span>
-            <span className="rq-dropdown-value">
-              <span className={`rq-dot ${statusFilter.toLowerCase()}`} />
-              {statusFilter === 'All' ? 'All statuses' : statusFilter}
-            </span>
-            <i className="bi bi-chevron-down rq-dropdown-chevron"></i>
-          </button>
-
-          {filterOpen && (
-            <ul className="rq-dropdown-menu" role="listbox">
-              {STATUS_TABS.map((status) => {
-                const active = statusFilter === status;
-                return (
-                  <li key={status} role="presentation">
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={active}
-                      className={`rq-dropdown-item ${active ? 'active' : ''}`}
-                      onClick={() => {
-                        setStatusFilter(status);
-                        setCurrentPage(1);
-                        setFilterOpen(false);
-                      }}
-                    >
-                      <span className={`rq-dot ${status.toLowerCase()}`} />
-                      <span className="rq-dropdown-item-text">
-                        {status === 'All' ? 'All statuses' : status}
-                      </span>
-                      <span className="rq-dropdown-count">
-                        {loading ? '–' : statusCounts[status]}
-                      </span>
-                      <i className={`bi bi-check2 rq-dropdown-check ${active ? 'show' : ''}`}></i>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        <div className="rq-filter-group">
+          <FilterDropdown
+            icon="bi-funnel"
+            ariaLabel="Filter by status"
+            options={STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       </div>
 
@@ -636,7 +578,7 @@ export default function Requests() {
                           </td>
                           <td className="align-middle">
                             <div className="rq-strong cell-clamp" title={req.requestedBy}>
-                              {req.requestedBy || '—'}
+                              {shortName(req.requestedBy)}
                             </div>
                             <div className="rq-sub cell-clamp" title={req.department}>
                               {req.department}

@@ -213,193 +213,13 @@
   padding-left: 44px;
 }
 
-/* Status filter dropdown */
-.rq-dropdown {
-  position: relative;
+/* Status filter (the dropdown itself is the shared FilterDropdown component) */
+.rq-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-left: auto;
   flex: 0 0 auto;
-}
-
-.rq-dropdown-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 270px;
-  background-color: #ffffff;
-  border: 1px solid var(--card-border, #dfd8cc);
-  border-radius: 50px;
-  padding: 10px 18px;
-  font-size: 0.9rem;
-  color: var(--text-dark, #2c1a14);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(44, 26, 20, 0.03);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.rq-dropdown-trigger > .bi-funnel {
-  color: #8c5839;
-}
-
-.rq-dropdown-trigger:hover {
-  border-color: #8c5839;
-  background-color: #fdfbf7;
-}
-
-.rq-dropdown-trigger.open,
-.rq-dropdown-trigger:focus-visible {
-  outline: none;
-  border-color: #8c5839;
-  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
-}
-
-.rq-dropdown-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: #8c7a70;
-  padding-right: 10px;
-  border-right: 1px solid var(--card-border, #dfd8cc);
-}
-
-.rq-dropdown-value {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.rq-dropdown-chevron {
-  font-size: 0.8rem;
-  color: #8c5839;
-  transition: transform 0.2s ease;
-}
-
-.rq-dropdown-trigger.open .rq-dropdown-chevron {
-  transform: rotate(180deg);
-}
-
-.rq-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 100%;
-  z-index: 1040;
-  list-style: none;
-  margin: 0;
-  padding: 8px;
-  background-color: var(--card-bg, #ffffff);
-  border: 1px solid var(--card-border, #dfd8cc);
-  border-radius: 18px;
-  box-shadow: 0 16px 40px rgba(44, 26, 20, 0.16);
-  animation: rq-dropdown-in 0.18s cubic-bezier(0.165, 0.84, 0.44, 1);
-  transform-origin: top right;
-}
-
-@keyframes rq-dropdown-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.rq-dropdown-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: none;
-  border: none;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-dark, #2c1a14);
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.15s ease;
-}
-
-.rq-dropdown-item:hover,
-.rq-dropdown-item:focus-visible {
-  outline: none;
-  background-color: #faf7f2;
-}
-
-.rq-dropdown-item.active {
-  background-color: #f5efe6;
-  font-weight: 700;
-}
-
-.rq-dropdown-item-text {
-  flex: 1;
-}
-
-.rq-dropdown-count {
-  min-width: 26px;
-  padding: 2px 8px;
-  border-radius: 50px;
-  background-color: #f3efe8;
-  color: var(--text-body, #594d46);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.rq-dropdown-item.active .rq-dropdown-count {
-  background-color: #8c5839;
-  color: #ffffff;
-}
-
-.rq-dropdown-check {
-  width: 16px;
-  color: #8c5839;
-  font-size: 1rem;
-  opacity: 0;
-}
-
-.rq-dropdown-check.show {
-  opacity: 1;
-}
-
-/* Status color dots */
-.rq-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background-color: #8c5839;
-}
-.rq-dot.all {
-  background-color: #8c7a70;
-}
-.rq-dot.pending {
-  background-color: #f59e0b;
-}
-.rq-dot.processing {
-  background-color: #3b82f6;
-}
-.rq-dot.purchasing {
-  background-color: #8b5cf6;
-}
-.rq-dot.accepted {
-  background-color: #10b981;
-}
-.rq-dot.denied {
-  background-color: #ef4444;
-}
-.rq-dot.cancelled {
-  background-color: #6c757d;
 }
 
 /* Table card */
@@ -432,7 +252,7 @@
 
 .rq-table {
   width: 100% !important;
-  min-width: 1100px;
+  min-width: 1120px;
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -443,29 +263,29 @@
 }
 
 .rq-table .col-slip {
-  width: 140px;
+  width: 160px;
 }
 .rq-table .col-requester {
-  width: 190px;
+  width: 170px;
 }
 .rq-table .col-title {
   width: auto;
 }
 .rq-table .col-items {
-  width: 220px;
+  width: 200px;
 }
 .rq-table .col-status {
-  width: 150px;
+  width: 160px;
 }
 .rq-table .col-actions {
-  width: 140px;
+  width: 168px;
 }
 
 .rq-table th {
   background-color: #8c5839 !important;
   color: #ffffff !important;
   font-weight: 600;
-  padding: 16px 24px !important;
+  padding: 16px 20px !important;
   text-transform: uppercase;
   font-size: 0.8rem;
   letter-spacing: 0.5px;
@@ -476,7 +296,7 @@
 .rq-table td {
   display: table-cell !important;
   height: 92px;
-  padding: 18px 24px !important;
+  padding: 18px 20px !important;
   color: var(--text-dark, #2c1a14) !important;
   border-bottom: 1px solid var(--card-border, #dfd8cc) !important;
   border-top: none !important;
@@ -484,6 +304,17 @@
   border-right: none !important;
   vertical-align: middle !important;
   background-color: transparent !important;
+}
+
+/* Extra room at both ends of every row so nothing touches the card edge */
+.rq-table th:first-child,
+.rq-table td:first-child {
+  padding-left: 28px !important;
+}
+
+.rq-table th:last-child,
+.rq-table td:last-child {
+  padding-right: 28px !important;
 }
 
 .rq-table td.nowrap-cell {
@@ -513,15 +344,19 @@
   text-overflow: ellipsis;
 }
 
+/* In the table, the small grey lines stay on one line too */
+.rq-table .rq-sub {
+  white-space: nowrap;
+}
+
+/* Long text is cut with an ellipsis on one line (the full text is in the tooltip) */
 .cell-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
+  display: block;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 
 /* Status badges */
@@ -1222,17 +1057,11 @@ select.rq-select {
   .rq-search-wrapper {
     max-width: 100%;
   }
-  .rq-dropdown {
+  .rq-filter-group {
     width: 100%;
     margin-left: 0;
-  }
-  .rq-dropdown-trigger {
-    width: 100%;
-    min-width: 0;
-  }
-  .rq-dropdown-menu {
-    left: 0;
-    right: 0;
+    flex-direction: column;
+    align-items: stretch;
   }
   .rq-meta-grid {
     grid-template-columns: 1fr;
