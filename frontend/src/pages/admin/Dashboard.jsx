@@ -5,18 +5,17 @@ import { useAuth } from '../../context/AuthContext';
 import useInventory from '../../hooks/useInventory';
 import useAllRequisitions from '../../hooks/useAllRequisitions';
 import { errMsg } from '../../api/client';
-// Dashboard styles first, then the page styles whose modals are reused below.
-// If your build already loads these globally, the extra imports are harmless.
+import { shortName } from '../../utils/formatName';
+
 import '../../styles/admin/Dashboard.css';
 import '../../styles/Requests.css';
 import '../../styles/Inventory.css';
 import '../../styles/admin/UserManagement.css';
 
 const OPEN_STATUSES = ['Pending', 'Processing', 'Purchasing'];
-// Each summary table only previews the first few rows
+
 const PREVIEW_LIMIT = 5;
 
-// Starting categories. Any category typed into the form is added automatically.
 const DEFAULT_CATEGORIES = [
   'Paper Products',
   'Writing Supplies',
@@ -26,7 +25,6 @@ const DEFAULT_CATEGORIES = [
 ];
 const NEW_CATEGORY = '__new__';
 
-// Works whether or not VITE_API_URL ends in "/api" (same as User Management)
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5001')
   .replace(/\/+$/, '')
   .replace(/\/api$/, '');
@@ -75,6 +73,9 @@ const getStockStatus = (item) => {
 };
 
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
+
+// Items that need attention come first: out of stock, then low stock, then the rest
+const STOCK_ORDER = { 'Out of Stock': 0, 'Low Stock': 1, 'In Stock': 2 };
 
 const getStockFill = (item) => {
   if (item.reorderLevel > 0) {
@@ -189,7 +190,7 @@ const nextStepText = (req, check) => {
 };
 
 function Stepper({ req }) {
-  if (req.status === 'Denied') return null;
+  if (req.status === 'Denied' || req.status === 'Cancelled') return null;
   const flow = [
     'Pending',
     'Processing',
@@ -271,6 +272,10 @@ const Dashboard = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  useEffect(() => {
+    document.title = 'Dashboard | BukSUPPLY';
+  }, []);
   const displayName = [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ');
   // Only used for the "recorded by" note. The server records the real user.
   const actorName = displayName || user?.email || 'Unknown user';
@@ -790,25 +795,30 @@ const Dashboard = ({
     { id: 'process', label: 'Process Requests', onClick: handleViewRequests },
     { id: 'item', label: 'Add Item', onClick: openAddModal },
     { id: 'users', label: 'Manage Users', onClick: handleViewUsers },
-    { id: 'reports', label: 'Reports & Logs', onClick: handleViewReports },
+    { id: 'reports', label: 'System Reports', onClick: handleViewReports },
   ];
 
   const currentItems = slips.slice(0, PREVIEW_LIMIT);
-  const currentInvItems = inventory.slice(0, PREVIEW_LIMIT);
   const currentUsers = users.slice(0, PREVIEW_LIMIT);
+  const currentInvItems = [...inventory]
+    .sort(
+      (a, b) =>
+        STOCK_ORDER[getStockStatus(a)] - STOCK_ORDER[getStockStatus(b)] ||
+        String(a.name).localeCompare(String(b.name))
+    )
+    .slice(0, PREVIEW_LIMIT);
 
   return (
     <div className="dashboard">
       {/* Greeting header card */}
       <div className="db-header-card">
         <div className="db-header-text">
-          <h1 className="db-title">
-            Good day! <span className="db-name">{displayName || 'there'}!</span>
-          </h1>
+          <h1 className="db-title">Dashboard</h1>
           <p className="db-subtitle">
-            Here is your daily operational summary for{' '}
-            <strong>BukSU Supply &amp; Property Management</strong>. Review pending departmental
-            slips, coordinate physical window issuances, or manage asset inventory below.
+            Good day, <span className="db-name">{displayName || 'there'}</span>! Here is your daily
+            operational summary for <strong>BukSU Supply &amp; Property Management</strong>. Review
+            pending departmental slips, coordinate physical window issuances, or manage asset
+            inventory below.
           </p>
         </div>
 
@@ -842,6 +852,15 @@ const Dashboard = ({
 
       {/* Requisition queue */}
       <div className="db-section-card">
+        <div className="db-card-header">
+          <div>
+            <h3 className="db-card-title">Recent Requisition Slips</h3>
+            <p className="db-card-desc">
+              Latest requisition slips from departments, with pending slips shown first.
+            </p>
+          </div>
+        </div>
+
         <div className="db-table-wrapper">
           <table className="db-table">
             <thead>
@@ -888,7 +907,7 @@ const Dashboard = ({
                     </td>
                     <td>
                       <div className="db-strong db-cell-clamp" title={req.requestedBy}>
-                        {req.requestedBy || '—'}
+                        {shortName(req.requestedBy)}
                       </div>
                       <div className="db-sub db-cell-clamp" title={req.department}>
                         {req.department}
@@ -963,10 +982,19 @@ const Dashboard = ({
         </div>
       </div>
 
-      {/* Inventory summary + User summary, side by side */}
+      {/* Inventory summary + User summary, side by side (same height) */}
       <div className="db-split-row">
         {/* Inventory summary */}
         <div className="db-section-card">
+          <div className="db-card-header">
+            <div>
+              <h3 className="db-card-title">Inventory Overview</h3>
+              <p className="db-card-desc">
+                Current stock levels, with out-of-stock and low-stock items first.
+              </p>
+            </div>
+          </div>
+
           <div className="db-table-wrapper">
             <table className="db-table db-inv-table">
               <thead>
@@ -978,7 +1006,31 @@ const Dashboard = ({
                 </tr>
               </thead>
               <tbody>
-                {currentInvItems.length > 0 ? (
+                {invLoading ? (
+                  <tr>
+                    <td colSpan="4" className="db-empty-cell">
+                      <div className="db-empty-content">
+                        <div className="db-empty-icon">
+                          <i className="bi bi-hourglass-split" aria-hidden="true"></i>
+                        </div>
+                        <h4>Loading...</h4>
+                        <p>Fetching inventory items.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : invError ? (
+                  <tr>
+                    <td colSpan="4" className="db-empty-cell">
+                      <div className="db-empty-content">
+                        <div className="db-empty-icon">
+                          <i className="bi bi-exclamation-circle" aria-hidden="true"></i>
+                        </div>
+                        <h4>Could not load inventory</h4>
+                        <p>{invError}</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : currentInvItems.length > 0 ? (
                   currentInvItems.map((item) => {
                     const status = getStockStatus(item);
                     return (
@@ -991,7 +1043,9 @@ const Dashboard = ({
                           <div className="db-strong db-cell-clamp" title={item.name}>
                             {item.name}
                           </div>
-                          <div className="db-sub">{item.id}</div>
+                          <div className="db-sub" title={item.id}>
+                            {item.id}
+                          </div>
                         </td>
                         <td>
                           <div className="db-cell-clamp" title={item.category}>
@@ -1045,6 +1099,15 @@ const Dashboard = ({
 
         {/* User management summary */}
         <div className="db-section-card">
+          <div className="db-card-header">
+            <div>
+              <h3 className="db-card-title">User Accounts</h3>
+              <p className="db-card-desc">
+                Latest accounts and their status. Click a deactivated account to reactivate it.
+              </p>
+            </div>
+          </div>
+
           <div className="db-table-wrapper">
             <table className="db-table db-users-table">
               <thead>
@@ -1094,9 +1157,11 @@ const Dashboard = ({
                       <td className="db-user-id">{u.id}</td>
                       <td>
                         <div className="db-strong db-cell-clamp" title={u.name}>
-                          {u.name}
+                          {shortName(u.name)}
                         </div>
-                        <div className="db-sub">{u.role}</div>
+                        <div className="db-sub db-cell-clamp" title={u.role}>
+                          {u.role}
+                        </div>
                       </td>
                       <td className="db-nowrap-cell">
                         <span className={`db-badge ${u.status.toLowerCase()}`}>{u.status}</span>
@@ -1231,6 +1296,13 @@ const Dashboard = ({
                 <div className="rq-deny-box">
                   <strong>Reason for denial</strong>
                   <p>{detailsReq.denyReason}</p>
+                </div>
+              )}
+
+              {detailsReq.status === 'Cancelled' && (
+                <div className="rq-deny-box">
+                  <strong>Cancelled by the requester</strong>
+                  <p>This request was cancelled before it was processed. No action is needed.</p>
                 </div>
               )}
 

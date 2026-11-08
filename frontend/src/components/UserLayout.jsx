@@ -41,7 +41,7 @@ const moderatorNavSections = [
       { label: 'Dashboard', icon: 'bi-grid', to: '/staff' },
       { label: 'Requests', icon: 'bi-file-earmark-text', to: '/staff/requests' },
       { label: 'Inventory', icon: 'bi-box-seam', to: '/staff/inventory' },
-      { label: 'Reports & Logs', icon: 'bi-bar-chart', to: '/staff/reports-logs' },
+      { label: 'System Reports', icon: 'bi-bar-chart', to: '/staff/reports-logs' },
       { label: 'Notifications', icon: 'bi-bell', to: '/staff/notifications' },
     ],
   },
@@ -70,14 +70,16 @@ const adminNavSections = [
     title: 'Administration',
     items: [
       { label: 'User Management', icon: 'bi-people', to: '/admin/users' },
+      { label: 'System Reports', icon: 'bi-bar-chart', to: '/admin/reports-logs' },
       { label: 'System Settings', icon: 'bi-gear', to: '/admin/settings' },
-      { label: 'Reports & Logs', icon: 'bi-bar-chart', to: '/admin/reports-logs' },
-      { label: 'Activity Log', icon: 'bi-journal-text', to: '/admin/activity' },
     ],
   },
   {
     title: 'Account',
-    items: [{ label: 'Profile', icon: 'bi-person-gear', to: '/admin/profile' }],
+    items: [
+      { label: 'Activity Log', icon: 'bi-journal-text', to: '/admin/activity' },
+      { label: 'Profile', icon: 'bi-person-gear', to: '/admin/profile' },
+    ],
   },
 ];
 
