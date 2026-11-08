@@ -6,6 +6,8 @@ const exportHistorySchema = new mongoose.Schema(
     format: { type: String, enum: ['pdf', 'xlsx'], required: true },
     filters: { type: mongoose.Schema.Types.Mixed, default: {} },
     user: { type: String, default: 'Unknown user' },
+    code: { type: String, unique: true, sparse: true },
+    recordCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
