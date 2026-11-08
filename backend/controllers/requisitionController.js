@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Requisition = require('../models/Requisition');
 const Notification = require('../models/Notification');
 const InventoryItem = require('../models/InventoryItem');
+const User = require('../models/User');
 const { deductForRequisition } = require('../services/stock');
 const { logActivity } = require('../services/activityLog');
 
@@ -179,6 +180,27 @@ exports.listAll = async (req, res) => {
   }
 };
 
+// One notification for every active Moderator and Administrator (except the sender)
+const notifyStaff = async (sender, title, message) => {
+  const staff = await User.find({
+    role: { $in: ['Moderator', 'Administrator'] },
+    accountStatus: 'Active',
+    _id: { $ne: sender._id },
+  }).select('_id role');
+
+  if (!staff.length) return;
+
+  await Notification.insertMany(
+    staff.map((s) => ({
+      user: s._id,
+      title,
+      message,
+      type: 'info',
+      link: s.role === 'Administrator' ? '/admin/requests' : '/staff/requests',
+    }))
+  );
+};
+
 /** POST /api/requisitions */
 exports.create = async (req, res) => {
   try {
@@ -199,6 +221,12 @@ exports.create = async (req, res) => {
       type: 'info',
       link: '/user/requests',
     });
+
+    notifyStaff(
+      req.user,
+      'New Requisition Filed',
+      `${personName(req.user)} filed requisition slip ${doc.slipNumber} ("${doc.title}"). Review it in Requests.`
+    ).catch((e) => console.error('notifyStaff error:', e));
 
     await logActivity(
       req.user,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api, { errMsg } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import ClearNotificationsModal from '../../components/ClearNotificationsModal';
 import '../../styles/user/Notifications.css';
 
@@ -7,6 +8,9 @@ export default function Notifications() {
   useEffect(() => {
     document.title = 'Notifications | BukSUPPLY';
   }, []);
+
+  const { user } = useAuth();
+  const isStaff = ['Moderator', 'Administrator'].includes(user?.role);
 
   // Real notifications from the API (replaces the old hardcoded array)
   const [notifications, setNotifications] = useState([]);
@@ -16,11 +20,24 @@ export default function Notifications() {
   const [filterTab, setFilterTab] = useState('All');
   const [clearModalOpen, setClearModalOpen] = useState(false);
 
+  // Loads on open, then quietly re-checks every 30 seconds for new alerts
   useEffect(() => {
-    api.get('/notifications')
-      .then((res) => setNotifications(res.data.notifications))
-      .catch((err) => setError(errMsg(err)))
-      .finally(() => setLoading(false));
+    const load = (first) =>
+      api.get('/notifications')
+        .then((res) => {
+          setNotifications(res.data.notifications);
+          setError('');
+        })
+        .catch((err) => {
+          if (first) setError(errMsg(err)); // background refresh failures stay silent
+        })
+        .finally(() => {
+          if (first) setLoading(false);
+        });
+
+    load(true);
+    const timer = setInterval(() => load(false), 30000);
+    return () => clearInterval(timer);
   }, []);
 
   // Filter logic
@@ -61,9 +78,15 @@ export default function Notifications() {
         <div>
           <h1 className="hub-title">Notifications</h1>
           <p className="hub-subtitle">
-            Stay updated with real-time alerts regarding your requisition approvals, window pickups,
-            <br />
-            and administrative announcements.
+            {isStaff ? (
+              'Get alerted when new requisitions are filed and need your review.'
+            ) : (
+              <>
+                Stay updated with real-time alerts regarding your requisition approvals, window pickups,
+                <br />
+                and administrative announcements.
+              </>
+            )}
           </p>
         </div>
         <div className="header-actions-group">
