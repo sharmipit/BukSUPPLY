@@ -59,3 +59,8 @@ export async function fetchExportHistory(limit = 15) {
   const res = await api.get('/reports/history', { params: { limit } });
   return res.data;
 }
+
+export async function verifyReport(code) {
+  const res = await api.get(`/reports/verify/${encodeURIComponent(String(code).trim())}`);
+  return res.data;
+}
