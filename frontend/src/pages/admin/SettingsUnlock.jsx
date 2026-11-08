@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
@@ -20,13 +20,20 @@ const post = async (path, body) => {
 };
 
 export default function SettingsUnlock({ onUnlock }) {
-  const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
+  const [step, setStep] = useState('credentials'); 
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
   const [otp, setOtp] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    document.title = 'System Settings Locked | BukSUPPLY';
+    return () => {
+      document.title = 'BukSUPPLY'; 
+    };
+  }, []);
 
   const run = async (fn) => {
     if (busy) return;
@@ -43,7 +50,7 @@ export default function SettingsUnlock({ onUnlock }) {
 
   const submitCredentials = (e) => {
     e.preventDefault();
-    if (!email.trim() || !pin) return setError('Enter the SU email and PIN.');
+    if (!email.trim() || !pin) return setError('Enter the Super Admin email and PIN.');
     run(async () => {
       const data = await post('start', { email: email.trim(), pin });
       if (data.otpRequired) {
@@ -75,8 +82,8 @@ export default function SettingsUnlock({ onUnlock }) {
             <h2 className="ss-card-title">System settings are locked</h2>
             <p className="ss-card-sub">
               {step === 'credentials'
-                ? 'Enter the SU email and PIN to continue.'
-                : 'We sent a 6-digit code to the SU email. Enter it below.'}
+                ? 'Enter the Super Admin email and PIN to continue.'
+                : 'We sent a 6-digit code to the Super Admin email. Enter it below.'}
             </p>
           </div>
         </div>
@@ -85,7 +92,7 @@ export default function SettingsUnlock({ onUnlock }) {
           <form onSubmit={submitCredentials} noValidate>
             <div className="ss-card-body">
               <div className="ss-field">
-                <label htmlFor="su-email">SU email</label>
+                <label htmlFor="su-email">Super Admin Email</label>
                 <input
                   id="su-email"
                   type="email"
@@ -99,7 +106,7 @@ export default function SettingsUnlock({ onUnlock }) {
                 />
               </div>
               <div className="ss-field">
-                <label htmlFor="su-pin">SU PIN</label>
+                <label htmlFor="su-pin">PIN</label>
                 <div className="ss-input-wrap">
                   <input
                     id="su-pin"
