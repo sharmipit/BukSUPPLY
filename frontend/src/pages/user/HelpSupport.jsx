@@ -6,11 +6,15 @@ const CATEGORIES = [
   { key: "all", label: "All Questions" },
   { key: "general", label: "General Info" },
   { key: "requests", label: "Making Requests" },
+  { key: "tracking", label: "Tracking & Pickup" },
+  { key: "account", label: "Account & Activity" },
 ];
 
 const SECTIONS = {
   general: "1. General Information",
   requests: "2. Making & Justifying Requests",
+  tracking: "3. Tracking Your Request & Pickup",
+  account: "4. Account & Activity",
 };
 
 const FAQS = [
@@ -20,6 +24,8 @@ const FAQS = [
     icon: "bi-info-circle",
     tone: "tone-brown",
     question: "What is BukSUPPLY?",
+    search:
+      "online supply request management platform Bukidnon State University student organizations staff teaching non-teaching office academic event supplies supply office",
     answer: (
       <>
         BukSUPPLY is an online supply request and management platform for
@@ -36,6 +42,8 @@ const FAQS = [
     icon: "bi-people",
     tone: "tone-brown",
     question: "Who can use BukSUPPLY?",
+    search:
+      "University Staff teaching faculty non-teaching department operations class instruction Student Organizations Representatives student leaders recognized school events projects",
     answer: (
       <ul className="faq-list">
         <li>
@@ -58,6 +66,8 @@ const FAQS = [
     icon: "bi-shield-exclamation",
     tone: "tone-rose",
     question: "Can individual students request supplies for personal use?",
+    search:
+      "No strictly reserved official school-related departmental recognized student organization personal academic non-academic automatically rejected",
     answer: (
       <>
         <strong className="text-no">No.</strong> BukSUPPLY is strictly reserved
@@ -73,35 +83,61 @@ const FAQS = [
     icon: "bi-box-seam",
     tone: "tone-amber",
     question: "What kinds of items can I request?",
+    search:
+      "in-stock items available inventory supply warehouse stationery printing paper whiteboard markers out of stock restock",
     answer: (
       <>
-        <p>You can request two main types of items through BukSUPPLY:</p>
-        <ol className="faq-list faq-list-ordered">
-          <li>
-            <strong>In-Stock Items:</strong> Supplies currently available in
-            the university supply warehouse (e.g., standard stationery,
-            printing paper, whiteboard markers).
-          </li>
-          <li>
-            <strong>Out-of-Stock / Special Purchase Items:</strong> Supplies or
-            materials not currently stored in the warehouse. If approved, the
-            university will procure these items through official procurement
-            channels.
-          </li>
-        </ol>
+        <p>
+          You can request items that are currently available in the supply
+          office inventory (for example, standard stationery, printing paper,
+          or whiteboard markers).
+        </p>
+        <p>
+          When you add items to your slip, you will see how many are available.
+          Items that are out of stock cannot be requested until the supply
+          office restocks them, so check back later or file your request again.
+        </p>
       </>
     ),
   },
   {
     id: 5,
     category: "requests",
+    icon: "bi-pencil-square",
+    tone: "tone-green",
+    question: "How do I file a requisition slip?",
+    search:
+      "file new requisition department organization title purpose add items submit step by step how to",
+    answer: (
+      <ol className="faq-list faq-list-ordered">
+        <li>
+          Click <strong>File Requisition Slip</strong> (or{" "}
+          <strong>File New Requisition</strong>).
+        </li>
+        <li>Enter your department or organization, a title, and the purpose.</li>
+        <li>
+          Click <strong>Add items</strong>, search the inventory, and choose the
+          items and quantities you need.
+        </li>
+        <li>
+          Click <strong>Submit Requisition</strong>. Your slip starts as{" "}
+          <strong>Pending</strong>.
+        </li>
+      </ol>
+    ),
+  },
+  {
+    id: 6,
+    category: "requests",
     icon: "bi-file-earmark-text",
     tone: "tone-green",
     question: "Why is a detailed reason required for every request?",
+    search:
+      "administrative evaluation valid clear reasonable justification university resources organization activities purpose",
     answer: (
       <>
         To ensure university resources are managed responsibly, every request
-        undergoes strict administrative evaluation. You must provide a{" "}
+        undergoes administrative evaluation. You must provide a{" "}
         <strong>valid, clear, and reasonable justification</strong> explaining
         how the requested items will be used for university or organization
         activities.
@@ -109,11 +145,13 @@ const FAQS = [
     ),
   },
   {
-    id: 6,
+    id: 7,
     category: "requests",
     icon: "bi-check-circle",
     tone: "tone-tan",
     question: 'What makes a "reasonable" justification?',
+    search:
+      "Good Example Poor Example 3 reams A4 paper black ink certificates Campus Leadership Summit Need paper for office use For class project",
     answer: (
       <>
         <div className="example example-good">
@@ -131,16 +169,164 @@ const FAQS = [
       </>
     ),
   },
+  {
+    id: 8,
+    category: "requests",
+    icon: "bi-sliders",
+    tone: "tone-amber",
+    question: "What is the usual limit per request, and can I ask for more?",
+    search:
+      "usual limit quantity per request maximum normal limit more than explain why over the limit",
+    answer: (
+      <>
+        Each item has a <strong>usual limit</strong> per request, shown when
+        you add it to your slip. You can still ask for more than the limit, but
+        you must explain why you need the extra quantity. You also cannot
+        request more than what is currently available in stock.
+      </>
+    ),
+  },
+  {
+    id: 9,
+    category: "tracking",
+    icon: "bi-diagram-3",
+    tone: "tone-brown",
+    question: "What do the request statuses mean?",
+    search:
+      "status pending processing approved accepted denied cancelled progress stages meaning",
+    answer: (
+      <ul className="faq-list">
+        <li>
+          <strong>Pending:</strong> Submitted and waiting for review.
+        </li>
+        <li>
+          <strong>Processing:</strong> The supply office acknowledged your slip
+          and is preparing it.
+        </li>
+        <li>
+          <strong>Approved:</strong> Your items are ready. Please go to the
+          Property Window for pickup.
+        </li>
+        <li>
+          <strong>Accepted:</strong> You received the items and the request is
+          complete.
+        </li>
+        <li>
+          <strong>Denied:</strong> The request could not be approved. The
+          reason is shown on your slip.
+        </li>
+        <li>
+          <strong>Cancelled:</strong> You cancelled the request.
+        </li>
+      </ul>
+    ),
+  },
+  {
+    id: 10,
+    category: "tracking",
+    icon: "bi-lock",
+    tone: "tone-rose",
+    question: "Can I edit or cancel a request after submitting it?",
+    search: "edit cancel change locked pending processing acknowledged",
+    answer: (
+      <>
+        Yes, but only while the request is <strong>Pending</strong>. Once the
+        supply office acknowledges it and it becomes{" "}
+        <strong>Processing</strong>, the slip is locked and can no longer be
+        edited or cancelled.
+      </>
+    ),
+  },
+  {
+    id: 11,
+    category: "tracking",
+    icon: "bi-bag-check",
+    tone: "tone-green",
+    question: "How do I know when I can pick up my items?",
+    search:
+      "pickup property window ready release notification approved received deducted inventory",
+    answer: (
+      <>
+        When your request becomes <strong>Approved</strong>, you will get a
+        notification that your items are ready. Go to the Property Window to
+        receive them. After you receive the items, the supply office marks the
+        request as <strong>Accepted</strong> to complete it.
+      </>
+    ),
+  },
+  {
+    id: 12,
+    category: "tracking",
+    icon: "bi-x-octagon",
+    tone: "tone-rose",
+    question: "What if my request is denied or cancelled?",
+    search: "denied cancelled reason request again file again new slip reuse details",
+    answer: (
+      <>
+        For a denied request, the reason from the supply office is shown on the
+        slip and in your notification. For a denied or cancelled request, you
+        can use the <strong>Request Again</strong> button to file a new slip
+        that starts with the same details, then fix whatever caused the
+        problem.
+      </>
+    ),
+  },
+  {
+    id: 13,
+    category: "account",
+    icon: "bi-bell",
+    tone: "tone-amber",
+    question: "Where do I see updates about my requests?",
+    search: "notifications alerts updates unread mark as read clear",
+    answer: (
+      <>
+        Every status change creates a notification. Open the{" "}
+        <strong>Notifications</strong> page to read them, mark them as read, or
+        clear them.
+      </>
+    ),
+  },
+  {
+    id: 14,
+    category: "account",
+    icon: "bi-clock-history",
+    tone: "tone-tan",
+    question: "Where can I see what I have done in the system?",
+    search: "activity log history actions sign in filed edited cancelled private only you",
+    answer: (
+      <>
+        Open the <strong>Activity Log</strong> page. It lists your own actions,
+        such as signing in, filing, editing, or cancelling a request. Only you
+        can see your activity.
+      </>
+    ),
+  },
+  {
+    id: 15,
+    category: "account",
+    icon: "bi-key",
+    tone: "tone-brown",
+    question: "How do I sign in, and what if I forget my password?",
+    search:
+      "sign in login google institutional email buksu.edu.ph student.buksu.edu.ph forgot password reset code verification",
+    answer: (
+      <>
+        <p>
+          Sign in with your BukSU institutional email (
+          <strong>@student.buksu.edu.ph</strong> or{" "}
+          <strong>@buksu.edu.ph</strong>) and password, or use{" "}
+          <strong>Continue with Google</strong> with that same email.
+        </p>
+        <p>
+          If you forgot your password, use the forgot password option on the
+          sign-in page. A verification code will be sent to your email so you
+          can set a new password. Accounts that sign in with Google do not use
+          a password.
+        </p>
+      </>
+    ),
+  },
 ];
-
-const SEARCH_TEXT = {
-  1: "BukSUPPLY is an online supply request and management platform for Bukidnon State University. authorized student organizations staff teaching non-teaching office academic event supplies supply office",
-  2: "University Staff teaching faculty non-teaching department operations class instruction Student Organizations Representatives student leaders recognized school events projects",
-  3: "No strictly reserved official school-related departmental recognized student organization personal academic non-academic automatically rejected",
-  4: "two main types In-Stock Items warehouse stationery printing paper whiteboard markers Out-of-Stock Special Purchase procurement channels",
-  5: "administrative evaluation valid clear reasonable justification university resources organization activities",
-  6: "Good Example Poor Example 3 reams A4 paper black ink certificates Campus Leadership Summit Need paper for office use For class project",
-};
 
 function FAQ() {
   const [query, setQuery] = useState("");
@@ -151,7 +337,7 @@ function FAQ() {
     const q = query.trim().toLowerCase();
     return FAQS.filter((f) => {
       const matchesCategory = category === "all" || f.category === category;
-      const haystack = `${f.question} ${SEARCH_TEXT[f.id]}`.toLowerCase();
+      const haystack = `${f.question} ${f.search}`.toLowerCase();
       return matchesCategory && (q === "" || haystack.includes(q));
     });
   }, [query, category]);
@@ -167,9 +353,8 @@ function FAQ() {
         <div className="faq-header-inner">
           <h1>Frequently Asked Questions</h1>
           <p>
-            Everything you need to know about requesting in-stock and special
-            purchase supplies for your school activities and office
-            operations.
+            Everything you need to know about requesting supplies, tracking
+            your requisition slips, and picking up your items.
           </p>
 
           <div className="faq-search">

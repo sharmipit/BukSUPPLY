@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import api, { errMsg } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import FilterDropdown from '../components/FilterDropdown';
@@ -6,6 +6,11 @@ import '../styles/ActivityLog.css';
 
 const STAFF_ROLES = ['Moderator', 'Administrator'];
 const PAGE_SIZE = 10;
+
+// Below these card widths (in px) the table switches to stacked rows.
+// This is based on the space the table actually has, so it also reacts to the sidebar opening/closing.
+const STACK_BELOW = 840;
+const STACK_BELOW_WITH_USER = 1000;
 
 // How each action is labelled and coloured in the table
 const ACTION_META = {
@@ -18,9 +23,6 @@ const ACTION_META = {
   REQUISITION_EDITED: { label: 'Slip edited', tone: 'info' },
   REQUISITION_CANCELLED: { label: 'Slip cancelled', tone: 'danger' },
   REQUISITION_STATUS: { label: 'Status changed', tone: 'info' },
-  SETTINGS_UNLOCKED: { label: 'Settings unlocked', tone: 'info' },
-  SETTINGS_UNLOCK_FAILED: { label: 'Unlock failed', tone: 'danger' },
-  SETTINGS_UPDATED: { label: 'Settings updated', tone: 'success' },
 };
 const FALLBACK_META = { label: 'Activity', tone: 'neutral' };
 
@@ -35,11 +37,6 @@ const STAFF_CATEGORIES = [
   { value: 'Inventory', label: 'Inventory' },
   { value: 'Report', label: 'Reports' },
   { value: 'User Management', label: 'User management' },
-];
-
-const ADMIN_CATEGORIES = [
-  ...STAFF_CATEGORIES,
-  { value: 'System Settings', label: 'System settings' },
 ];
 
 // Calendar helpers (dates are kept as YYYY-MM-DD strings)
@@ -74,10 +71,21 @@ const formatDate = (iso) => {
   });
 };
 
+// Short display name for the table: first word of the first name + last word of the name
+// e.g. "Maria Clara Santos" -> "Maria Santos"
+const shortName = (fullName) => {
+  const parts = String(fullName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '-';
+  if (parts.length <= 2) return parts.join(' ');
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+};
+
 export default function ActivityLog() {
   const { user } = useAuth();
   const isStaff = STAFF_ROLES.includes(user?.role);
-  const isAdmin = user?.role === 'Administrator';
 
   useEffect(() => {
     document.title = 'Activity Log | BukSUPPLY';
@@ -103,12 +111,35 @@ export default function ActivityLog() {
   // The row whose full details are shown in the modal
   const [selectedLog, setSelectedLog] = useState(null);
 
+  // Width of the table card, used to decide between the table and stacked layouts
+  const cardRef = useRef(null);
+  const [cardWidth, setCardWidth] = useState(0);
+
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const showUserColumn = isStaff && scope === 'all';
+  const stacked = cardWidth > 0 && cardWidth < (showUserColumn ? STACK_BELOW_WITH_USER : STACK_BELOW);
+
+  // Keep track of the table card's width (changes with the window and the sidebar)
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return undefined;
+
+    setCardWidth(el.clientWidth);
+
+    if (typeof ResizeObserver === 'undefined') {
+      const handleResize = () => setCardWidth(el.clientWidth);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+
+    const observer = new ResizeObserver(() => setCardWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Wait a moment after typing so we don't call the server on every keystroke
   useEffect(() => {
@@ -186,7 +217,7 @@ export default function ActivityLog() {
   const selectedMeta = selectedLog ? ACTION_META[selectedLog.action] || FALLBACK_META : null;
 
   const messageRow = (icon, title, text) => (
-    <tr>
+    <tr className="al-message-row">
       <td colSpan={colCount} className="al-empty-cell">
         <div className="al-empty">
           <div className="al-empty-icon">
@@ -282,11 +313,7 @@ export default function ActivityLog() {
         </button>
 
         {isOpen && (
-          <div
-            className="al-calendar"
-            role="dialog"
-            aria-label={`Choose ${label.toLowerCase()} date`}
-          >
+          <div className="al-calendar" role="dialog" aria-label={`Choose ${label.toLowerCase()} date`}>
             <div className="al-cal-head">
               <button
                 type="button"
@@ -407,9 +434,7 @@ export default function ActivityLog() {
             type="text"
             className="al-input"
             placeholder={
-              showUserColumn
-                ? 'Search by user, activity, or slip number...'
-                : 'Search activity or slip number...'
+              showUserColumn ? 'Search by user, activity, or slip number...' : 'Search activity or slip number...'
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -424,7 +449,7 @@ export default function ActivityLog() {
         <FilterDropdown
           icon="bi-funnel"
           ariaLabel="Filter by category"
-          options={isAdmin ? ADMIN_CATEGORIES : isStaff ? STAFF_CATEGORIES : USER_CATEGORIES}
+          options={isStaff ? STAFF_CATEGORIES : USER_CATEGORIES}
           value={category}
           onChange={(value) => {
             setCategory(value);
@@ -434,9 +459,9 @@ export default function ActivityLog() {
       </div>
 
       {/* Table */}
-      <div className="al-card">
+      <div className="al-card" ref={cardRef}>
         <div className="al-table-wrap">
-          <table className={`al-table ${showUserColumn ? 'with-user' : ''}`}>
+          <table className={`al-table ${showUserColumn ? 'with-user' : ''} ${stacked ? 'stacked' : ''}`}>
             <thead>
               <tr>
                 <th className="al-col-date">Date &amp; Time</th>
@@ -455,32 +480,34 @@ export default function ActivityLog() {
                     ? logs.map((log) => {
                         const meta = ACTION_META[log.action] || FALLBACK_META;
                         return (
-                          <tr
-                            key={log.id}
-                            className="al-row-clickable"
-                            onClick={() => openDetails(log)}
-                          >
-                            <td className="al-nowrap">{log.date}</td>
+                          <tr key={log.id} className="al-row-clickable" onClick={() => openDetails(log)}>
+                            <td className="al-td-date" data-label="Date & Time">
+                              {log.date}
+                            </td>
                             {showUserColumn && (
-                              <td>
-                                <div className="al-user-name">{log.user}</div>
+                              <td className="al-td-user" data-label="User">
+                                <div className="al-user-name" title={log.user}>
+                                  {shortName(log.user)}
+                                </div>
                                 <div className="al-user-role">{log.role}</div>
                               </td>
                             )}
-                            <td>
+                            <td className="al-td-activity">
                               <div className="al-activity">
                                 <span className={`al-chip ${meta.tone}`}>{meta.label}</span>
-                                <span className="al-desc">{log.description}</span>
+                                <span className="al-desc" title={log.description}>
+                                  {log.description}
+                                </span>
                               </div>
                             </td>
-                            <td className="al-nowrap">
+                            <td className="al-td-ref" data-label="Reference">
                               {log.reference ? (
                                 <span className="al-ref">{log.reference}</span>
                               ) : (
                                 <span className="al-muted">-</span>
                               )}
                             </td>
-                            <td className="al-nowrap">
+                            <td className="al-td-action">
                               <button
                                 type="button"
                                 className="al-view-btn"
@@ -584,9 +611,7 @@ export default function ActivityLog() {
                 {showUserColumn && (
                   <div className="al-modal-field">
                     <span className="al-modal-label">User</span>
-                    <span className="al-modal-value al-modal-strong">
-                      {selectedLog.user || '-'}
-                    </span>
+                    <span className="al-modal-value al-modal-strong">{selectedLog.user || '-'}</span>
                     {selectedLog.role && <span className="al-modal-sub">{selectedLog.role}</span>}
                   </div>
                 )}
