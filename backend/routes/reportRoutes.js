@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
@@ -15,6 +16,10 @@ const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const TYPES = ['stocks', 'requests', 'transactions'];
 const FORMATS = ['pdf', 'xlsx'];
 const FILTER_KEYS = ['category', 'status', 'type', 'from', 'to'];
+
+// Verification code printed in the report footer, e.g. BSR-2026-1A2B3C4D
+const makeCode = () =>
+  `BSR-${new Date().getFullYear()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
 // Dates are picked in Philippine time (UTC+8); "to" includes the whole day
 function dateRange(q) {
@@ -141,6 +146,20 @@ router.post('/history', async (req, res, next) => {
   }
 });
 
+// ---------- Verify a report by the code printed in its footer ----------
+router.get('/verify/:code', async (req, res, next) => {
+  try {
+    const code = str(req.params.code).toUpperCase();
+    const record = await ExportHistory.findOne({ code });
+    if (!record) {
+      return res.status(404).json({ message: 'No report was issued with that code.' });
+    }
+    res.json(record);
+  } catch (e) {
+    next(e);
+  }
+});
+
 // ---------- Raw JSON endpoint (also used by the preview) ----------
 router.get('/:type', async (req, res, next) => {
   try {
@@ -176,12 +195,15 @@ router.get('/:type/export', async (req, res, next) => {
           .join(' | ')
       : 'All records';
 
+    // Printed in the file header/footer and saved in the history so it can be verified later
+    const meta = { code: makeCode(), generatedBy: actorOf(req), generatedAt: new Date() };
+
     let file;
     try {
       file =
         format === 'pdf'
-          ? await buildPdf(type, rows, summary)
-          : await buildXlsx(type, rows, summary);
+          ? await buildPdf(type, rows, summary, meta)
+          : await buildXlsx(type, rows, summary, meta);
     } catch (err) {
       console.error('Report generation failed:', err.message);
       // "Turned off by the administrator" is safe to show; other errors stay generic
@@ -189,8 +211,15 @@ router.get('/:type/export', async (req, res, next) => {
       return res.status(502).json({ message: 'Could not generate the file. Please try again.' });
     }
 
-    // Logged by the server
-    await ExportHistory.create({ report: type, format, filters, user: actorOf(req) });
+    // Logged by the server. The code in the file footer matches this record.
+    await ExportHistory.create({
+      report: type,
+      format,
+      filters,
+      user: meta.generatedBy,
+      code: meta.code,
+      recordCount: rows.length,
+    });
 
     const stamp = new Date().toISOString().slice(0, 10);
     res.setHeader(
