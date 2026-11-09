@@ -3,6 +3,8 @@ import useInventory from '../hooks/useInventory';
 import { useAuth } from '../context/AuthContext';
 import { downloadReport, fetchExportHistory, fetchReportRows, verifyReport } from '../api/reports';
 import { errMsg } from '../api/client';
+import FilterDropdown from '../components/FilterDropdown';
+import DateField from '../components/DateField';
 import '../styles/ReportsLogs.css';
 
 const STOCK_STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
@@ -20,11 +22,86 @@ const REPORT_TITLE = {
   transactions: 'Transactions Report',
 };
 const FORMAT_LABEL = { pdf: 'PDF', xlsx: 'Excel' };
+const FORMAT_ICON = { pdf: 'bi-file-earmark-pdf', xlsx: 'bi-file-earmark-excel' };
 
 // Keep these the same as ORG_NAME / SYSTEM_NAME / SYSTEM_SUBTITLE in services/reportFiles.js
 const ORG_NAME = 'Bukidnon State University';
 const SYSTEM_NAME = 'BukSUPPLY';
 const SYSTEM_SUBTITLE = 'Supply Inventory and Requisition System';
+
+// Dot colours reuse the FilterDropdown tones
+const STOCK_TONE = { 'In Stock': 'accepted', 'Low Stock': 'pending', 'Out of Stock': 'denied' };
+const REQUEST_TONE = (status) => status.toLowerCase();
+
+// The three report cards. A filter is either a dropdown ("select") or a date.
+const REPORTS = [
+  {
+    key: 'stocks',
+    icon: 'bi-boxes',
+    title: 'Stock report',
+    description: 'Current stock levels for every inventory item.',
+    filters: [
+      { type: 'select', name: 'category', label: 'Category', icon: 'bi-tag', all: 'All categories' },
+      {
+        type: 'select',
+        name: 'status',
+        label: 'Status',
+        icon: 'bi-funnel',
+        all: 'All statuses',
+        options: STOCK_STATUSES,
+        tone: (v) => STOCK_TONE[v],
+      },
+    ],
+  },
+  {
+    key: 'requests',
+    icon: 'bi-file-earmark-text',
+    title: 'Requests report',
+    description: 'Requisition slips filed within a period.',
+    filters: [
+      {
+        type: 'select',
+        name: 'status',
+        label: 'Status',
+        icon: 'bi-funnel',
+        all: 'All statuses',
+        options: REQUEST_STATUSES,
+        tone: REQUEST_TONE,
+      },
+      { type: 'date', name: 'from', label: 'From' },
+      { type: 'date', name: 'to', label: 'To' },
+    ],
+  },
+  {
+    key: 'transactions',
+    icon: 'bi-arrow-left-right',
+    title: 'Transactions report',
+    description: 'Every stock movement across all items within a period.',
+    filters: [
+      {
+        type: 'select',
+        name: 'type',
+        label: 'Type',
+        icon: 'bi-funnel',
+        all: 'All types',
+        options: TRANSACTION_TYPES,
+      },
+      { type: 'date', name: 'from', label: 'From' },
+      { type: 'date', name: 'to', label: 'To' },
+    ],
+  },
+];
+
+// Filter for the Recent downloads section
+const HISTORY_FILTER_OPTIONS = [
+  { value: 'All', label: 'All reports' },
+  { value: 'stocks', label: 'Stock report' },
+  { value: 'requests', label: 'Requests report' },
+  { value: 'transactions', label: 'Transactions report' },
+  { value: 'issuance', label: 'Issuance slip' },
+];
+const HISTORY_FETCH_LIMIT = 30; // how many recent downloads to load
+const HISTORY_PREVIEW = 5; // how many are shown before "Show all"
 
 // [header, key, isDate]
 const PREVIEW_COLUMNS = {
@@ -86,6 +163,7 @@ const fmtDate = (v) =>
 
 const fmtDateTime = (iso) =>
   new Date(iso).toLocaleString('en-PH', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -381,6 +459,7 @@ function ReportPreview({ preview, onClose, onConfirm }) {
             disabled={!rows || rows.length === 0}
             onClick={onConfirm}
           >
+            <i className={`bi ${FORMAT_ICON[format]}`}></i>
             Download {FORMAT_LABEL[format]}
           </button>
         </div>
@@ -391,45 +470,53 @@ function ReportPreview({ preview, onClose, onConfirm }) {
 
 function ReportCard({ report, categories, busyKey, onPreview }) {
   const [values, setValues] = useState({});
-  const set = (name) => (e) => setValues((v) => ({ ...v, [name]: e.target.value }));
+  const setValue = (name) => (v) => setValues((prev) => ({ ...prev, [name]: v }));
   const badRange = values.from && values.to && values.from > values.to;
-  const options = (f) => (f.name === 'category' ? categories : f.options);
+
+  // Dropdown options for a filter. "All" always comes first.
+  const buildOptions = (f) => {
+    const list = f.name === 'category' ? categories : f.options;
+    return [
+      { value: 'All', label: f.all },
+      ...list.map((o) => ({ value: o, label: o, tone: f.tone ? f.tone(o) : undefined })),
+    ];
+  };
 
   return (
     <section className="rl-card">
       <div className="rl-card-text">
-        <h2>{report.title}</h2>
-        <p>{report.description}</p>
+        <span className="rl-card-icon" aria-hidden="true">
+          <i className={`bi ${report.icon}`}></i>
+        </span>
+        <div>
+          <h2>{report.title}</h2>
+          <p>{report.description}</p>
+        </div>
       </div>
 
       <div className="rl-card-filters">
         {report.filters.map((f) =>
           f.type === 'date' ? (
-            <label key={f.name} className="rl-field">
-              <span>{f.label}</span>
-              <input
-                type="date"
-                className="rl-input"
-                value={values[f.name] || ''}
-                onChange={set(f.name)}
-              />
-            </label>
+            <DateField
+              key={f.name}
+              label={f.label}
+              value={values[f.name] || ''}
+              onChange={setValue(f.name)}
+              min={f.name === 'to' ? values.from || '' : ''}
+              max={f.name === 'from' ? values.to || '' : ''}
+              align={f.name === 'to' ? 'right' : 'left'}
+            />
           ) : (
-            <label key={f.name} className="rl-field">
-              <span>{f.label}</span>
-              <select
-                className="rl-input rl-select"
+            <div key={f.name} className="rl-field">
+              <span className="rl-field-label">{f.label}</span>
+              <FilterDropdown
+                icon={f.icon}
+                ariaLabel={f.label}
+                options={buildOptions(f)}
                 value={values[f.name] || 'All'}
-                onChange={set(f.name)}
-              >
-                <option value="All">{f.all}</option>
-                {options(f).map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={setValue(f.name)}
+              />
+            </div>
           )
         )}
       </div>
@@ -448,20 +535,122 @@ function ReportCard({ report, categories, busyKey, onPreview }) {
               onClick={() => onPreview(report.key, format, values)}
               disabled={Boolean(busyKey) || badRange}
             >
-              <i
-                className={`bi ${
-                  busy
-                    ? 'bi-hourglass-split'
-                    : format === 'pdf'
-                      ? 'bi-file-earmark-pdf'
-                      : 'bi-file-earmark-excel'
-                }`}
-              ></i>
+              <i className={`bi ${busy ? 'bi-hourglass-split' : FORMAT_ICON[format]}`}></i>
               {busy ? 'Preparing…' : `Preview ${FORMAT_LABEL[format]}`}
             </button>
           );
         })}
       </div>
+    </section>
+  );
+}
+
+// Recent downloads: aligned columns, a report-type filter, and a "Show all" toggle
+function RecentDownloads({ history, loading, error }) {
+  const [reportFilter, setReportFilter] = useState('All');
+  const [expanded, setExpanded] = useState(false);
+
+  const filtered = useMemo(
+    () => (reportFilter === 'All' ? history : history.filter((h) => h.report === reportFilter)),
+    [history, reportFilter]
+  );
+  const visible = expanded ? filtered : filtered.slice(0, HISTORY_PREVIEW);
+  const canToggle = filtered.length > HISTORY_PREVIEW;
+
+  const emptyText =
+    history.length === 0
+      ? 'No reports have been downloaded yet.'
+      : 'No downloads match this filter.';
+
+  return (
+    <section className="rl-history">
+      <div className="rl-section-head">
+        <div>
+          <h2>Recent downloads</h2>
+          <p className="rl-muted">Reports downloaded from this page, newest first.</p>
+        </div>
+        <FilterDropdown
+          icon="bi-funnel"
+          ariaLabel="Filter downloads by report"
+          options={HISTORY_FILTER_OPTIONS}
+          value={reportFilter}
+          onChange={(value) => {
+            setReportFilter(value);
+            setExpanded(false);
+          }}
+        />
+      </div>
+
+      {loading ? (
+        <p className="rl-muted rl-hist-msg">Loading…</p>
+      ) : error ? (
+        <p className="rl-muted rl-hist-msg">Could not load the download history. {error}</p>
+      ) : filtered.length === 0 ? (
+        <p className="rl-muted rl-hist-msg">{emptyText}</p>
+      ) : (
+        <div className="rl-hist">
+          <div className="rl-hist-head" aria-hidden="true">
+            <span>Report</span>
+            <span>Format</span>
+            <span>Filters</span>
+            <span>Downloaded by</span>
+            <span>Date</span>
+            <span>Code</span>
+          </div>
+
+          <ul className="rl-hist-list">
+            {visible.map((h) => {
+              const filterText = describeFilters(h.filters);
+              return (
+                <li key={h.id} className="rl-hist-row">
+                  <div className="rl-hist-cell" data-label="Report">
+                    <strong className="rl-hist-text">{REPORT_LABEL[h.report] || h.report}</strong>
+                  </div>
+                  <div className="rl-hist-cell" data-label="Format">
+                    <span className={`rl-chip ${h.format}`}>
+                      <i className={`bi ${FORMAT_ICON[h.format] || 'bi-file-earmark'}`}></i>
+                      {FORMAT_LABEL[h.format] || h.format}
+                    </span>
+                  </div>
+                  <div className="rl-hist-cell rl-hist-wide" data-label="Filters">
+                    <span className="rl-hist-text rl-hist-muted" title={filterText}>
+                      {filterText}
+                    </span>
+                  </div>
+                  <div className="rl-hist-cell" data-label="Downloaded by">
+                    <span className="rl-hist-text" title={h.user}>
+                      {h.user}
+                    </span>
+                  </div>
+                  <div className="rl-hist-cell" data-label="Date">
+                    <span className="rl-hist-text rl-hist-nowrap">{fmtDateTime(h.createdAt)}</span>
+                  </div>
+                  <div className="rl-hist-cell rl-hist-wide" data-label="Code">
+                    {h.code ? (
+                      <span className="rl-code">{h.code}</span>
+                    ) : (
+                      <span className="rl-hist-muted">—</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="rl-hist-foot">
+            <span className="rl-muted">
+              Showing {visible.length} of {filtered.length}{' '}
+              {filtered.length === 1 ? 'download' : 'downloads'}
+            </span>
+            {canToggle && (
+              <button type="button" className="rl-link-btn" onClick={() => setExpanded((e) => !e)}>
+                {expanded ? 'Show less' : `Show all ${filtered.length}`}
+                <i className={`bi ${expanded ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -490,10 +679,14 @@ function VerifyReport() {
 
   return (
     <section className="rl-history">
-      <h2>Verify a report</h2>
-      <p className="rl-muted">
-        Enter the verification code printed in the footer of a PDF or Excel report.
-      </p>
+      <div className="rl-section-head">
+        <div>
+          <h2>Verify a report</h2>
+          <p className="rl-muted">
+            Enter the verification code printed in the footer of a PDF or Excel report.
+          </p>
+        </div>
+      </div>
 
       <form className="rl-verify-form" onSubmit={submit}>
         <input
@@ -505,6 +698,7 @@ function VerifyReport() {
           aria-label="Verification code"
         />
         <button className="rl-btn-primary" type="submit" disabled={busy || !code.trim()}>
+          <i className={`bi ${busy ? 'bi-hourglass-split' : 'bi-check-circle'}`}></i>
           {busy ? 'Checking…' : 'Verify'}
         </button>
       </form>
@@ -539,38 +733,6 @@ export default function ReportsLogs() {
     [items]
   );
 
-  const reports = [
-    {
-      key: 'stocks',
-      title: 'Stock report',
-      description: 'Current stock levels for every inventory item.',
-      filters: [
-        { name: 'category', label: 'Category', all: 'All categories' },
-        { name: 'status', label: 'Status', all: 'All statuses', options: STOCK_STATUSES },
-      ],
-    },
-    {
-      key: 'requests',
-      title: 'Requests report',
-      description: 'Requisition slips filed within a period.',
-      filters: [
-        { name: 'status', label: 'Status', all: 'All statuses', options: REQUEST_STATUSES },
-        { name: 'from', label: 'From', type: 'date' },
-        { name: 'to', label: 'To', type: 'date' },
-      ],
-    },
-    {
-      key: 'transactions',
-      title: 'Transactions report',
-      description: 'Every stock movement across all items within a period.',
-      filters: [
-        { name: 'type', label: 'Type', all: 'All types', options: TRANSACTION_TYPES },
-        { name: 'from', label: 'From', type: 'date' },
-        { name: 'to', label: 'To', type: 'date' },
-      ],
-    },
-  ];
-
   // ---------- Export ----------
   const [busyKey, setBusyKey] = useState('');
   const [notice, setNotice] = useState(null);
@@ -590,7 +752,7 @@ export default function ReportsLogs() {
   const loadHistory = useCallback(async () => {
     try {
       setHistError('');
-      setHistory(await fetchExportHistory(5));
+      setHistory(await fetchExportHistory(HISTORY_FETCH_LIMIT));
     } catch (err) {
       setHistError(errMsg(err));
     } finally {
@@ -646,7 +808,7 @@ export default function ReportsLogs() {
       )}
 
       <div className="rl-cards">
-        {reports.map((r) => (
+        {REPORTS.map((r) => (
           <ReportCard
             key={r.key}
             report={r}
@@ -657,32 +819,7 @@ export default function ReportsLogs() {
         ))}
       </div>
 
-      <section className="rl-history">
-        <h2>Recent downloads</h2>
-        {histLoading ? (
-          <p className="rl-muted">Loading…</p>
-        ) : histError ? (
-          <p className="rl-muted">Could not load the download history. {histError}</p>
-        ) : history.length === 0 ? (
-          <p className="rl-muted">No reports have been downloaded yet.</p>
-        ) : (
-          <ul className="rl-history-list">
-            {history.map((h) => (
-              <li key={h.id}>
-                <div className="rl-history-main">
-                  <strong>{REPORT_LABEL[h.report] || h.report}</strong>
-                  <span className="rl-chip">{FORMAT_LABEL[h.format] || h.format}</span>
-                  <span className="rl-muted">{describeFilters(h.filters)}</span>
-                </div>
-                <div className="rl-history-meta">
-                  {h.user} · {fmtDateTime(h.createdAt)}
-                  {h.code && ` · ${h.code}`}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <RecentDownloads history={history} loading={histLoading} error={histError} />
 
       <VerifyReport />
 
