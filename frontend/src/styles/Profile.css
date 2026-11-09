@@ -426,3 +426,68 @@
     max-width: none;
   }
 }
+
+/* Two-step verification card */
+.pf-2fa {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pf-2fa-text {
+  margin: 0;
+  color: #594d46;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.pf-2fa-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.pf-2fa-form .pf-input {
+  max-width: 280px;
+}
+
+.pf-2fa code {
+  background: #faf7f2;
+  padding: 2px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.pf-2fa-backup {
+  background: #faf7f2;
+  border: 1px solid #dfd8cc;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.pf-2fa-backup p {
+  margin: 0 0 8px;
+}
+
+.pf-2fa-backup pre {
+  margin: 0;
+  font-family: monospace;
+  font-size: 1rem;
+  letter-spacing: 1px;
+}
+
+.pf-2fa-msg {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.pf-2fa-msg.error { color: #b91c1c; }
+.pf-2fa-msg.success { color: #166534; }
+
+.pf-2fa .pf-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+}

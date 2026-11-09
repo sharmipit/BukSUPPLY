@@ -10,6 +10,8 @@ const {
   verifyOtp,
   resetPassword,
 } = require("../controllers/authController");
+const { protect, restrictTo } = require("../middleware/auth");
+const tf = require("../controllers/twoFactorController");
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -28,6 +30,7 @@ const signupLimiter = makeLimiter(10, 60);  // fake account creation
 const googleLimiter = makeLimiter(30);
 const otpRequestLimiter = makeLimiter(5);   // each request sends an email
 const otpCheckLimiter = makeLimiter(10, 15, { skipSuccessfulRequests: true }); // verify + reset (failures only)
+const twoFactorLimiter = makeLimiter(10, 15, { skipSuccessfulRequests: true }); // 2FA code guessing (failures only)
 
 // --- Sign up / Sign in ---
 router.post("/signup", signupLimiter, signUp);
@@ -40,5 +43,11 @@ router.post("/google", googleLimiter, googleSignIn);
 router.post("/forgot-password/request-code", otpRequestLimiter, requestOtp);
 router.post("/forgot-password/verify-code", otpCheckLimiter, verifyOtp);
 router.post("/forgot-password/reset-password", otpCheckLimiter, resetPassword);
+
+// --- Two-step verification (Administrator only, except the login step) ---
+router.post("/2fa/verify", twoFactorLimiter, tf.verifyLogin); // during login, not signed in yet
+router.post("/2fa/setup", protect, restrictTo("Administrator"), tf.setup);
+router.post("/2fa/enable", protect, restrictTo("Administrator"), twoFactorLimiter, tf.enable);
+router.post("/2fa/disable", protect, restrictTo("Administrator"), twoFactorLimiter, tf.disable);
 
 module.exports = router;
