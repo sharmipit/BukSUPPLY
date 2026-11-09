@@ -398,10 +398,7 @@ export default function Profile() {
         </section>
 
         {/* 2FA: Two-step verification (renders only for Administrators) */}
-        <section className="profile-section">
-          <h2 className="profile-section-label">Two-Step Verification</h2>
-          <TwoFactorSetup />
-        </section>
+        <TwoFactorSetup />
 
         {/* More settings */}
         <section className="profile-section">
