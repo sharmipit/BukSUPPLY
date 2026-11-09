@@ -83,14 +83,6 @@ const UserSchema = new mongoose.Schema(
     resetPasswordOtpExpires: { type: Date, select: false },
     resetPasswordOtpUsed: { type: Boolean, default: false },
     resetPasswordOtpAttempts: { type: Number, default: 0, select: false },
-
-    // --- Two-step verification (Administrator only) ---
-    twoFactorEnabled: { type: Boolean, default: false },
-    twoFactorSecret: { type: String, select: false },        // stored encrypted
-    twoFactorBackupCodes: { type: [String], select: false }, // stored hashed
-
-    // --- Email notifications (set to false to opt out) ---
-    emailNotifications: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

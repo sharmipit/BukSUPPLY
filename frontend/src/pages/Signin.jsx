@@ -57,21 +57,8 @@ export default function Signin() {
   const recaptchaRef = useRef(null);
   const [captchaToken, setCaptchaToken] = useState(null);
 
-  // 2FA: set when the server asks an admin for an authenticator code
-  const [challenge, setChallenge] = useState(null);
-  const [code, setCode] = useState('');
-
-  // Shared by email/password, Google sign-in and the 2FA code step
-  const completeSignIn = (data) => {
-    // 2FA: admin with two-step verification on. No session yet, ask for the code.
-    if (data.twoFactorRequired) {
-      setChallenge(data.challengeToken);
-      setCode('');
-      setBanner(NO_BANNER);
-      return;
-    }
-
-    const { token, user } = data;
+  // Shared by email/password and Google sign-in
+  const completeSignIn = ({ token, user }) => {
     if (!ROLE_HOME[user.role]) {
       setBanner({ message: 'This account type is not supported here yet.', type: 'error' });
       return;
@@ -79,36 +66,6 @@ export default function Signin() {
     login(token, user);
     setBanner({ message: 'Signed in! Redirecting...', type: 'success' });
     navigate(homeFor(user.role), { replace: true });
-  };
-
-  // 2FA: second step, 6-digit authenticator code or a one-time backup code
-  const verifyCode = async (e) => {
-    e.preventDefault();
-    if (!code.trim()) {
-      setBanner({ message: 'Enter the code from your authenticator app.', type: 'error' });
-      return;
-    }
-    setBusy(true);
-    try {
-      const { data } = await api.post('/auth/2fa/verify', {
-        challengeToken: challenge,
-        code: code.trim(),
-      });
-      completeSignIn(data);
-    } catch (err) {
-      setBanner({ message: errMsg(err), type: 'error' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // 2FA: leave the code step and return to the normal form
-  const backToSignin = () => {
-    setChallenge(null);
-    setCode('');
-    setBanner(NO_BANNER);
-    recaptchaRef.current?.reset();
-    setCaptchaToken(null);
   };
 
   const onSubmit = async (e) => {
@@ -264,159 +221,103 @@ export default function Signin() {
               Log in to your <span>account</span>
             </h1>
             <p className="login-subtitle">
-              {challenge ? (
-                'Two-step verification: enter the code from your authenticator app.'
-              ) : (
-                <>
-                  Welcome! Enter your institutional credentials to access{' '}
-                  <strong>BukSUPPLY</strong>
-                </>
-              )}
+              Welcome! Enter your institutional credentials to access <strong>BukSUPPLY</strong>
             </p>
           </header>
 
-          {challenge ? (
-            /* 2FA: code step (replaces the sign-in form and Google button) */
-            <form className="login-form" onSubmit={verifyCode}>
-              <div className="form-group">
-                <label htmlFor="twoFactorCode" className="form-label">
-                  <i className="bi bi-shield-lock-fill"></i> Verification Code
-                </label>
-                <input
-                  type="text"
-                  id="twoFactorCode"
-                  className="form-input"
-                  placeholder="6-digit code or backup code"
-                  maxLength={10}
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value.trim());
-                    setBanner(NO_BANNER);
-                  }}
-                  autoFocus
-                  required
-                />
-              </div>
+          <form id="loginForm" className="login-form" onSubmit={onSubmit}>
+            <div className="form-group">
+              <label htmlFor="email" className="form-label">
+                <i className="bi bi-envelope-fill"></i> Institutional Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                className="form-input"
+                placeholder="Enter your institutional email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setBanner(NO_BANNER);
+                }}
+                required
+              />
+            </div>
 
-              <Banner banner={banner} />
-
-              <div className="btn-wrapper">
-                <button type="submit" className="btn-submit" disabled={busy}>
-                  {busy ? 'Verifying...' : 'Verify'}
-                </button>
-              </div>
-
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">
+                <i className="bi bi-lock-fill"></i> Password
+              </label>
+              <PasswordInput
+                id="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setBanner(NO_BANNER);
+                }}
+                visible={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
+              />
               <div className="forgot-wrapper">
-                <a
-                  href="#"
-                  className="forgot-link"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    backToSignin();
-                  }}
-                >
-                  Back to sign in
+                <a href="#" className="forgot-link" id="openForgotModal" onClick={openModal}>
+                  Forgot Password?
                 </a>
               </div>
-            </form>
-          ) : (
-            <>
-              <form id="loginForm" className="login-form" onSubmit={onSubmit}>
-                <div className="form-group">
-                  <label htmlFor="email" className="form-label">
-                    <i className="bi bi-envelope-fill"></i> Institutional Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    className="form-input"
-                    placeholder="Enter your institutional email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setBanner(NO_BANNER);
-                    }}
-                    required
-                  />
-                </div>
+            </div>
 
-                <div className="form-group">
-                  <label htmlFor="password" className="form-label">
-                    <i className="bi bi-lock-fill"></i> Password
-                  </label>
-                  <PasswordInput
-                    id="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setBanner(NO_BANNER);
-                    }}
-                    visible={showPassword}
-                    onToggle={() => setShowPassword((v) => !v)}
-                  />
-                  <div className="forgot-wrapper">
-                    <a href="#" className="forgot-link" id="openForgotModal" onClick={openModal}>
-                      Forgot Password?
-                    </a>
-                  </div>
-                </div>
+            {/* reCAPTCHA (hidden when turned off in System Settings) */}
+            {config.recaptchaEnabled && (
+              <div className="recaptcha-group">
+                <ReCAPTCHA
+                  key={config.recaptchaSiteKey}
+                  ref={recaptchaRef}
+                  sitekey={config.recaptchaSiteKey}
+                  onChange={(token) => {
+                    setCaptchaToken(token);
+                    setBanner(NO_BANNER);
+                  }}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
 
-                {/* reCAPTCHA (hidden when turned off in System Settings) */}
-                {config.recaptchaEnabled && (
-                  <div className="recaptcha-group">
-                    <ReCAPTCHA
-                      key={config.recaptchaSiteKey}
-                      ref={recaptchaRef}
-                      sitekey={config.recaptchaSiteKey}
-                      onChange={(token) => {
-                        setCaptchaToken(token);
-                        setBanner(NO_BANNER);
-                      }}
-                      onExpired={() => setCaptchaToken(null)}
+            <Banner banner={banner} />
+
+            <div className="btn-wrapper">
+              <button type="submit" className="btn-submit" disabled={busy || !config.loaded}>
+                {busy ? 'Signing in...' : 'Log In'}
+              </button>
+            </div>
+          </form>
+
+          {/* Google (hidden when turned off in System Settings) */}
+          {config.googleEnabled && (
+            <div className="social-section" id="socialSection">
+              <div className="divider">
+                <span>or Log In with</span>
+              </div>
+
+              <div className="google-sso-wrapper">
+                <button type="button" className="sso-google-btn">
+                  <i className="bi bi-google"></i> Continue with Google
+                </button>
+                <div className="google-overlay">
+                  <GoogleOAuthProvider clientId={config.googleClientId}>
+                    <GoogleLogin
+                      theme="outline"
+                      size="large"
+                      width="320"
+                      text="continue_with"
+                      onSuccess={(res) => handleGoogle(res.credential)}
+                      onError={() =>
+                        setBanner({ message: 'Google sign-in failed.', type: 'error' })
+                      }
                     />
-                  </div>
-                )}
-
-                <Banner banner={banner} />
-
-                <div className="btn-wrapper">
-                  <button type="submit" className="btn-submit" disabled={busy || !config.loaded}>
-                    {busy ? 'Signing in...' : 'Log In'}
-                  </button>
+                  </GoogleOAuthProvider>
                 </div>
-              </form>
-
-              {/* Google (hidden when turned off in System Settings) */}
-              {config.googleEnabled && (
-                <div className="social-section" id="socialSection">
-                  <div className="divider">
-                    <span>or Log In with</span>
-                  </div>
-
-                  <div className="google-sso-wrapper">
-                    <button type="button" className="sso-google-btn">
-                      <i className="bi bi-google"></i> Continue with Google
-                    </button>
-                    <div className="google-overlay">
-                      <GoogleOAuthProvider clientId={config.googleClientId}>
-                        <GoogleLogin
-                          theme="outline"
-                          size="large"
-                          width="320"
-                          text="continue_with"
-                          onSuccess={(res) => handleGoogle(res.credential)}
-                          onError={() =>
-                            setBanner({ message: 'Google sign-in failed.', type: 'error' })
-                          }
-                        />
-                      </GoogleOAuthProvider>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
+              </div>
+            </div>
           )}
 
           <div className="login-footer" id="signupFooter">
