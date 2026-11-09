@@ -5,8 +5,6 @@ const InventoryItem = require('../models/InventoryItem');
 const User = require('../models/User');
 const { deductForRequisition, restoreForRequisition } = require('../services/stock');
 const { logActivity } = require('../services/activityLog');
-const { logActivity } = require('../services/activityLog');
-
 const SERVER_ERROR = { message: 'Something went wrong. Please try again.' };
 
 // YYYY-MM-DD in Philippine time (toISOString would use UTC and show the wrong day)
