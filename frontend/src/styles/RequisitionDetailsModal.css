@@ -160,7 +160,7 @@
 }
 
 /* ==========================================================================
-    Item lists (stock items and purchase items)
+    Item lists
     ========================================================================== */
 
 .details-item-list {
@@ -244,7 +244,7 @@
   flex-shrink: 0;
 }
 
-/* Request & Issuance Slip button (same look as the primary buttons in System Reports & Logs) */
+/* Request & Issuance Slip button */
 .details-btn-slip {
   display: inline-flex;
   align-items: center;

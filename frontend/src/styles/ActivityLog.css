@@ -479,7 +479,7 @@
 
 .al-activity {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
 }
@@ -514,14 +514,21 @@
 
 /* Action badges */
 .al-chip {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: 100%;
-  padding: 5px 10px;
+  min-height: 28px;
+  padding: 4px 12px;
   border-radius: 50px;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.3;
   text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .al-chip.info {
@@ -744,9 +751,10 @@
 }
 
 .al-table.stacked .al-chip {
-  display: inline-block;
+  display: inline-flex;
   width: auto;
-  padding: 5px 14px;
+  max-width: 100%;
+  padding: 4px 14px;
 }
 
 .al-table.stacked .al-desc {
@@ -978,9 +986,10 @@
 }
 
 .al-modal-field .al-chip {
-  display: inline-block;
+  display: inline-flex;
   width: auto;
-  padding: 5px 14px;
+  max-width: 100%;
+  padding: 4px 14px;
 }
 
 .al-modal-section {
