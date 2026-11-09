@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "../components/LogoutModal";
 import DeactivateModal from "../components/DeactivateModal";
+import TwoFactorSetup from "../components/TwoFactorSetup"; // 2FA
 import { saveProfile, deactivateAccount } from "../api/user";
 import bannerImg from "../assets/buksu-museum.jpg";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -395,6 +396,9 @@ export default function Profile() {
             </div>
           </form>
         </section>
+
+        {/* 2FA: Two-step verification (renders only for Administrators) */}
+        <TwoFactorSetup />
 
         {/* More settings */}
         <section className="profile-section">
