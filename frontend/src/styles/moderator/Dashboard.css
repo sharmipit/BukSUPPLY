@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .dashboard {
-  font-family: "Poppins", sans-serif;
+  font-family: 'Poppins', sans-serif;
   padding: 32px 40px;
   width: 100%;
   max-width: 100%;
@@ -246,12 +246,24 @@
 }
 
 /* Requisition table columns (wide enough for their content) */
-.db-table .col-slip { width: 170px; }
-.db-table .col-requester { width: 200px; }
-.db-table .col-title { width: auto; }
-.db-table .col-items { width: 220px; }
-.db-table .col-status { width: 160px; }
-.db-table .col-actions { width: 160px; }
+.db-table .col-slip {
+  width: 170px;
+}
+.db-table .col-requester {
+  width: 200px;
+}
+.db-table .col-title {
+  width: auto;
+}
+.db-table .col-items {
+  width: 220px;
+}
+.db-table .col-status {
+  width: 160px;
+}
+.db-table .col-actions {
+  width: 160px;
+}
 
 .db-table th {
   background-color: #8c5839 !important;
@@ -344,12 +356,30 @@
   white-space: nowrap;
 }
 
-.db-badge.pending { background-color: #fef3c7; color: #92400e; }
-.db-badge.processing { background-color: #dbeafe; color: #1e40af; }
-.db-badge.purchasing { background-color: #ede9fe; color: #5b21b6; }
-.db-badge.accepted { background-color: #d1fae5; color: #065f46; }
-.db-badge.denied { background-color: #fee2e2; color: #991b1b; }
-.db-badge.cancelled { background-color: #e5e7eb; color: #4b5563; }
+.db-badge.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.db-badge.processing {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+.db-badge.purchasing {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+.db-badge.accepted {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.db-badge.denied {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+.db-badge.cancelled {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
 
 /* Action buttons */
 .db-action-buttons {
@@ -561,34 +591,56 @@
   min-width: 660px;
 }
 
-.db-inv-table .col-inv-item { width: auto; }
-.db-inv-table .col-inv-category { width: 150px; }
-.db-inv-table .col-inv-stock { width: 170px; }
-.db-inv-table .col-inv-updated { width: 170px; }
-.db-inv-table .col-inv-status { width: 160px; }
+.db-inv-table .col-inv-item {
+  width: auto;
+}
+.db-inv-table .col-inv-category {
+  width: 150px;
+}
+.db-inv-table .col-inv-stock {
+  width: 170px;
+}
+.db-inv-table .col-inv-updated {
+  width: 170px;
+}
+.db-inv-table .col-inv-status {
+  width: 160px;
+}
 
 /* User summary table */
 .db-table.db-users-table {
   min-width: 440px;
 }
 
-.db-users-table .col-user-id { width: 110px; }
+.db-users-table .col-user-id {
+  width: 110px;
+}
 
 /* A little more space between the ID and Name columns */
 .db-split-row .db-users-table th:nth-child(2),
 .db-split-row .db-users-table td:nth-child(2) {
   padding-left: 28px !important;
 }
-.db-users-table .col-user-name { width: auto; }
-.db-users-table .col-user-status { width: 160px; }
+.db-users-table .col-user-name {
+  width: auto;
+}
+.db-users-table .col-user-status {
+  width: 160px;
+}
 
 .db-user-id {
   font-weight: 600;
   color: var(--text-body, #594d46) !important;
 }
 
-.db-badge.active { background-color: #d1fae5; color: #065f46; }
-.db-badge.deactivated { background-color: #fee2e2; color: #991b1b; }
+.db-badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.db-badge.deactivated {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
 
 .db-inv-table td {
   height: 88px;
@@ -598,10 +650,18 @@
 .db-table.db-inv-table.db-inv-wide {
   min-width: 960px;
 }
-.db-inv-wide .col-inv-category { width: 180px; }
-.db-inv-wide .col-inv-stock { width: 220px; }
-.db-inv-wide .col-inv-updated { width: 190px; }
-.db-inv-wide .col-inv-status { width: 170px; }
+.db-inv-wide .col-inv-category {
+  width: 180px;
+}
+.db-inv-wide .col-inv-stock {
+  width: 220px;
+}
+.db-inv-wide .col-inv-updated {
+  width: 190px;
+}
+.db-inv-wide .col-inv-status {
+  width: 170px;
+}
 
 .db-stock-text {
   font-size: 0.95rem;
@@ -621,9 +681,15 @@
   transition: width 0.3s ease;
 }
 
-.db-stock-fill.in-stock { background-color: #10b981; }
-.db-stock-fill.low-stock { background-color: #f59e0b; }
-.db-stock-fill.out-of-stock { background-color: #ef4444; }
+.db-stock-fill.in-stock {
+  background-color: #10b981;
+}
+.db-stock-fill.low-stock {
+  background-color: #f59e0b;
+}
+.db-stock-fill.out-of-stock {
+  background-color: #ef4444;
+}
 
 .db-reorder-text {
   margin-top: 6px;
@@ -635,9 +701,18 @@
   white-space: nowrap;
 }
 
-.db-badge.in-stock { background-color: #d1fae5; color: #065f46; }
-.db-badge.low-stock { background-color: #fef3c7; color: #92400e; }
-.db-badge.out-of-stock { background-color: #fee2e2; color: #991b1b; }
+.db-badge.in-stock {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.db-badge.low-stock {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.db-badge.out-of-stock {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
 
 /* ==========================================================================
    Toast notice
@@ -1031,4 +1106,33 @@
   .db-card-title {
     font-size: 1.2rem;
   }
+}
+
+.db-badge.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.db-badge.processing {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+.db-badge.purchasing {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+.db-badge.approved {
+  background-color: #cffafe;
+  color: #155e75;
+}
+.db-badge.accepted {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.db-badge.denied {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+.db-badge.cancelled {
+  background-color: #e5e7eb;
+  color: #4b5563;
 }

@@ -4,6 +4,20 @@ import api from './client';
 const clean = (filters = {}) =>
   Object.fromEntries(Object.entries(filters).filter(([, v]) => v && v !== 'All'));
 
+// With responseType 'blob', error bodies also arrive as Blobs, so read the JSON message out
+async function throwBlobError(err) {
+  if (err.response && err.response.data instanceof Blob) {
+    let message = '';
+    try {
+      message = JSON.parse(await err.response.data.text()).message || '';
+    } catch {
+      // body wasn't JSON, fall through to the original error
+    }
+    if (message) throw new Error(message);
+  }
+  throw err;
+}
+
 /**
  * Downloads a report file (PDF or Excel) from the backend server.
  */
@@ -19,17 +33,21 @@ export async function downloadReport(type, format, filters) {
     const stamp = new Date().toISOString().slice(0, 10);
     saveBlob(response.data, `${type}-report-${stamp}.${format}`);
   } catch (err) {
-    // With responseType 'blob', error bodies also arrive as Blobs, so read the JSON message out
-    if (err.response && err.response.data instanceof Blob) {
-      let message = '';
-      try {
-        message = JSON.parse(await err.response.data.text()).message || '';
-      } catch {
-        // body wasn't JSON, fall through to the original error
-      }
-      if (message) throw new Error(message);
-    }
-    throw err;
+    await throwBlobError(err);
+  }
+}
+
+/**
+ * Downloads the issuance slip PDF for one requisition (same PDF pipeline as the reports).
+ */
+export async function downloadIssuanceSlip(id) {
+  try {
+    const response = await api.get(`/reports/issuance/${encodeURIComponent(id)}/export`, {
+      responseType: 'blob',
+    });
+    saveBlob(response.data, `issuance-slip-${id}.pdf`);
+  } catch (err) {
+    await throwBlobError(err);
   }
 }
 

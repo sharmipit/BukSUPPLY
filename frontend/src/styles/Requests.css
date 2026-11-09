@@ -377,9 +377,10 @@
   background-color: #dbeafe;
   color: #1e40af;
 }
-.rq-badge.purchasing {
-  background-color: #ede9fe;
-  color: #5b21b6;
+/* Approved (ready for release) */
+.rq-badge.approved {
+  background-color: #cffafe;
+  color: #155e75;
 }
 .rq-badge.accepted {
   background-color: #d1fae5;
@@ -543,7 +544,7 @@
   max-width: 460px;
 }
 .rq-modal-lg {
-  max-width: 760px;
+  max-width: 880px;
 }
 
 .rq-modal-header {
@@ -619,13 +620,26 @@
   flex-shrink: 0;
 }
 
+/* Footer: every button stays on a single line */
 .rq-modal-footer {
   display: flex;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
   padding: 16px 28px 24px;
   border-top: 1px solid var(--card-border, #dfd8cc);
+}
+
+.rq-modal-footer button {
+  white-space: nowrap;
+  padding: 9px 16px;
+  font-size: 0.88rem;
+}
+
+/* Close stays on the left, the actions sit on the right */
+.rq-modal-footer > :first-child {
+  margin-right: auto;
 }
 
 .rq-btn-primary,
@@ -638,6 +652,15 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+/* Keeps icons (printer, undo arrow) aligned with the label */
+.rq-btn-primary,
+.rq-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .rq-btn-primary {
@@ -1066,10 +1089,18 @@ select.rq-select {
   .rq-meta-grid {
     grid-template-columns: 1fr;
   }
+
+  /* On phones the footer buttons may wrap */
+  .rq-modal-footer {
+    flex-wrap: wrap;
+  }
   .rq-modal-footer .rq-btn-primary,
   .rq-modal-footer .rq-btn-secondary,
   .rq-modal-footer .rq-btn-danger-outline {
     flex: 1 1 auto;
+  }
+  .rq-modal-footer > :first-child {
+    margin-right: 0;
   }
 
   /* Purchase items stack on small screens */

@@ -62,7 +62,8 @@ async function resolveItemId(line) {
 }
 
 /**
- * Called when an admin accepts a requisition. Deducts every in-stock line and every purchased line.
+ * Called when a moderator marks a requisition as claimed (Accepted).
+ * Deducts every in-stock line and every purchased line.
  * All-or-nothing: if any item is short, earlier deductions are rolled back and an error is thrown.
  * Safe to call twice: the stockDeducted flag makes the second call a no-op.
  */
@@ -102,7 +103,7 @@ async function deductForRequisition(requisitionId, by) {
       const res = await moveStock({ _id: itemId }, -qty, {
         by,
         reference,
-        remark: bought ? 'Requisition approved (purchased item)' : 'Requisition approved',
+        remark: bought ? 'Requisition claimed (purchased item)' : 'Requisition claimed',
       });
 
       if (!res) {
@@ -132,4 +133,52 @@ async function deductForRequisition(requisitionId, by) {
   return { skipped: false, deducted: summary };
 }
 
-module.exports = { moveStock, deductForRequisition };
+/**
+ * Called when an administrator undoes an Accepted slip (Accepted -> Approved).
+ * Puts back everything that was deducted and logs each return in the item's history.
+ * Safe to call twice: only a slip with stockDeducted = true is restored, and the flag
+ * is switched off first, so a second call is a no-op.
+ * An item that was deleted from the inventory in the meantime is skipped and reported.
+ */
+async function restoreForRequisition(requisitionId, by) {
+  const reqDoc = await Requisition.findOneAndUpdate(
+    { _id: requisitionId, stockDeducted: true },
+    { $set: { stockDeducted: false } },
+    { new: true }
+  );
+  if (!reqDoc) return { skipped: true, restored: [], missing: [] };
+
+  const reference = reqDoc.slipNumber || String(reqDoc._id);
+  const restored = [];
+  const missing = [];
+
+  const lines = [...(reqDoc.itemsList || []), ...(reqDoc.purchaseItems || [])];
+  for (const line of lines) {
+    const qty = Math.floor(Number(line.qty));
+    if (!(qty >= 1)) continue;
+
+    const itemId = await resolveItemId(line);
+    const res = itemId
+      ? await moveStock({ _id: itemId }, qty, {
+          by,
+          reference,
+          remark: `Returned to stock: undo of ${reference}`,
+        })
+      : null;
+
+    if (!res) {
+      missing.push(line.name);
+      continue;
+    }
+    restored.push({
+      name: res.item.name,
+      unit: res.item.unit,
+      qty,
+      before: res.before,
+      after: res.after,
+    });
+  }
+  return { skipped: false, restored, missing };
+}
+
+module.exports = { moveStock, deductForRequisition, restoreForRequisition };

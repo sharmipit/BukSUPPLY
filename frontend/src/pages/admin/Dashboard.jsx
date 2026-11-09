@@ -5,14 +5,17 @@ import { useAuth } from '../../context/AuthContext';
 import useInventory from '../../hooks/useInventory';
 import useAllRequisitions from '../../hooks/useAllRequisitions';
 import { errMsg } from '../../api/client';
+import { downloadIssuanceSlip } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
+import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
 
 import '../../styles/admin/Dashboard.css';
 import '../../styles/Requests.css';
 import '../../styles/Inventory.css';
 import '../../styles/admin/UserManagement.css';
 
-const OPEN_STATUSES = ['Pending', 'Processing', 'Purchasing'];
+// Flow: Pending -> Processing -> Approved (ready for release) -> Accepted (claimed)
+const OPEN_STATUSES = ['Pending', 'Processing', 'Approved'];
 
 const PREVIEW_LIMIT = 5;
 
@@ -24,6 +27,22 @@ const DEFAULT_CATEGORIES = [
   'Cleaning Supplies',
 ];
 const NEW_CATEGORY = '__new__';
+
+// Pre-written remarks (moderators can pick one, then edit it freely)
+const APPROVE_PRESETS = [
+  'Approved. You may claim the item(s) at the Supply Office.',
+  'Approved. Please bring a valid ID and your copy of the slip when claiming.',
+  'Approved. The item(s) are ready for pick-up during office hours.',
+  'Approved. Please claim the item(s) within the allowed period.',
+];
+const DENY_PRESETS = [
+  'Insufficient stock to fulfill this request.',
+  'The requested quantity exceeds the allowed limit.',
+  'Incomplete or unclear request details. Please resubmit with more information.',
+  'The item(s) are not available from the Supply Office.',
+  'The item(s) were not claimed within the allowed period.',
+  'Please resubmit with a smaller quantity.',
+];
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5001')
   .replace(/\/+$/, '')
@@ -104,6 +123,14 @@ const fmtDateTime = (iso) =>
       })
     : '—';
 
+// Most recent activity on a request: the later of when it was added or last edited/updated
+const lastActivity = (req) => {
+  const times = [req.createdAt, req.date, req.updatedAt, req.reviewedAt]
+    .map((d) => (d ? new Date(d).getTime() : 0))
+    .filter((t) => !Number.isNaN(t));
+  return Math.max(0, ...times);
+};
+
 // Short "Item (qty), Item (qty)" text for a slip (same as the Requests page)
 const summarize = (req) => {
   if (req.item) return req.item;
@@ -122,7 +149,16 @@ const norm = (s) =>
 const isOpen = (req) => OPEN_STATUSES.includes(req.status);
 const hasPurchaseItems = (req) => (req.purchaseItems || []).length > 0;
 
-const getBlockers = (check, status) => [
+// Where "Undo" sends a request back to
+const getUndoTarget = (req) => {
+  if (req.status === 'Processing') return 'Pending';
+  if (req.status === 'Approved') return 'Processing';
+  if (req.status === 'Accepted') return 'Approved';
+  if (req.status === 'Denied') return req.previousStatus || 'Pending';
+  return null;
+};
+
+const getBlockers = (check) => [
   ...check.lines
     .filter((l) => !l.enough)
     .map((l) =>
@@ -130,7 +166,7 @@ const getBlockers = (check, status) => [
         ? `${l.name || l.inv.name}: needs ${l.qty}, only ${l.inv.quantity} ${l.inv.unit} on hand.`
         : `${l.name}: can't be found in the inventory.`
     ),
-  ...(status === 'Purchasing' ? check.purchaseLines : [])
+  ...check.purchaseLines
     .filter((l) => !l.enough)
     .map((l) =>
       l.inv
@@ -139,30 +175,31 @@ const getBlockers = (check, status) => [
     ),
 ];
 
-const getActions = (req, check) => {
-  const none = {
+const getActions = (req, check, isAdmin) => {
+  const a = {
     acknowledge: false,
-    accept: false,
-    purchasing: false,
+    approve: false,
+    release: false,
     deny: false,
+    undo: false,
     blocked: false,
   };
-  if (req.status === 'Pending') return { ...none, acknowledge: true, deny: true };
+  const stockBlocked = check.short || check.buyShort;
 
-  if (req.status === 'Processing') {
-    const canAccept = !check.short && !hasPurchaseItems(req);
-    return { ...none, accept: canAccept, purchasing: !canAccept, deny: true };
+  if (req.status === 'Pending') {
+    a.acknowledge = true;
+    a.deny = true;
+  } else if (req.status === 'Processing') {
+    a.approve = true;
+    a.deny = true;
+    a.blocked = stockBlocked;
+  } else if (req.status === 'Approved') {
+    a.release = true;
+    a.deny = true; // unclaimed items: no deduction happens on deny
+    a.blocked = stockBlocked;
   }
-
-  if (req.status === 'Purchasing') {
-    return {
-      ...none,
-      accept: true,
-      deny: true,
-      blocked: check.short || check.buyShort,
-    };
-  }
-  return none;
+  a.undo = isAdmin && !!getUndoTarget(req);
+  return a;
 };
 
 const nextStepText = (req, check) => {
@@ -171,32 +208,21 @@ const nextStepText = (req, check) => {
     return "Review the request. Acknowledge it to start processing (the requester can then no longer edit it), or deny it if it can't be approved.";
   }
   if (req.status === 'Processing') {
-    if (buy)
-      return 'This request includes items that must be purchased. Send it to Purchasing to start buying them, or deny it.';
-    if (check.short)
-      return "Some items aren't available in stock. Send it to Purchasing while you restock, or deny it.";
-    return 'Everything is in stock. Accept to deduct it from the inventory, or deny it.';
+    if (check.short || check.buyShort)
+      return buy
+        ? 'Some items must still be purchased or restocked. Record them in the inventory (Add to inventory / Receive stock below), then approve. You can also deny the request.'
+        : 'Some items are not available in stock. Restock in Inventory (Adjust, then Receive stock), then come back and approve, or deny the request.';
+    return 'Everything is available. Approve it with a remark so the requester knows they can claim the item(s), or deny it.';
   }
-  if (req.status === 'Purchasing') {
-    if (check.short)
-      return 'Waiting on stock. When the delivery arrives, record it in Inventory (Adjust, then Receive stock), then come back and accept.';
-    if (check.buyShort)
-      return 'The purchased items must be added to the inventory before you can accept. Use the “Add to inventory” button next to each item below.';
-    if (buy)
-      return 'All purchased items are in the inventory. Accept to hand them over and finish.';
-    return 'Stock is ready. Accept to finish.';
+  if (req.status === 'Approved') {
+    return 'Approved and waiting to be claimed. Once the requester picks up the item(s), mark them as claimed to deduct from the inventory. If they are never claimed, deny the request (nothing is deducted).';
   }
   return '';
 };
 
 function Stepper({ req }) {
   if (req.status === 'Denied' || req.status === 'Cancelled') return null;
-  const flow = [
-    'Pending',
-    'Processing',
-    ...(hasPurchaseItems(req) || req.status === 'Purchasing' ? ['Purchasing'] : []),
-    'Accepted',
-  ];
+  const flow = ['Pending', 'Processing', 'Approved', 'Accepted'];
   const current = flow.indexOf(req.status);
   return (
     <div className="rq-stepper-card">
@@ -219,6 +245,37 @@ function Stepper({ req }) {
           );
         })}
       </ol>
+    </div>
+  );
+}
+
+// Preset chips + editable textarea
+function RemarksField({ id, label, presets, value, onChange, hint }) {
+  return (
+    <div className="rq-field">
+      <label htmlFor={id}>{label}</label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+        {presets.map((p) => (
+          <button
+            type="button"
+            key={p}
+            className={`rq-btn-action ${value === p ? 'rq-btn-review' : 'rq-btn-view'}`}
+            style={{ textAlign: 'left', whiteSpace: 'normal' }}
+            onClick={() => onChange(p)}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+      <textarea
+        id={id}
+        className="form-control custom-input rq-textarea"
+        rows="3"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Pick a template above or write your own"
+      />
+      {hint && <span className="rq-hint">{hint}</span>}
     </div>
   );
 }
@@ -272,6 +329,7 @@ const Dashboard = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'Administrator';
 
   useEffect(() => {
     document.title = 'Dashboard | BukSUPPLY';
@@ -300,17 +358,12 @@ const Dashboard = ({
     loading: slipsLoading,
     error: slipsError,
     setStatus,
+    undo,
   } = useAllRequisitions();
 
-  // Pending first, then newest (same order as the Requests page)
+  // Newest added or most recently edited/updated first (same order as the Requests page)
   const slips = useMemo(
-    () =>
-      [...requisitions].sort((a, b) => {
-        const ap = a.status === 'Pending' ? 0 : 1;
-        const bp = b.status === 'Pending' ? 0 : 1;
-        if (ap !== bp) return ap - bp;
-        return new Date(b.date) - new Date(a.date);
-      }),
+    () => [...requisitions].sort((a, b) => lastActivity(b) - lastActivity(a)),
     [requisitions]
   );
 
@@ -370,12 +423,14 @@ const Dashboard = ({
   }, [notice]);
 
   /* ================================================================ */
-  /* Requisition slips: review, acknowledge, purchase, accept, deny    */
+  /* Requisition slips: review, acknowledge, approve, release, deny    */
   /* ================================================================ */
 
   const [detailsId, setDetailsId] = useState(null);
-  const [decision, setDecision] = useState(null);
-  const [denyReason, setDenyReason] = useState('');
+  const [decision, setDecision] = useState(null); // {type: approve|release|deny|undo, id}
+  const [remarks, setRemarks] = useState('');
+  const [slipId, setSlipId] = useState(null);
+  const [slipBusy, setSlipBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -391,6 +446,7 @@ const Dashboard = ({
 
   const detailsReq = requisitions.find((r) => r.id === detailsId) || null;
   const decisionReq = decision ? requisitions.find((r) => r.id === decision.id) || null : null;
+  const slipReq = slipId ? requisitions.find((r) => r.id === slipId) || null : null;
 
   const getCheck = (req) => {
     const lines = (req.itemsList || []).map((l) => {
@@ -413,10 +469,11 @@ const Dashboard = ({
 
   const detailsCheck = detailsReq ? getCheck(detailsReq) : null;
   const decisionCheck = decisionReq ? getCheck(decisionReq) : null;
-  const detailsActions = detailsReq ? getActions(detailsReq, detailsCheck) : null;
+  const slipCheck = slipReq ? getCheck(slipReq) : null;
+  const detailsActions = detailsReq ? getActions(detailsReq, detailsCheck, isAdmin) : null;
   const detailsBlockers =
-    invReady && detailsCheck && detailsReq && isOpen(detailsReq)
-      ? getBlockers(detailsCheck, detailsReq.status)
+    invReady && detailsCheck && detailsReq && isOpen(detailsReq) && detailsReq.status !== 'Pending'
+      ? getBlockers(detailsCheck)
       : [];
 
   const run = async (fn) => {
@@ -448,13 +505,13 @@ const Dashboard = ({
   const openDecision = (type, id) => {
     setActionError('');
     setDecision({ type, id });
-    setDenyReason('');
+    setRemarks('');
   };
 
   const closeDecision = () => {
     setActionError('');
     setDecision(null);
-    setDenyReason('');
+    setRemarks('');
   };
 
   const categoryOptions = categories;
@@ -526,17 +583,19 @@ const Dashboard = ({
     closeDetails();
   };
 
-  const handleSendToPurchasing = async (req) => {
-    const ok = await run(() => setStatus(req.id, 'Purchasing'));
-    if (!ok) return;
-    setNotice({ type: 'success', text: `${req.id} was sent to purchasing.` });
-    closeDetails();
-  };
-
   const handleConfirmDecision = async () => {
     if (!decisionReq || busy) return;
+    const text = remarks.trim();
 
-    if (decision.type === 'accept') {
+    if (decision.type === 'approve') {
+      if (!text) return;
+      const ok = await run(() => setStatus(decisionReq.id, 'Approved', text));
+      if (!ok) return;
+      setNotice({
+        type: 'success',
+        text: `${decisionReq.id} approved. It's ready for release. Nothing is deducted until it's claimed.`,
+      });
+    } else if (decision.type === 'release') {
       const result = await run(() => setStatus(decisionReq.id, 'Accepted'));
       if (!result) return;
       await refreshInventory();
@@ -544,22 +603,72 @@ const Dashboard = ({
       setNotice({
         type: 'success',
         text: moved.length
-          ? `${decisionReq.id} accepted. Deducted from inventory: ${moved
+          ? `${decisionReq.id} released. Deducted from inventory: ${moved
               .map((m) => `${m.name} −${m.qty} (${m.before} → ${m.after} ${m.unit})`)
               .join(', ')}.`
           : result.stock?.skipped
-            ? `${decisionReq.id} accepted. Nothing was deducted because this slip's stock was already deducted earlier.`
-            : `${decisionReq.id} accepted. No inventory items were on this slip.`,
+            ? `${decisionReq.id} released. Nothing was deducted because this slip's stock was already deducted earlier.`
+            : `${decisionReq.id} released. No inventory items were on this slip.`,
       });
-    } else {
-      if (!denyReason.trim()) return;
-      const ok = await run(() => setStatus(decisionReq.id, 'Denied', denyReason.trim()));
+    } else if (decision.type === 'deny') {
+      if (!text) return;
+      const ok = await run(() => setStatus(decisionReq.id, 'Denied', text));
       if (!ok) return;
-      setNotice({ type: 'success', text: `${decisionReq.id} was denied.` });
+      setNotice({ type: 'success', text: `${decisionReq.id} was denied. No stock was deducted.` });
+    } else if (decision.type === 'undo') {
+      const target = getUndoTarget(decisionReq);
+      const ok = await run(() => undo(decisionReq.id));
+      if (!ok) return;
+      await refreshInventory();
+      setNotice({
+        type: 'success',
+        text: `${decisionReq.id} was moved back to ${target}.${
+          decisionReq.status === 'Accepted'
+            ? ' The deducted stock was returned to the inventory.'
+            : ''
+        }`,
+      });
     }
     closeDecision();
     closeDetails();
   };
+
+  // Downloads the issuance slip PDF from the server
+  const handleDownloadSlip = async () => {
+    if (!slipReq || slipBusy) return;
+    setSlipBusy(true);
+    try {
+      await downloadIssuanceSlip(slipReq.id);
+      setNotice({ type: 'success', text: `Issuance slip for ${slipReq.id} downloaded.` });
+      setSlipId(null);
+    } catch (err) {
+      setNotice({ type: 'error', text: `Could not download the slip. ${errMsg(err)}` });
+    } finally {
+      setSlipBusy(false);
+    }
+  };
+
+  const decisionTitle = {
+    approve: 'Approve request?',
+    release: 'Mark as claimed?',
+    deny: 'Deny request?',
+    undo: 'Undo last action?',
+  };
+  const decisionButton = {
+    approve: 'Approve request',
+    release: 'Confirm release',
+    deny: 'Deny request',
+    undo: 'Undo',
+  };
+
+  // Lines shown on the issuance slip
+  const slipLines = slipReq
+    ? [...slipCheck.lines, ...slipCheck.purchaseLines].map((l) => ({
+        name: l.name || l.inv?.name,
+        qty: l.qty,
+        unit: l.inv?.unit || l.unit || '',
+      }))
+    : [];
 
   /* ================================================================ */
   /* Inventory: add, edit, adjust, history, delete                     */
@@ -758,11 +867,20 @@ const Dashboard = ({
   /* Stats, shortcuts, preview rows                                    */
   /* ================================================================ */
 
+  // Calculate current month's requests to match Requests.jsx precisely
+  const monthlyRequestsCount = useMemo(() => {
+    const now = new Date();
+    return slips.filter((r) => {
+      const d = new Date(r.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  }, [slips]);
+
   const stats = [
     {
       id: 'total',
-      label: 'Total Requests',
-      value: slips.length,
+      label: 'Monthly Total Requests',
+      value: monthlyRequestsCount,
       icon: 'bi-file-earmark-text',
     },
     {
@@ -856,7 +974,7 @@ const Dashboard = ({
           <div>
             <h3 className="db-card-title">Recent Requisition Slips</h3>
             <p className="db-card-desc">
-              Latest requisition slips from departments, with pending slips shown first.
+              Latest requisition slips from departments, newest activity first.
             </p>
           </div>
         </div>
@@ -1292,6 +1410,13 @@ const Dashboard = ({
                 </div>
               </div>
 
+              {['Approved', 'Accepted'].includes(detailsReq.status) && detailsReq.remarks && (
+                <div className="rq-next-step">
+                  <strong>Remarks</strong>
+                  <p>{detailsReq.remarks}</p>
+                </div>
+              )}
+
               {detailsReq.status === 'Denied' && detailsReq.denyReason && (
                 <div className="rq-deny-box">
                   <strong>Reason for denial</strong>
@@ -1368,21 +1493,28 @@ const Dashboard = ({
               {hasPurchaseItems(detailsReq) && (
                 <>
                   <h4 className="rq-section-title">Items to purchase</h4>
-                  {detailsReq.status === 'Purchasing' && (
+                  {detailsReq.status === 'Processing' && (
                     <p className="rq-muted-text">
-                      Once these are bought, add each one to the inventory. Then you can accept.
+                      Once these are bought, add each one to the inventory. Then you can approve.
                     </p>
                   )}
                   <ul className="rq-purchase-list">
                     {detailsCheck.purchaseLines.map((p, idx) => (
-                      <li key={idx}>
-                        <strong>{p.name}</strong> · {p.qty}
-                        {p.reason && <div className="rq-sub">{p.reason}</div>}
-                        {detailsReq.status === 'Purchasing' && invReady && (
+                      <li key={idx} className="rq-purchase-item">
+                        <div className="rq-purchase-info">
+                          <div className="rq-purchase-name">
+                            <strong>{p.name}</strong>
+                            <span className="rq-purchase-qty">Qty: {p.qty}</span>
+                          </div>
+                          {p.reason && <div className="rq-sub">{p.reason}</div>}
+                        </div>
+
+                        {detailsReq.status === 'Processing' && invReady && (
                           <div className="rq-buy-status">
                             {p.enough ? (
                               <span className="rq-buy-ok">
-                                ✓ In inventory ({p.inv.quantity} {p.inv.unit} on hand)
+                                <i className="bi bi-check-circle-fill"></i> In inventory (
+                                {p.inv.quantity} {p.inv.unit} on hand)
                               </span>
                             ) : (
                               <>
@@ -1396,6 +1528,9 @@ const Dashboard = ({
                                   className="rq-btn-action rq-btn-review"
                                   onClick={() => openReceive(detailsReq.id, p)}
                                 >
+                                  <i
+                                    className={`bi ${p.inv ? 'bi-box-arrow-in-down' : 'bi-plus-lg'}`}
+                                  ></i>
                                   {p.inv ? 'Receive stock' : 'Add to inventory'}
                                 </button>
                               </>
@@ -1414,24 +1549,41 @@ const Dashboard = ({
                 Close
               </button>
 
+              {['Approved', 'Accepted'].includes(detailsReq.status) && (
+                <button
+                  type="button"
+                  className="rq-btn-secondary"
+                  onClick={() => setSlipId(detailsReq.id)}
+                >
+                  <i className="bi bi-file-earmark-pdf"></i> Issuance Slip
+                </button>
+              )}
+
+              {detailsActions.undo && (
+                <button
+                  type="button"
+                  className="rq-btn-secondary"
+                  onClick={() => openDecision('undo', detailsReq.id)}
+                  disabled={busy}
+                  title={`Undo to ${getUndoTarget(detailsReq)} (admin only)`}
+                >
+                  <i className="bi bi-arrow-counterclockwise"></i> Undo
+                </button>
+              )}
+
               {detailsActions.deny && (
                 <button
                   type="button"
                   className="rq-btn-danger-outline"
                   onClick={() => openDecision('deny', detailsReq.id)}
                   disabled={busy}
+                  title={
+                    detailsReq.status === 'Approved'
+                      ? 'Deny as unclaimed (nothing is deducted)'
+                      : undefined
+                  }
                 >
                   Deny
-                </button>
-              )}
-              {detailsActions.purchasing && (
-                <button
-                  type="button"
-                  className="rq-btn-secondary"
-                  onClick={() => handleSendToPurchasing(detailsReq)}
-                  disabled={busy}
-                >
-                  {busy ? 'Saving...' : 'Send to purchasing'}
                 </button>
               )}
               {detailsActions.acknowledge && (
@@ -1444,19 +1596,30 @@ const Dashboard = ({
                   {busy ? 'Saving...' : 'Acknowledge'}
                 </button>
               )}
-              {detailsActions.accept && (
+              {detailsActions.approve && (
                 <button
                   type="button"
                   className="rq-btn-primary"
-                  onClick={() => openDecision('accept', detailsReq.id)}
+                  onClick={() => openDecision('approve', detailsReq.id)}
                   disabled={busy || detailsActions.blocked}
                   title={
                     detailsActions.blocked ? 'Not enough stock yet. See the list above.' : undefined
                   }
                 >
-                  {detailsReq.status === 'Purchasing' && hasPurchaseItems(detailsReq)
-                    ? 'Items received · Accept'
-                    : 'Accept'}
+                  Approve
+                </button>
+              )}
+              {detailsActions.release && (
+                <button
+                  type="button"
+                  className="rq-btn-primary"
+                  onClick={() => openDecision('release', detailsReq.id)}
+                  disabled={busy || detailsActions.blocked}
+                  title={
+                    detailsActions.blocked ? 'Not enough stock yet. See the list above.' : undefined
+                  }
+                >
+                  Mark as claimed
                 </button>
               )}
             </div>
@@ -1464,7 +1627,7 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Accept / Deny confirmation */}
+      {/* Approve / Release / Deny / Undo confirmation */}
       {decisionReq && (
         <div className="rq-modal-backdrop rq-modal-backdrop-top" onClick={closeDecision}>
           <div
@@ -1474,7 +1637,7 @@ const Dashboard = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="rq-modal-header">
-              <h3>{decision.type === 'accept' ? 'Accept request?' : 'Deny request?'}</h3>
+              <h3>{decisionTitle[decision.type]}</h3>
               <button
                 type="button"
                 className="rq-modal-close"
@@ -1490,62 +1653,88 @@ const Dashboard = ({
                 <strong>{decisionReq.id}</strong> · {decisionReq.title}
               </p>
 
-              {decision.type === 'accept' ? (
-                decisionCheck.lines.length > 0 ? (
-                  <>
-                    <p className="rq-muted-text">This will deduct from inventory:</p>
-                    <ul className="rq-deduct-list">
-                      {decisionCheck.lines.map((l, idx) => (
-                        <li key={`${l.inventoryItemId}-${idx}`}>
-                          <span>{l.name || l.inv?.name}</span>
-                          <span>
-                            {l.inv
-                              ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
-                              : 'Not in inventory'}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  !hasPurchaseItems(decisionReq) && (
+              {decision.type === 'approve' && (
+                <RemarksField
+                  id="db-approve-remarks"
+                  label="Remarks for the requester"
+                  presets={APPROVE_PRESETS}
+                  value={remarks}
+                  onChange={setRemarks}
+                  hint="The requester will see this. Nothing is deducted until the items are claimed."
+                />
+              )}
+
+              {decision.type === 'deny' && (
+                <>
+                  {decisionReq.status === 'Approved' && (
+                    <p className="rq-muted-text">
+                      The items were never released, so nothing will be deducted from the inventory.
+                    </p>
+                  )}
+                  <RemarksField
+                    id="db-deny-reason"
+                    label="Reason for denial"
+                    presets={DENY_PRESETS}
+                    value={remarks}
+                    onChange={setRemarks}
+                    hint="The requester will see this reason."
+                  />
+                </>
+              )}
+
+              {decision.type === 'release' && (
+                <>
+                  {decisionCheck.lines.length > 0 && (
+                    <>
+                      <p className="rq-muted-text">This will deduct from inventory:</p>
+                      <ul className="rq-deduct-list">
+                        {decisionCheck.lines.map((l, idx) => (
+                          <li key={`${l.inventoryItemId}-${idx}`}>
+                            <span>{l.name || l.inv?.name}</span>
+                            <span>
+                              {l.inv
+                                ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
+                                : 'Not in inventory'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {hasPurchaseItems(decisionReq) && (
+                    <>
+                      <p className="rq-muted-text">
+                        Purchased items, handed out from the inventory:
+                      </p>
+                      <ul className="rq-deduct-list">
+                        {decisionCheck.purchaseLines.map((p, idx) => (
+                          <li key={idx}>
+                            <span>{p.name}</span>
+                            <span>
+                              {p.inv
+                                ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
+                                : 'Not in inventory'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {decisionCheck.lines.length === 0 && !hasPurchaseItems(decisionReq) && (
                     <p className="rq-muted-text">
                       No stock items on this request, so nothing will be deducted.
                     </p>
-                  )
-                )
-              ) : (
-                <div className="rq-field">
-                  <label htmlFor="db-deny-reason">Reason for denial</label>
-                  <textarea
-                    id="db-deny-reason"
-                    className="form-control custom-input rq-textarea"
-                    rows="3"
-                    value={denyReason}
-                    onChange={(e) => setDenyReason(e.target.value)}
-                    placeholder="Explain why, so the requester knows what to fix"
-                    autoFocus
-                  />
-                  <span className="rq-hint">The requester will see this reason.</span>
-                </div>
+                  )}
+                </>
               )}
 
-              {decision.type === 'accept' && hasPurchaseItems(decisionReq) && (
-                <>
-                  <p className="rq-muted-text">Purchased items, handed out from the inventory:</p>
-                  <ul className="rq-deduct-list">
-                    {decisionCheck.purchaseLines.map((p, idx) => (
-                      <li key={idx}>
-                        <span>{p.name}</span>
-                        <span>
-                          {p.inv
-                            ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
-                            : 'Not in inventory'}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
+              {decision.type === 'undo' && (
+                <p className="rq-muted-text">
+                  This moves the request from <strong>{decisionReq.status}</strong> back to{' '}
+                  <strong>{getUndoTarget(decisionReq)}</strong>.
+                  {decisionReq.status === 'Accepted' &&
+                    ' The stock that was deducted when it was claimed will be returned to the inventory.'}
+                </p>
               )}
 
               <p className="rq-audit-note">
@@ -1566,19 +1755,27 @@ const Dashboard = ({
               </button>
               <button
                 type="button"
-                className={decision.type === 'accept' ? 'rq-btn-primary' : 'rq-btn-danger'}
+                className={decision.type === 'deny' ? 'rq-btn-danger' : 'rq-btn-primary'}
                 onClick={handleConfirmDecision}
-                disabled={busy || (decision.type === 'deny' && !denyReason.trim())}
+                disabled={busy || (['approve', 'deny'].includes(decision.type) && !remarks.trim())}
               >
-                {busy
-                  ? 'Saving...'
-                  : decision.type === 'accept'
-                    ? 'Accept request'
-                    : 'Deny request'}
+                {busy ? 'Saving...' : decisionButton[decision.type]}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Issuance slip preview */}
+      {slipReq && (
+        <IssuanceSlipPreview
+          req={slipReq}
+          lines={slipLines}
+          generatedBy={actorName}
+          busy={slipBusy}
+          onClose={() => setSlipId(null)}
+          onDownload={handleDownloadSlip}
+        />
       )}
 
       {/* Receive purchased item into the inventory */}

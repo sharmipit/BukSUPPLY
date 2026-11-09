@@ -20,6 +20,7 @@ const TITLES = {
   stocks: 'Stock Report',
   requests: 'Requests Report',
   transactions: 'Transactions Report',
+  issuance: 'Issuance Slip',
 };
 
 const fmtDate = (v) =>
@@ -108,7 +109,8 @@ const closingLines = (meta) => [
 ];
 
 // ---------- PDF: running header and footer (shown on every page) ----------
-const headerHtml = (type) => `
+const headerHtml = (type) =>
+  `
 <div style="width:100%;box-sizing:border-box;padding:0 10mm;font-family:'Times New Roman',Times,serif;font-size:10px;color:#000;">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #000;padding-bottom:4px;">
     <div>
@@ -117,10 +119,11 @@ const headerHtml = (type) => `
     </div>
     <div style="font-size:12px;font-weight:bold;">${esc(TITLES[type])}</div>
   </div>
-</div>`;
+</div>`.trim(); // PDFShift needs the source to start with "<", so no leading newline
 
 // `pages` is the page-number markup, which differs between PDF engines
-const footerHtml = (meta, pages) => `
+const footerHtml = (meta, pages) =>
+  `
 <div style="width:100%;box-sizing:border-box;padding:0 10mm;font-family:'Times New Roman',Times,serif;font-size:9px;color:#000;">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-top:1px solid #000;padding-top:4px;">
     <div>
@@ -132,7 +135,7 @@ const footerHtml = (meta, pages) => `
       Page ${pages}
     </div>
   </div>
-</div>`;
+</div>`.trim(); // same reason as headerHtml
 
 const PDFSHIFT_PAGES = '{{page}} of {{total}}';
 const CHROME_PAGES = '<span class="pageNumber"></span> of <span class="totalPages"></span>';
@@ -165,8 +168,63 @@ function buildHtml(type, rows, summary, meta) {
   </body></html>`;
 }
 
+// ---------- Issuance slip (one requisition, portrait) ----------
+// slip = { id, requestedBy, department, purpose, filedAt, approvedAt, approvedBy, remarks }
+// lines = [{ name, qty, unit }]
+function buildIssuanceHtml(slip, lines) {
+  const info = [
+    ['Issuance no.', `ISS-${slip.id}`],
+    ['Requisition no.', slip.id],
+    ['Requested by', slip.requestedBy || '—'],
+    ['Department', slip.department || '—'],
+    ['Date filed', fmtDate(slip.filedAt) || '—'],
+    ['Date approved', fmtDate(slip.approvedAt) || '—'],
+    ['Purpose', slip.purpose || '—'],
+  ];
+  const body = lines.length
+    ? lines
+        .map(
+          (l, i) =>
+            `<tr><td>${i + 1}</td><td>${esc(l.name)}</td><td>${esc(l.qty)}</td><td>${esc(l.unit || '—')}</td></tr>`
+        )
+        .join('')
+    : '<tr><td colspan="4">No items.</td></tr>';
+
+  return `<!doctype html><html><head><meta charset="utf-8">
+  <style>
+    body{font-family:'Times New Roman',Times,serif;font-size:11px;color:#000;margin:0}
+    table.info{border-collapse:collapse;margin-bottom:14px}
+    table.info td{padding:2px 14px 2px 0;font-size:11px;vertical-align:top}
+    table.info td:first-child{font-weight:bold;white-space:nowrap}
+    table.data{width:100%;border-collapse:collapse}
+    table.data th{background:#e6e6e6;color:#000;text-align:left;padding:6px 8px;border:1px solid #000;font-size:10.5px}
+    table.data td{padding:5px 8px;border:1px solid #999}
+    thead{display:table-header-group}
+    tr{page-break-inside:avoid}
+    .remarks{border:1px solid #999;padding:6px 8px;margin-top:14px}
+    table.sign{width:100%;border-collapse:separate;border-spacing:24px 0;margin-top:56px;page-break-inside:avoid}
+    table.sign td{width:33%;border-top:1px solid #000;text-align:center;padding-top:4px;font-size:10.5px}
+    .end{text-align:center;margin-top:20px;font-size:10px}
+  </style></head><body>
+    <table class="info">
+      ${info.map(([k, v]) => `<tr><td>${esc(k)}:</td><td>${esc(v)}</td></tr>`).join('')}
+    </table>
+    <table class="data">
+      <thead><tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    ${slip.remarks ? `<div class="remarks"><b>Remarks:</b> ${esc(slip.remarks)}</div>` : ''}
+    <table class="sign"><tr>
+      <td>Approved by: ${esc(slip.approvedBy || '')}</td>
+      <td>Issued by</td>
+      <td>Received by (signature / date)</td>
+    </tr></table>
+    <div class="end">*** End of slip ***</div>
+  </body></html>`;
+}
+
 // ---- External API call. Confirm header/footer/margin options in PDFShift's docs. ----
-async function buildPdfExternal(type, rows, summary, meta) {
+async function buildPdfExternal(type, html, meta, landscape = true) {
   const s = settings.get();
   if (!s.pdfshiftApiKey) throw new Error('PDF service is not configured.');
 
@@ -177,8 +235,8 @@ async function buildPdfExternal(type, rows, summary, meta) {
       Authorization: 'Basic ' + Buffer.from(`api:${s.pdfshiftApiKey}`).toString('base64'),
     },
     body: JSON.stringify({
-      source: buildHtml(type, rows, summary, meta),
-      landscape: true,
+      source: html,
+      landscape,
       margin: { top: '25mm', bottom: '22mm', left: '10mm', right: '10mm' },
       header: { source: headerHtml(type), spacing: '5mm' },
       footer: { source: footerHtml(meta, PDFSHIFT_PAGES), spacing: '5mm' },
@@ -271,20 +329,28 @@ async function withFallback(kind, external, local) {
   return local();
 }
 
-async function buildPdf(type, rows, summary, meta) {
+// One PDF path for everything printed: reports (landscape) and issuance slips (portrait)
+async function renderPdf(type, html, meta, landscape = true) {
   if (!settings.get().pdfshiftEnabled) {
     throw userError('PDF downloads are turned off by the administrator.');
   }
   return withFallback(
     'pdf',
-    () => buildPdfExternal(type, rows, summary, meta),
+    () => buildPdfExternal(type, html, meta, landscape),
     () =>
-      buildLocalPdf(buildHtml(type, rows, summary, meta), {
+      buildLocalPdf(html, {
         header: headerHtml(type),
         footer: footerHtml(meta, CHROME_PAGES),
+        landscape,
       })
   );
 }
+
+const buildPdf = (type, rows, summary, meta) =>
+  renderPdf(type, buildHtml(type, rows, summary, meta), meta);
+
+const buildIssuancePdf = (slip, lines, meta) =>
+  renderPdf('issuance', buildIssuanceHtml(slip, lines), meta, false);
 
 async function buildXlsx(type, rows, summary, meta) {
   if (!settings.get().nutrientEnabled) {
@@ -311,4 +377,4 @@ async function buildXlsx(type, rows, summary, meta) {
   return withFallback('xlsx', () => buildXlsxExternal(type, rows, summary, meta), local);
 }
 
-module.exports = { buildPdf, buildXlsx };
+module.exports = { buildPdf, buildXlsx, buildIssuancePdf };
