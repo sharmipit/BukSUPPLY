@@ -245,7 +245,7 @@
   box-sizing: border-box;
 }
 
-/* Requisition table columns (wide enough for their content) */
+/* Requisition table columns */
 .db-table .col-slip {
   width: 170px;
 }
@@ -290,7 +290,6 @@
   background-color: transparent !important;
 }
 
-/* Extra room at both ends of every row so nothing touches the card edge */
 .db-table th:first-child,
 .db-table td:first-child {
   padding-left: 28px !important;
@@ -327,7 +326,6 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* Small grey lines stay on one line and end with an ellipsis */
 .db-sub {
   font-size: 0.8rem;
   color: var(--text-body, #594d46);
@@ -336,7 +334,6 @@
   white-space: nowrap;
 }
 
-/* Long text is cut with an ellipsis on one line (the full text is in the tooltip) */
 .db-cell-clamp {
   display: block;
   max-width: 100%;
@@ -440,7 +437,7 @@
   align-items: center;
 }
 
-/* "View all" button in each table footer */
+/* View all button */
 .db-view-btn {
   display: inline-flex;
   align-items: center;
@@ -539,13 +536,10 @@
   min-width: 0;
 }
 
-/* Table area grows so both footers line up at the bottom */
 .db-split-row .db-table-wrapper {
   flex: 1 1 auto;
 }
 
-/* Same header height on both cards, so the column labels line up.
-   The description always reserves two lines, even when it only needs one. */
 .db-split-row .db-card-header {
   min-height: 0;
   padding: 22px 24px;
@@ -560,7 +554,6 @@
   min-height: calc(2 * 1.45em);
 }
 
-/* Same row height in both tables */
 .db-split-row .db-table td {
   height: 88px;
   padding: 16px 16px !important;
@@ -570,7 +563,6 @@
   padding: 16px 16px !important;
 }
 
-/* A little more room at the card edges than between columns */
 .db-split-row .db-table th:first-child,
 .db-split-row .db-table td:first-child {
   padding-left: 24px !important;
@@ -616,7 +608,6 @@
   width: 110px;
 }
 
-/* A little more space between the ID and Name columns */
 .db-split-row .db-users-table th:nth-child(2),
 .db-split-row .db-users-table td:nth-child(2) {
   padding-left: 28px !important;
@@ -646,7 +637,6 @@
   height: 88px;
 }
 
-/* Full-width inventory table (Moderator dashboard) */
 .db-table.db-inv-table.db-inv-wide {
   min-width: 960px;
 }
@@ -668,11 +658,25 @@
   margin-bottom: 6px;
 }
 
+.db-stock-text.low-stock strong {
+  color: #c2410c;
+}
+.db-stock-text.out-of-stock strong {
+  color: #b91c1c;
+}
+
 .db-stock-bar {
   height: 6px;
   border-radius: 50px;
   background-color: #efe9df;
   overflow: hidden;
+}
+
+.db-stock-bar.low-stock {
+  background-color: #ffedd5;
+}
+.db-stock-bar.out-of-stock {
+  background-color: #fee2e2;
 }
 
 .db-stock-fill {
@@ -685,10 +689,10 @@
   background-color: #10b981;
 }
 .db-stock-fill.low-stock {
-  background-color: #f59e0b;
+  background-color: #f97316;
 }
 .db-stock-fill.out-of-stock {
-  background-color: #ef4444;
+  background-color: #dc2626;
 }
 
 .db-reorder-text {
@@ -701,17 +705,23 @@
   white-space: nowrap;
 }
 
+/* Stock badges */
+
 .db-badge.in-stock {
   background-color: #d1fae5;
   color: #065f46;
 }
 .db-badge.low-stock {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: #ffedd5;
+  color: #9a3412;
+  box-shadow: inset 0 0 0 1px #fdba74;
+  font-weight: 700;
 }
 .db-badge.out-of-stock {
   background-color: #fee2e2;
-  color: #991b1b;
+  color: #b91c1c;
+  box-shadow: inset 0 0 0 1px #f87171;
+  font-weight: 700;
 }
 
 /* ==========================================================================
@@ -959,7 +969,7 @@
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
-/* Category dropdown with a brown arrow */
+/* Category dropdown */
 .db-select {
   padding-right: 46px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -973,7 +983,6 @@
   appearance: none;
 }
 
-/* Text box that appears for "+ Add new category" */
 .db-new-category {
   margin-top: 2px;
   border-color: var(--text-light-brown, #8c5839);
@@ -1045,7 +1054,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* Cards are stacked here, so the equal-height description is not needed */
   .db-split-row .db-card-header {
     min-height: 0;
   }

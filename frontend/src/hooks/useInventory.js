@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 // Same client your useRequisitions hook uses. If `api` is exported differently, change this line.
 import api, { errMsg } from '../api/client';
 
@@ -44,10 +44,37 @@ export default function useInventory() {
     return data;
   };
 
-  const remove = async (id) => {
-    await api.delete(`/inventory/${id}`);
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  // Archiving keeps the item (and its history) in the database
+  const archive = async (id) => {
+    const { data } = await api.patch(`/inventory/${id}/archive`);
+    replace(data);
+    return data;
   };
 
-  return { items, loading, error, refresh, create, update, adjust, remove };
+  const restore = async (id) => {
+    const { data } = await api.patch(`/inventory/${id}/restore`);
+    replace(data);
+    return data;
+  };
+
+  // `items` only holds ACTIVE items, so the other pages (Requests, dashboards)
+  // never count or offer archived stock. The Inventory page uses `allItems`.
+  const activeItems = useMemo(() => items.filter((i) => !i.archived), [items]);
+  const archivedItems = useMemo(() => items.filter((i) => i.archived), [items]);
+
+  return {
+    items: activeItems,
+    archivedItems,
+    allItems: items,
+    loading,
+    error,
+    refresh,
+    create,
+    update,
+    adjust,
+    archive,
+    restore,
+    // Kept so pages that still call remove() (the dashboards) archive instead of deleting
+    remove: archive,
+  };
 }

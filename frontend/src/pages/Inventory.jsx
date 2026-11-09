@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useInventory from '../hooks/useInventory';
-import { errMsg } from '../api/client';
-import { shortName } from '../utils/formatName';
 import FilterDropdown from '../components/FilterDropdown';
+import { errMsg } from '../api/client';
 import '../styles/Inventory.css';
 
 // Starting categories. Any category typed into the form is added automatically.
@@ -15,21 +14,19 @@ const DEFAULT_CATEGORIES = [
   'Cleaning Supplies',
 ];
 const NEW_CATEGORY = '__new__';
-const STATUS_TABS = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
-// Colour dots reuse the FilterDropdown tones (green / amber / red)
-const STATUS_TONES = {
-  'In Stock': 'accepted',
-  'Low Stock': 'pending',
-  'Out of Stock': 'denied',
-};
-const STATUS_OPTIONS = STATUS_TABS.map((s) => ({
-  value: s,
-  label: s === 'All' ? 'All statuses' : s,
-  tone: STATUS_TONES[s],
-}));
+
+// "tone" picks the colour of the dot in the shared FilterDropdown
+const STATUS_OPTIONS = [
+  { value: 'All', label: 'All statuses' },
+  { value: 'In Stock', label: 'In Stock', tone: 'accepted' },
+  { value: 'Low Stock', label: 'Low Stock', tone: 'pending' },
+  { value: 'Out of Stock', label: 'Out of Stock', tone: 'denied' },
+  { value: 'Archived', label: 'Archived', tone: 'cancelled' },
+];
 
 const EMPTY_FORM = {
   name: '',
+  supplier: '',
   category: DEFAULT_CATEGORIES[0],
   unit: 'pcs',
   quantity: 0,
@@ -42,6 +39,9 @@ const getStockStatus = (item) => {
   if (item.quantity <= item.reorderLevel) return 'Low Stock';
   return 'In Stock';
 };
+
+// Archived items show "Archived" instead of a stock status
+const getItemStatus = (item) => (item.archived ? 'Archived' : getStockStatus(item));
 
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
 
@@ -77,8 +77,20 @@ export default function Inventory() {
     user?.email ||
     'Unknown user';
 
-  // Real data from the API
-  const { items, loading, error, create, update, adjust, remove } = useInventory();
+  // Real data from the API. This page needs archived items too, so it uses allItems.
+  const {
+    allItems: items,
+    loading,
+    error,
+    create,
+    update,
+    adjust,
+    archive,
+    restore,
+  } = useInventory();
+
+  // Items that are not archived (used for the stat cards)
+  const activeItems = useMemo(() => items.filter((i) => !i.archived), [items]);
 
   // Category list = defaults + every category currently used by an item
   const categories = useMemo(() => {
@@ -87,15 +99,7 @@ export default function Inventory() {
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  // Filtering and pagination
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  // Dropdown options for the shared FilterDropdown
-  const categoryOptions = useMemo(
+  const categoryFilterOptions = useMemo(
     () => [
       { value: 'All', label: 'All categories' },
       ...categories.map((c) => ({ value: c, label: c })),
@@ -103,7 +107,14 @@ export default function Inventory() {
     [categories]
   );
 
-  // If the selected category no longer exists (its last item was deleted), reset
+  // Filtering and pagination
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // If the selected category no longer exists, reset
   useEffect(() => {
     if (categoryFilter !== 'All' && !categories.includes(categoryFilter)) {
       setCategoryFilter('All');
@@ -139,16 +150,21 @@ export default function Inventory() {
   const [historyId, setHistoryId] = useState(null);
   const historyItem = items.find((i) => i.id === historyId) || null;
 
-  // Delete modal (available to both admin and moderator)
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  // Archive modal (available to both admin and moderator)
+  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState('');
+
+  // Restore modal (asks for confirmation first)
+  const [restoreTarget, setRestoreTarget] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
+  const [restoreError, setRestoreError] = useState('');
 
   const stats = useMemo(() => {
-    const low = items.filter((i) => getStockStatus(i) === 'Low Stock').length;
-    const out = items.filter((i) => getStockStatus(i) === 'Out of Stock').length;
-    return { total: items.length, inStock: items.length - low - out, low, out };
-  }, [items]);
+    const low = activeItems.filter((i) => getStockStatus(i) === 'Low Stock').length;
+    const out = activeItems.filter((i) => getStockStatus(i) === 'Out of Stock').length;
+    return { total: activeItems.length, inStock: activeItems.length - low - out, low, out };
+  }, [activeItems]);
 
   const statCards = [
     { title: 'Total Items', count: stats.total, icon: 'bi-boxes' },
@@ -162,13 +178,20 @@ export default function Inventory() {
     const matchesSearch =
       query === '' ||
       item.id.toLowerCase().includes(query) ||
-      item.name.toLowerCase().includes(query);
-    const matchesStatus = statusFilter === 'All' || getStockStatus(item) === statusFilter;
+      item.name.toLowerCase().includes(query) ||
+      (item.supplier || '').toLowerCase().includes(query);
+
+    // "All" shows active items only. Archived items live under the "Archived" filter.
+    let matchesStatus;
+    if (statusFilter === 'All') matchesStatus = !item.archived;
+    else if (statusFilter === 'Archived') matchesStatus = !!item.archived;
+    else matchesStatus = !item.archived && getStockStatus(item) === statusFilter;
+
     const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  // If the current page disappears (e.g. the last item on it was deleted), step back
+  // If the current page disappears (e.g. the last item on it was archived), step back
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -191,6 +214,7 @@ export default function Inventory() {
     setEditingId(item.id);
     setForm({
       name: item.name,
+      supplier: item.supplier || '',
       category: item.category,
       unit: item.unit,
       quantity: item.quantity,
@@ -219,6 +243,7 @@ export default function Inventory() {
 
     const cleaned = {
       name: form.name.trim(),
+      supplier: form.supplier.trim(),
       category,
       unit: form.unit.trim() || 'pcs',
       quantity: Math.max(0, Number(form.quantity) || 0),
@@ -289,35 +314,70 @@ export default function Inventory() {
     }
   };
 
-  // ---------- Delete (admin and moderator) ----------
-  const openDeleteModal = (item) => {
-    setDeleteError('');
-    setDeleteTarget(item);
+  // ---------- Archive (admin and moderator). Nothing is deleted from the database. ----------
+  const openArchiveModal = (item) => {
+    setArchiveError('');
+    setArchiveTarget(item);
   };
 
-  const closeDeleteModal = () => {
-    if (deleting) return;
-    setDeleteError('');
-    setDeleteTarget(null);
+  const closeArchiveModal = () => {
+    if (archiving) return;
+    setArchiveError('');
+    setArchiveTarget(null);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget || deleting) return;
-    setDeleting(true);
-    setDeleteError('');
+  const handleConfirmArchive = async () => {
+    if (!archiveTarget || archiving) return;
+    setArchiving(true);
+    setArchiveError('');
     try {
-      await remove(deleteTarget.id);
+      await archive(archiveTarget.id);
       setNotice({
         type: 'success',
-        text: `${deleteTarget.name} (${deleteTarget.id}) was deleted.`,
+        text: `${archiveTarget.name} (${archiveTarget.id}) was archived.`,
       });
-      setDeleteTarget(null);
+      setArchiveTarget(null);
     } catch (err) {
-      setDeleteError(errMsg(err));
+      setArchiveError(errMsg(err));
     } finally {
-      setDeleting(false);
+      setArchiving(false);
     }
   };
+
+  // ---------- Restore ----------
+  const openRestoreModal = (item) => {
+    setRestoreError('');
+    setRestoreTarget(item);
+  };
+
+  const closeRestoreModal = () => {
+    if (restoringId) return;
+    setRestoreError('');
+    setRestoreTarget(null);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreTarget || restoringId) return;
+    setRestoringId(restoreTarget.id);
+    setRestoreError('');
+    try {
+      await restore(restoreTarget.id);
+      setNotice({
+        type: 'success',
+        text: `${restoreTarget.name} (${restoreTarget.id}) was restored to the inventory.`,
+      });
+      setRestoreTarget(null);
+    } catch (err) {
+      setRestoreError(errMsg(err));
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  // Latest movement that has a reference number (delivery / PO / requisition slip)
+  const lastRefMove = historyItem
+    ? [...(historyItem.movements || [])].reverse().find((m) => m.reference)
+    : null;
 
   // One helper for the loading / error / empty rows
   const messageRow = (icon, title, text) => (
@@ -385,7 +445,7 @@ export default function Inventory() {
           <input
             type="text"
             className="form-control custom-input"
-            placeholder="Search by item ID or name..."
+            placeholder="Search by item ID, name, or supplier..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -398,13 +458,14 @@ export default function Inventory() {
           <FilterDropdown
             icon="bi-tag"
             ariaLabel="Filter by category"
-            options={categoryOptions}
+            options={categoryFilterOptions}
             value={categoryFilter}
             onChange={(value) => {
               setCategoryFilter(value);
               setCurrentPage(1);
             }}
           />
+
           <FilterDropdown
             icon="bi-funnel"
             ariaLabel="Filter by status"
@@ -439,7 +500,7 @@ export default function Inventory() {
                   ? messageRow('bi-exclamation-circle', 'Could not load inventory', error)
                   : currentItems.length > 0
                     ? currentItems.map((item) => {
-                        const status = getStockStatus(item);
+                        const status = getItemStatus(item);
                         const fill =
                           item.reorderLevel > 0
                             ? Math.min(
@@ -449,21 +510,18 @@ export default function Inventory() {
                             : item.quantity > 0
                               ? 100
                               : 0;
-                        const reorderNote = `Reorder at ${item.reorderLevel} · Usual limit ${item.maxNormal} per request`;
 
                         return (
                           <tr
                             key={item.id}
-                            className="inv-row-clickable"
+                            className={`inv-row-clickable ${item.archived ? 'inv-row-archived' : ''}`}
                             onClick={() => setHistoryId(item.id)}
                           >
                             <td className="inv-cell-item">
                               <div className="inv-item-name inv-clamp" title={item.name}>
                                 {item.name}
                               </div>
-                              <div className="inv-item-id inv-clamp" title={item.id}>
-                                {item.id}
-                              </div>
+                              <div className="inv-item-id">{item.id}</div>
                             </td>
                             <td>
                               <div className="inv-clamp" title={item.category}>
@@ -471,23 +529,24 @@ export default function Inventory() {
                               </div>
                             </td>
                             <td className="inv-cell-stock">
-                              <div className="inv-stock-text">
+                              <div className={`inv-stock-text ${statusClass(status)}`}>
                                 <strong>{item.quantity}</strong> {item.unit}
                               </div>
-                              <div className="inv-stock-bar" aria-hidden="true">
+                              <div className={`inv-stock-bar ${statusClass(status)}`} aria-hidden="true">
                                 <div
                                   className={`inv-stock-fill ${statusClass(status)}`}
                                   style={{ width: `${fill}%` }}
                                 ></div>
                               </div>
-                              <div className="inv-reorder-text inv-clamp" title={reorderNote}>
-                                {reorderNote}
+                              <div className="inv-reorder-text">
+                                Reorder at {item.reorderLevel} · Usual limit {item.maxNormal} per
+                                request
                               </div>
                             </td>
                             <td>
                               <div className="inv-nowrap">{fmtDate(item.updated)}</div>
                               <div className="inv-updated-by inv-clamp" title={item.updatedBy}>
-                                by {shortName(item.updatedBy)}
+                                by {item.updatedBy}
                               </div>
                             </td>
                             <td>
@@ -495,41 +554,56 @@ export default function Inventory() {
                             </td>
                             <td className="inv-cell-actions" onClick={(e) => e.stopPropagation()}>
                               <div className="inv-action-buttons">
-                                <button
-                                  className="inv-btn-action inv-btn-icon inv-btn-adjust"
-                                  onClick={() => openAdjustModal(item)}
-                                  title="Adjust stock"
-                                  aria-label="Adjust stock"
-                                >
-                                  <i className="bi bi-arrow-down-up"></i>
-                                </button>
-                                <button
-                                  className="inv-btn-action inv-btn-icon inv-btn-neutral"
-                                  onClick={() => openEditModal(item)}
-                                  title="Edit item"
-                                  aria-label="Edit item"
-                                >
-                                  <i className="bi bi-pencil-square"></i>
-                                </button>
-                                <button
-                                  className="inv-btn-action inv-btn-icon inv-btn-delete"
-                                  onClick={() => openDeleteModal(item)}
-                                  title="Delete item"
-                                  aria-label="Delete item"
-                                >
-                                  <i className="bi bi-trash3"></i>
-                                </button>
+                                {item.archived ? (
+                                  <button
+                                    className="inv-btn-action inv-btn-restore"
+                                    onClick={() => openRestoreModal(item)}
+                                    disabled={restoringId === item.id}
+                                  >
+                                    <i className="bi bi-arrow-counterclockwise"></i>
+                                    Restore
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      className="inv-btn-action inv-btn-icon inv-btn-adjust"
+                                      onClick={() => openAdjustModal(item)}
+                                      title="Adjust stock"
+                                      aria-label="Adjust stock"
+                                    >
+                                      <i className="bi bi-arrow-down-up"></i>
+                                    </button>
+                                    <button
+                                      className="inv-btn-action inv-btn-icon inv-btn-neutral"
+                                      onClick={() => openEditModal(item)}
+                                      title="Edit item"
+                                      aria-label="Edit item"
+                                    >
+                                      <i className="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button
+                                      className="inv-btn-action inv-btn-icon inv-btn-archive"
+                                      onClick={() => openArchiveModal(item)}
+                                      title="Archive item"
+                                      aria-label="Archive item"
+                                    >
+                                      <i className="bi bi-archive"></i>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
                         );
                       })
                     : messageRow(
-                        'bi-box-seam',
-                        'No Items Found',
-                        items.length === 0
-                          ? 'The inventory is empty. Click Add Item to create the first one.'
-                          : 'No inventory items match your search, category, or status filter.'
+                        statusFilter === 'Archived' ? 'bi-archive' : 'bi-box-seam',
+                        statusFilter === 'Archived' ? 'No Archived Items' : 'No Items Found',
+                        statusFilter === 'Archived'
+                          ? 'Items you archive will show up here, and you can restore them anytime.'
+                          : activeItems.length === 0 && items.length === 0
+                            ? 'The inventory is empty. Click Add Item to create the first one.'
+                            : 'No inventory items match your search, category, or status filter.'
                       )}
             </tbody>
           </table>
@@ -590,6 +664,20 @@ export default function Inventory() {
                   onChange={(e) => handleFormChange('name', e.target.value)}
                   placeholder="e.g. A4 bond paper"
                 />
+              </div>
+
+              <div className="inv-field">
+                <label htmlFor="inv-supplier">Supplier name (optional)</label>
+                <input
+                  id="inv-supplier"
+                  type="text"
+                  className="form-control custom-input"
+                  value={form.supplier}
+                  onChange={(e) => handleFormChange('supplier', e.target.value)}
+                  placeholder="e.g. Cagayan Office Depot"
+                  maxLength={120}
+                />
+                <span className="inv-field-hint">Who usually delivers or sells this item.</span>
               </div>
 
               <div className="inv-field-row">
@@ -734,13 +822,15 @@ export default function Inventory() {
                   className={adjustMode === 'add' ? 'active' : ''}
                   onClick={() => setAdjustMode('add')}
                 >
-                  <i className="bi bi-box-arrow-in-down"></i> Receive stock
+                  <i className="bi bi-box-arrow-in-down"></i>
+                  <span>Receive stock</span>
                 </button>
                 <button
                   className={adjustMode === 'remove' ? 'active' : ''}
                   onClick={() => setAdjustMode('remove')}
                 >
-                  <i className="bi bi-box-arrow-up"></i> Withdraw stock
+                  <i className="bi bi-box-arrow-up"></i>
+                  <span>Withdraw stock</span>
                 </button>
               </div>
 
@@ -842,6 +932,9 @@ export default function Inventory() {
                 <div className="inv-item-id">
                   {historyItem.id} · {historyItem.category}
                 </div>
+                {historyItem.archived && (
+                  <span className="inv-badge archived inv-header-badge">Archived</span>
+                )}
               </div>
               <button
                 className="inv-modal-close"
@@ -853,22 +946,73 @@ export default function Inventory() {
             </div>
 
             <div className="inv-modal-body">
-              <div className="inv-meta-grid">
-                <div>
-                  <span className="inv-meta-label">On hand</span>
-                  <span className="inv-meta-value">
-                    {historyItem.quantity} {historyItem.unit}
-                  </span>
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Stock</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">On hand</span>
+                      <span className="inv-meta-value">{historyItem.quantity} {historyItem.unit}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Reorder level</span>
+                      <span className="inv-meta-value">{historyItem.reorderLevel} {historyItem.unit}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Usual limit per request</span>
+                      <span className="inv-meta-value">{historyItem.maxNormal} {historyItem.unit}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="inv-meta-label">Added by</span>
-                  <span className="inv-meta-value">{historyItem.addedBy}</span>
-                  <span className="inv-meta-sub">{fmtDateTime(historyItem.dateAdded)}</span>
+              </div>
+
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Item info</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">Category</span>
+                      <span className="inv-meta-value">{historyItem.category}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Supplier</span>
+                      <span className="inv-meta-value">{historyItem.supplier || 'Not set'}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Last reference no.</span>
+                      <span className="inv-meta-value">{lastRefMove ? lastRefMove.reference : '—'}</span>
+                      {lastRefMove && (
+                        <span className="inv-meta-sub">
+                          {lastRefMove.type} · {fmtDateTime(lastRefMove.date)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="inv-meta-label">Last updated by</span>
-                  <span className="inv-meta-value">{historyItem.updatedBy}</span>
-                  <span className="inv-meta-sub">{fmtDateTime(historyItem.updated)}</span>
+              </div>
+
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Activity</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">Added by</span>
+                      <span className="inv-meta-value">{historyItem.addedBy}</span>
+                      <span className="inv-meta-sub">{fmtDateTime(historyItem.dateAdded)}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Last updated by</span>
+                      <span className="inv-meta-value">{historyItem.updatedBy}</span>
+                      <span className="inv-meta-sub">{fmtDateTime(historyItem.updated)}</span>
+                    </div>
+                    {historyItem.archived && (
+                      <div>
+                        <span className="inv-meta-label">Archived by</span>
+                        <span className="inv-meta-value">{historyItem.archivedBy || '—'}</span>
+                        <span className="inv-meta-sub">{fmtDateTime(historyItem.archivedAt)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -887,13 +1031,14 @@ export default function Inventory() {
                           (m.before !== m.after
                             ? `${m.before} → ${m.after}`
                             : 'No quantity change')}
+                        {(m.type === 'Archived' || m.type === 'Restored') &&
+                          `${m.after} ${historyItem.unit} on hand`}
                       </span>
                       <span className="inv-move-date">{fmtDateTime(m.date)}</span>
                     </div>
                     <div className="inv-move-meta">
                       by {m.by}
-                      {m.type !== 'Created' &&
-                        m.type !== 'Edited' &&
+                      {(m.type === 'Received' || m.type === 'Withdrawn') &&
                         ` · ${m.before} → ${m.after} ${historyItem.unit}`}
                       {m.reference && ` · Ref: ${m.reference}`}
                     </div>
@@ -907,29 +1052,51 @@ export default function Inventory() {
               <button className="inv-btn-secondary" onClick={() => setHistoryId(null)}>
                 Close
               </button>
+              {historyItem.archived ? (
+                <button
+                  className="inv-btn-primary"
+                  onClick={() => {
+                    setHistoryId(null);
+                    openRestoreModal(historyItem);
+                  }}
+                >
+                  Restore item
+                </button>
+              ) : (
+                <button
+                  className="inv-btn-quiet"
+                  onClick={() => {
+                    setHistoryId(null);
+                    openArchiveModal(historyItem);
+                  }}
+                >
+                  <i className="bi bi-archive"></i>
+                  Archive
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal (admin and moderator).
+      {/* Archive Confirmation Modal (admin and moderator).
           Same width as the others, but its height fits the content. */}
-      {deleteTarget && (
-        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeDeleteModal}>
+      {archiveTarget && (
+        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeArchiveModal}>
           <div
             className="inv-modal inv-modal-auto"
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="inv-delete-title"
+            aria-labelledby="inv-archive-title"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="inv-modal-header">
-              <h3 id="inv-delete-title">Delete inventory item?</h3>
+              <h3 id="inv-archive-title">Archive inventory item?</h3>
               <button
                 className="inv-modal-close"
-                onClick={closeDeleteModal}
+                onClick={closeArchiveModal}
                 aria-label="Close"
-                disabled={deleting}
+                disabled={archiving}
               >
                 <i className="bi bi-x-lg"></i>
               </button>
@@ -937,32 +1104,102 @@ export default function Inventory() {
 
             <div className="inv-modal-body">
               <p className="inv-confirm-text">
-                <strong>{deleteTarget.name}</strong> · {deleteTarget.id}
+                <strong>{archiveTarget.name}</strong> · {archiveTarget.id}
               </p>
 
-              <div className="inv-error-box">
-                <strong>This action cannot be undone</strong>
+              <div className="inv-note-box">
+                <strong>The item will be hidden, not deleted</strong>
                 <p>
-                  Are you sure you want to delete item {deleteTarget.id}?
-                  {deleteTarget.quantity > 0 &&
-                    ` It still has ${deleteTarget.quantity} ${deleteTarget.unit} on hand.`}
+                  It will no longer appear in requests or in the stock counts, but its details and
+                  stock history are kept. You can restore it anytime from the Archived filter.
+                  {archiveTarget.quantity > 0 &&
+                    ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
                 </p>
               </div>
 
-              {deleteError && (
+              {archiveError && (
                 <div className="inv-error-box">
-                  <strong>Could not delete</strong>
-                  <p>{deleteError}</p>
+                  <strong>Could not archive</strong>
+                  <p>{archiveError}</p>
                 </div>
               )}
             </div>
 
             <div className="inv-modal-footer">
-              <button className="inv-btn-secondary" onClick={closeDeleteModal} disabled={deleting}>
+              <button className="inv-btn-secondary" onClick={closeArchiveModal} disabled={archiving}>
                 Cancel
               </button>
-              <button className="inv-btn-danger" onClick={handleConfirmDelete} disabled={deleting}>
-                {deleting ? 'Deleting...' : 'Delete item'}
+              <button
+                className="inv-btn-primary"
+                onClick={handleConfirmArchive}
+                disabled={archiving}
+              >
+                {archiving ? 'Archiving...' : 'Archive item'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {restoreTarget && (
+        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeRestoreModal}>
+          <div
+            className="inv-modal inv-modal-auto"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="inv-restore-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inv-modal-header">
+              <h3 id="inv-restore-title">Restore inventory item?</h3>
+              <button
+                className="inv-modal-close"
+                onClick={closeRestoreModal}
+                aria-label="Close"
+                disabled={!!restoringId}
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div className="inv-modal-body">
+              <p className="inv-confirm-text">
+                <strong>{restoreTarget.name}</strong> · {restoreTarget.id}
+              </p>
+
+              <div className="inv-note-box">
+                <strong>The item will go back to the active inventory</strong>
+                <p>
+                  It will appear again in requests and in the stock counts, with its details and
+                  stock history unchanged.
+                  {restoreTarget.quantity > 0 &&
+                    ` It has ${restoreTarget.quantity} ${restoreTarget.unit} on hand.`}
+                </p>
+              </div>
+
+              {restoreError && (
+                <div className="inv-error-box">
+                  <strong>Could not restore</strong>
+                  <p>{restoreError}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="inv-modal-footer">
+              <button
+                className="inv-btn-secondary"
+                onClick={closeRestoreModal}
+                disabled={!!restoringId}
+              >
+                Cancel
+              </button>
+              <button
+                className="inv-btn-primary"
+                onClick={handleConfirmRestore}
+                disabled={!!restoringId}
+              >
+                {restoringId ? 'Restoring...' : 'Restore item'}
               </button>
             </div>
           </div>
