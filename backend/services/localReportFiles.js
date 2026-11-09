@@ -4,7 +4,8 @@ const ExcelJS = require('exceljs');
 const puppeteer = require('puppeteer');
 
 // PDF: renders the same HTML the PDF service would receive, with a running header and footer.
-async function buildLocalPdf(html, { header = '', footer = '' } = {}) {
+// landscape defaults to true (reports); the issuance slip passes false for portrait.
+async function buildLocalPdf(html, { header = '', footer = '', landscape = true } = {}) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -14,7 +15,7 @@ async function buildLocalPdf(html, { header = '', footer = '' } = {}) {
     await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
     const pdf = await page.pdf({
       format: 'A4',
-      landscape: true,
+      landscape,
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: header,

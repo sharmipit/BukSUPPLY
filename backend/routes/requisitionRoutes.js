@@ -8,6 +8,9 @@ router.use(protect);
 router.get('/all', restrictTo('Moderator', 'Administrator'), c.listAll);
 router.patch('/:slip/status', restrictTo('Moderator', 'Administrator'), c.setStatus);
 
+// Administrator only: step a slip back after a mistake
+router.post('/:slip/undo', restrictTo('Administrator'), c.undo);
+
 // Any signed-in user: their own slips
 router.get('/', c.list);
 router.post('/', c.create);

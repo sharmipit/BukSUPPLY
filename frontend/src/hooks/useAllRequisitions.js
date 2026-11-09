@@ -36,5 +36,13 @@ export default function useAllRequisitions() {
     return data; // { requisition, stock }
   };
 
-  return { requisitions, loading, error, refresh, setStatus };
+  // Administrator only. Moves a slip one step back (Denied goes back to where it was).
+  // Reloads the list because cleared fields are missing from the response.
+  const undo = async (id) => {
+    const { data } = await api.post(`/requisitions/${id}/undo`);
+    await refresh();
+    return data; // { requisition, stock }
+  };
+
+  return { requisitions, loading, error, refresh, setStatus, undo };
 }

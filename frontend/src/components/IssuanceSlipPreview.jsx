@@ -1,0 +1,163 @@
+import React, { useEffect, useState } from 'react';
+import '../styles/IssuanceSlip.css';
+
+// Keep these the same as ORG_NAME / SYSTEM_NAME / SYSTEM_SUBTITLE in services/reportFiles.js
+const ORG_NAME = 'Bukidnon State University';
+const SYSTEM_NAME = 'BukSUPPLY';
+const SYSTEM_SUBTITLE = 'Supply Inventory and Requisition System';
+
+const fmtDate = (v) =>
+  v
+    ? new Date(v).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+const fmtStamp = (d) =>
+  new Date(d).toLocaleString('en-PH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+export default function IssuanceSlipPreview({
+  req,
+  lines,
+  generatedBy,
+  busy,
+  onClose,
+  onDownload,
+}) {
+  const [openedAt] = useState(() => new Date());
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const infoRows = [
+    ['Issuance no.', `ISS-${req.id}`],
+    ['Requisition no.', req.id],
+    ['Requested by', req.requestedBy || '—'],
+    ['Department', req.department || '—'],
+    ['Date filed', fmtDate(req.date)],
+    ['Date approved', req.reviewedAt ? fmtDate(req.reviewedAt) : '—'],
+    ['Purpose', req.purpose || '—'],
+  ];
+
+  return (
+    <div className="isl-overlay" onClick={onClose}>
+      <div
+        className="isl-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Issuance slip preview"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="isl-modal-bar">
+          <div>
+            <h2>Preview – Issuance slip</h2>
+            <p className="isl-muted">This is how the PDF file will look.</p>
+          </div>
+          <button className="isl-modal-close" onClick={onClose} aria-label="Close preview">
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="isl-paper-wrap">
+          <article className="isl-paper">
+            <header className="isl-paper-header">
+              <div>
+                <div className="isl-paper-org">{ORG_NAME}</div>
+                <div>
+                  {SYSTEM_NAME} – {SYSTEM_SUBTITLE}
+                </div>
+              </div>
+              <div className="isl-paper-title">Issuance Slip</div>
+            </header>
+
+            <div className="isl-paper-body">
+              <table className="isl-paper-info">
+                <tbody>
+                  {infoRows.map(([k, v]) => (
+                    <tr key={k}>
+                      <td>{k}:</td>
+                      <td>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <table className="isl-paper-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.length > 0 ? (
+                    lines.map((l, i) => (
+                      <tr key={i}>
+                        <td>{i + 1}</td>
+                        <td>{l.name}</td>
+                        <td>{l.qty}</td>
+                        <td>{l.unit || '—'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4">No items.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {req.remarks && (
+                <p className="isl-paper-remarks">
+                  <strong>Remarks:</strong> {req.remarks}
+                </p>
+              )}
+
+              <div className="isl-paper-sign">
+                <div>Approved by: {req.reviewedBy || ''}</div>
+                <div>Issued by</div>
+                <div>Received by (signature / date)</div>
+              </div>
+
+              <p className="isl-paper-end">*** End of slip ***</p>
+            </div>
+
+            <footer className="isl-paper-footer">
+              <div>
+                Verification code: <strong>Assigned when downloaded</strong>
+                <br />
+                To verify this report, enter the code under System Reports &gt; Verify a report.
+              </div>
+              <div className="isl-paper-footer-right">
+                Generated {fmtStamp(openedAt)} by {generatedBy}
+                <br />
+                Page 1 of 1
+              </div>
+            </footer>
+          </article>
+        </div>
+
+        <div className="isl-actions">
+          <button className="isl-btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="isl-btn-primary" onClick={onDownload} disabled={busy}>
+            <i className={`bi ${busy ? 'bi-hourglass-split' : 'bi-file-earmark-pdf'}`}></i>
+            {busy ? 'Preparing…' : 'Download PDF'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

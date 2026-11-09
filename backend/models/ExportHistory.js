@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const exportHistorySchema = new mongoose.Schema(
   {
-    report: { type: String, enum: ['stocks', 'requests', 'transactions'], required: true },
+    report: {
+      type: String,
+      enum: ['stocks', 'requests', 'transactions', 'issuance'],
+      required: true,
+    },
     format: { type: String, enum: ['pdf', 'xlsx'], required: true },
     filters: { type: mongoose.Schema.Types.Mixed, default: {} },
     user: { type: String, default: 'Unknown user' },

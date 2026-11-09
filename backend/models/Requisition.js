@@ -37,6 +37,7 @@ const RequisitionSchema = new mongoose.Schema(
       default: 'Pending',
     },
     remarks: { type: String, default: '' },
+    denyReason: { type: String, default: '' },
     approvedAt: Date, // when the items were marked ready for release
     processedAt: Date, // when the slip reached its final state (Accepted or Denied)
     reviewedBy: { type: String, default: '' }, // moderator/admin who last handled it
@@ -44,6 +45,9 @@ const RequisitionSchema = new mongoose.Schema(
     cancelledAt: Date,
     // Set once stock has been deducted for this slip, so it can never be deducted twice
     stockDeducted: { type: Boolean, default: false },
+    // Set when a slip is denied, so an administrator's Undo can return it to where it was
+    previousStatus: { type: String, default: '' },
+    previousRemarks: { type: String, default: '' },
   },
   { timestamps: true }
 );

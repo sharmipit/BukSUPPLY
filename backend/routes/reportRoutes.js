@@ -4,7 +4,7 @@ const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
 const ExportHistory = require('../models/ExportHistory');
 const { protect, restrictTo } = require('../middleware/auth');
-const { buildPdf, buildXlsx } = require('../services/reportFiles');
+const { buildPdf, buildXlsx, buildIssuancePdf } = require('../services/reportFiles');
 
 const router = express.Router();
 
@@ -155,6 +155,80 @@ router.get('/verify/:code', async (req, res, next) => {
       return res.status(404).json({ message: 'No report was issued with that code.' });
     }
     res.json(record);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ---------- Issuance slip (PDF for one requisition) ----------
+// Must stay above '/:type' so "issuance" is never read as a report type.
+router.get('/issuance/:slip/export', async (req, res, next) => {
+  try {
+    // Adjust field names (slipNumber, reviewedAt, reviewedBy, remarks) to your Requisition model
+    const slip = await Requisition.findOne({ slipNumber: str(req.params.slip) })
+      .populate('requester', 'firstName lastName email')
+      .lean();
+    if (!slip) return res.status(404).json({ message: 'Requisition not found.' });
+    if (!['Approved', 'Accepted'].includes(slip.status)) {
+      return res
+        .status(400)
+        .json({ message: 'Only approved or claimed requests have an issuance slip.' });
+    }
+
+    // Units live on the inventory item
+    const inv = await InventoryItem.find({}, 'name unit').lean();
+    const key = (s) =>
+      String(s || '')
+        .trim()
+        .toLowerCase();
+    const unitFor = (l) =>
+      (
+        inv.find((i) => String(i._id) === String(l.inventoryItemId)) ||
+        inv.find((i) => key(i.name) === key(l.name))
+      )?.unit || '';
+
+    const lines = [...(slip.itemsList || []), ...(slip.purchaseItems || [])].map((l) => ({
+      name: l.name,
+      qty: l.qty,
+      unit: unitFor(l),
+    }));
+
+    const slipData = {
+      id: slip.slipNumber,
+      requestedBy: nameOf(slip.requester),
+      department: slip.department,
+      purpose: slip.purpose,
+      filedAt: slip.createdAt,
+      approvedAt: slip.reviewedAt,
+      approvedBy: typeof slip.reviewedBy === 'object' ? nameOf(slip.reviewedBy) : slip.reviewedBy,
+      remarks: slip.remarks,
+    };
+
+    // Printed in the file footer and saved in the history so it can be verified later
+    const meta = { code: makeCode(), generatedBy: actorOf(req), generatedAt: new Date() };
+
+    let file;
+    try {
+      file = await buildIssuancePdf(slipData, lines, meta);
+    } catch (err) {
+      console.error('Issuance slip generation failed:', err.message);
+      if (err.userFacing) return res.status(403).json({ message: err.message });
+      return res.status(502).json({ message: 'Could not generate the file. Please try again.' });
+    }
+
+    await ExportHistory.create({
+      report: 'issuance',
+      format: 'pdf',
+      filters: { slip: slipData.id },
+      user: meta.generatedBy,
+      code: meta.code,
+      recordCount: lines.length,
+    });
+
+    const safeId = String(slipData.id).replace(/[^\w.-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="issuance-slip-${safeId}.pdf"`);
+    res.send(file);
   } catch (e) {
     next(e);
   }

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Requisition = require('../models/Requisition');
 const Notification = require('../models/Notification');
 const InventoryItem = require('../models/InventoryItem');
-const { deductForRequisition } = require('../services/stock');
+const { deductForRequisition, restoreForRequisition } = require('../services/stock');
 const { logActivity } = require('../services/activityLog');
 
 const SERVER_ERROR = { message: 'Something went wrong. Please try again.' };
@@ -30,7 +30,6 @@ const DEFAULT_REMARKS = {
 const toClient = (r) => {
   const parts = r.itemsList.map((i) => `${i.name} (${i.qty})`);
 
-  // Only present when the requester was populated (staff views)
   const requester =
     r.requester && r.requester.firstName
       ? {
@@ -50,14 +49,22 @@ const toClient = (r) => {
     item: parts.join(', '),
     date: fmtDate(r.createdAt),
     dateFiled: fmtDate(r.createdAt),
+
+    // --- ADD THESE LINES ---
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    reviewedAt: r.reviewedAt,
+    approvedAt: r.approvedAt,
+    // -----------------------
+
     dateApproved: r.approvedAt ? fmtDate(r.approvedAt) : undefined,
     dateProcessed: r.processedAt ? fmtDate(r.processedAt) : 'Pending',
     status: r.status,
     requestedBy: requester ? requester.name : undefined,
     reviewedBy: r.reviewedBy || undefined,
-    reviewedAt: r.reviewedAt || undefined,
     denyReason: r.status === 'Denied' ? r.remarks || undefined : undefined,
     remarks: r.remarks || DEFAULT_REMARKS[r.status] || '',
+    previousStatus: r.previousStatus || undefined,
     itemsList: r.itemsList,
     requester,
   };
@@ -293,7 +300,7 @@ const STATUS_NOTIF = {
   Denied: { type: 'warning', text: 'was denied.' },
 };
 
-// The moderator workflow only moves forward
+// The moderator workflow only moves forward (administrators can step back with Undo)
 const TRANSITIONS = {
   Pending: ['Processing', 'Denied'],
   Processing: ['Approved', 'Denied'],
@@ -321,6 +328,9 @@ exports.setStatus = async (req, res) => {
     if (status === 'Denied' && !remarks) {
       return res.status(400).json({ message: 'Please give a reason for the denial.' });
     }
+    if (status === 'Approved' && !remarks) {
+      return res.status(400).json({ message: 'Please add a remark for the requester.' });
+    }
 
     // Approving means "ready for release", so the items must really be available.
     // Nothing is deducted yet.
@@ -340,8 +350,14 @@ exports.setStatus = async (req, res) => {
       }
     }
 
+    // Remember where a denied slip came from, so an administrator's Undo can restore it
+    if (status === 'Denied') {
+      doc.previousStatus = doc.status; // Pending, Processing or Approved
+      doc.previousRemarks = doc.remarks || '';
+    }
+
     doc.status = status;
-    if (remarks) doc.remarks = remarks; // for Denied this is the reason the requester sees
+    if (remarks) doc.remarks = remarks; // Approved: the pick-up note. Denied: the reason the requester sees.
     doc.reviewedBy = personName(req.user);
     doc.reviewedAt = new Date();
     if (status === 'Approved') doc.approvedAt = new Date();
@@ -371,6 +387,86 @@ exports.setStatus = async (req, res) => {
     res.json({ requisition: toClient(doc), stock });
   } catch (err) {
     console.error('setStatus error:', err);
+    res.status(500).json(SERVER_ERROR);
+  }
+};
+
+// Where Undo sends a slip back to (Denied goes back to where it was before the denial)
+const UNDO_TARGET = { Processing: 'Pending', Approved: 'Processing', Accepted: 'Approved' };
+
+/** POST /api/requisitions/:slip/undo (Administrator only) */
+exports.undo = async (req, res) => {
+  try {
+    const doc = await Requisition.findOne({ slipNumber: req.params.slip });
+    if (!doc) return res.status(404).json({ message: 'Requisition not found.' });
+
+    const from = doc.status;
+    const target = from === 'Denied' ? doc.previousStatus || 'Pending' : UNDO_TARGET[from];
+    if (!target) {
+      return res.status(409).json({ message: `A ${from.toLowerCase()} request can't be undone.` });
+    }
+
+    // Undoing a denial back to Approved: the items must still be available
+    if (from === 'Denied' && target === 'Approved') {
+      const shortage = await findShortage(doc);
+      if (shortage) return res.status(409).json({ message: shortage });
+    }
+
+    // Accepted -> Approved: put the deducted stock back first
+    let stock = null;
+    if (from === 'Accepted') {
+      try {
+        stock = await restoreForRequisition(doc._id, personName(req.user));
+      } catch (err) {
+        return res.status(409).json({ message: err.message });
+      }
+    }
+
+    // Clear what the undone step had set
+    if (from === 'Approved') {
+      doc.approvedAt = undefined;
+      doc.remarks = '';
+    }
+    if (from === 'Accepted') doc.processedAt = undefined;
+    if (from === 'Denied') {
+      doc.processedAt = undefined;
+      doc.remarks = doc.previousRemarks || '';
+      doc.previousStatus = '';
+      doc.previousRemarks = '';
+    }
+
+    doc.status = target;
+    if (target === 'Pending') {
+      doc.reviewedBy = '';
+      doc.reviewedAt = undefined;
+    } else {
+      doc.reviewedBy = personName(req.user);
+      doc.reviewedAt = new Date();
+    }
+    await doc.save();
+
+    await Notification.create({
+      user: doc.requester,
+      title: `Requisition moved back to ${target}`,
+      message: `Your requisition slip ${doc.slipNumber} was moved back to ${target} after a correction by an administrator.`,
+      type: 'info',
+      link: '/user/requests',
+    });
+
+    await logActivity(
+      req.user,
+      {
+        category: 'Requisition',
+        action: 'REQUISITION_UNDO',
+        description: `Undid requisition slip "${doc.title}": ${from} to ${target}`,
+        reference: doc.slipNumber,
+      },
+      req
+    );
+
+    res.json({ requisition: toClient(doc), stock });
+  } catch (err) {
+    console.error('undo error:', err);
     res.status(500).json(SERVER_ERROR);
   }
 };
