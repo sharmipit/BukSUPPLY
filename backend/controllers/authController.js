@@ -5,7 +5,6 @@ const User = require('../models/User');
 const { sendOtpEmail } = require('../utils/sendEmail');
 const settings = require('../services/settings');
 const { logActivity } = require('../services/activityLog');
-const { signChallenge } = require('./twoFactorController'); // 2FA
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
@@ -109,19 +108,7 @@ const publicUser = (user) => ({
   accountStatus: user.accountStatus,
   profileComplete: Boolean(user.idNumber),
   avatar: user.avatar || '',
-  twoFactorEnabled: Boolean(user.twoFactorEnabled), // 2FA
 });
-
-// 2FA: the normal login response, also used by the 2FA verify step
-const issueSession = (user) => ({
-  message: 'Signed in successfully.',
-  token: signToken(user),
-  user: publicUser(user),
-});
-exports.issueSession = issueSession;
-
-// 2FA: admins with two-step verification on must pass a second step
-const needsSecondStep = (user) => user.role === 'Administrator' && user.twoFactorEnabled;
 
 // --- Controllers ---------------------------------------------------------
 
@@ -257,22 +244,17 @@ exports.signIn = async (req, res) => {
       return res.status(403).json({ message: 'Your account has been deactivated.' });
     }
 
-    // 2FA: password was correct, but no session yet. Ask for the code.
-    // (The sign-in is logged after the code is verified.)
-    if (needsSecondStep(user)) {
-      return res.status(200).json({
-        twoFactorRequired: true,
-        challengeToken: signChallenge(user),
-      });
-    }
-
     await logActivity(
       user,
       { category: 'Account', action: 'SIGN_IN', description: 'Signed in with email and password' },
       req
     );
 
-    return res.status(200).json(issueSession(user));
+    return res.status(200).json({
+      message: 'Signed in successfully.',
+      token: signToken(user),
+      user: publicUser(user),
+    });
   } catch (err) {
     console.error('signIn error:', err);
     return res.status(500).json(SERVER_ERROR);
@@ -357,7 +339,7 @@ exports.googleSignIn = async (req, res) => {
         role,
         authProvider: 'google',
         googleId: payload.sub,
-        avatar: payload.picture || '',
+        avatar: payload.picture || '', // NEW
         agreedToTerms: true,
       });
       await user.save();
@@ -371,19 +353,10 @@ exports.googleSignIn = async (req, res) => {
       });
     }
 
-    // Keep the Google profile picture current on every Google sign-in
+    // NEW: keep the Google profile picture current on every Google sign-in
     if (payload.picture && user.avatar !== payload.picture) {
       user.avatar = payload.picture;
       await user.save();
-    }
-
-    // 2FA: admins must pass the second step here too, or Google would bypass it.
-    // (The sign-in is logged after the code is verified.)
-    if (!isNewUser && needsSecondStep(user)) {
-      return res.status(200).json({
-        twoFactorRequired: true,
-        challengeToken: signChallenge(user),
-      });
     }
 
     await logActivity(
@@ -394,7 +367,12 @@ exports.googleSignIn = async (req, res) => {
       req
     );
 
-    return res.status(200).json({ ...issueSession(user), isNewUser });
+    return res.status(200).json({
+      message: 'Signed in successfully.',
+      token: signToken(user),
+      user: publicUser(user),
+      isNewUser,
+    });
   } catch (err) {
     if (err.name === 'ValidationError') {
       const first = Object.values(err.errors)[0];
