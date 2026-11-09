@@ -1567,10 +1567,10 @@ const Dashboard = ({
               {['Approved', 'Accepted'].includes(detailsReq.status) && (
                 <button
                   type="button"
-                  className="rq-btn-secondary"
+                  className="rq-btn-slip"
                   onClick={() => setSlipId(detailsReq.id)}
                 >
-                  <i className="bi bi-file-earmark-pdf"></i> Issuance Slip
+                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
                 </button>
               )}
 
