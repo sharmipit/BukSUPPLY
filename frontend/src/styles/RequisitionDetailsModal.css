@@ -244,27 +244,43 @@
   flex-shrink: 0;
 }
 
+/* Request & Issuance Slip button (same look as the primary buttons in System Reports & Logs) */
 .details-btn-slip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
-  border: none;
+  height: 42px;
+  padding: 0 18px;
   border-radius: 50px;
-  background-color: #2C1A14;
-  color: #FFFFFF;
+  background: var(--btn-dark, #2c1a14);
+  color: #fff;
+  border: 1px solid var(--btn-dark, #2c1a14);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.details-btn-slip:hover {
-  background-color: #8C5839;
+.details-btn-slip:hover:not(:disabled) {
+  background: var(--text-light-brown, #8c5839);
+  border-color: var(--text-light-brown, #8c5839);
+}
+
+.details-btn-slip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .details-btn-slip:focus-visible {
-  outline: 2px solid #8C5839;
+  outline: 2px solid #8c5839;
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .details-btn-slip {
+    transition: none;
+  }
 }
