@@ -1,4 +1,6 @@
-/* BukSUPPLY - Issuance slip preview (same look as the System Reports PDF preview) */
+/* ==========================================================================
+   BukSUPPLY - Issuance Slip Modal Styles
+   ========================================================================== */
 
 .isl-overlay {
   position: fixed;
@@ -66,7 +68,6 @@
   background: #f5efe6;
 }
 
-/* Gray desk with the slip on top */
 .isl-paper-wrap {
   flex: 1;
   overflow: auto;
@@ -81,7 +82,7 @@
   flex-direction: column;
   min-width: 620px;
   max-width: 760px;
-  aspect-ratio: 210 / 297; /* A4 portrait, grows if the content is taller */
+  aspect-ratio: 210 / 297;
   margin: 0 auto;
   padding: 28px 32px;
   background: #fff;

@@ -233,11 +233,6 @@
 
 /* ==========================================================================
    Slim horizontal scrollbar (table)
-   Only shows on narrow screens, where the table cannot fit.
-   No arrow buttons, a light thumb, and brown only on hover.
-   scrollbar-width / scrollbar-color are used only where ::-webkit-scrollbar
-   is not supported (Firefox), because in Chrome and Edge they override the
-   ::-webkit-scrollbar rules below.
    ========================================================================== */
 .inv-table-wrapper::-webkit-scrollbar {
   width: 6px;
@@ -306,7 +301,7 @@
 }
 
 /* ==========================================================================
-   Filters (the dropdowns are the shared FilterDropdown component)
+   Filters
    ========================================================================== */
 .inv-filter-group {
   display: flex;
@@ -334,9 +329,6 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* The table is wide enough that no column gets squashed (the Item column
-   takes whatever the fixed columns leave over). On narrower screens the
-   table scrolls sideways instead of cramming the columns together. */
 .inv-table {
   width: 100% !important;
   min-width: 1040px;
@@ -368,8 +360,6 @@
   box-sizing: border-box;
 }
 
-/* Column widths (each fits its content, including the widest badge and the
-   three action buttons, with room to spare) */
 .inv-table .inv-col-item {
   width: auto;
 }
@@ -415,7 +405,6 @@
   background-color: transparent !important;
 }
 
-/* Extra room at both ends of every row so nothing touches the card edge */
 .inv-table th:first-child,
 .inv-table td:first-child {
   padding-left: 28px !important;
@@ -457,7 +446,10 @@
   color: var(--text-body, #594d46);
 }
 
-/* Long text is cut with an ellipsis on one line (the full text is in the tooltip) */
+.inv-row-archived .inv-item-name {
+  color: #8c7a70;
+}
+
 .inv-clamp {
   display: block;
   max-width: 100%;
@@ -473,11 +465,25 @@
   margin-bottom: 6px;
 }
 
+.inv-stock-text.low-stock strong {
+  color: #c2410c;
+}
+.inv-stock-text.out-of-stock strong {
+  color: #b91c1c;
+}
+
 .inv-stock-bar {
   height: 6px;
   border-radius: 50px;
   background-color: #efe9df;
   overflow: hidden;
+}
+
+.inv-stock-bar.low-stock {
+  background-color: #ffedd5;
+}
+.inv-stock-bar.out-of-stock {
+  background-color: #fee2e2;
 }
 
 .inv-stock-fill {
@@ -490,10 +496,13 @@
   background-color: #10b981;
 }
 .inv-stock-fill.low-stock {
-  background-color: #f59e0b;
+  background-color: #f97316;
 }
 .inv-stock-fill.out-of-stock {
-  background-color: #ef4444;
+  background-color: #dc2626;
+}
+.inv-stock-fill.archived {
+  background-color: #b8ab9d;
 }
 
 .inv-reorder-text {
@@ -517,13 +526,26 @@
   background-color: #d1fae5;
   color: #065f46;
 }
+
 .inv-badge.low-stock {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: #ffedd5;
+  color: #9a3412;
+  box-shadow: inset 0 0 0 1px #fdba74;
+  font-weight: 700;
 }
+
 .inv-badge.out-of-stock {
   background-color: #fee2e2;
-  color: #991b1b;
+  color: #b91c1c;
+  box-shadow: inset 0 0 0 1px #f87171;
+  font-weight: 700;
+}
+
+/* Archived */
+.inv-badge.archived {
+  background-color: #f1ede6;
+  color: #6b5d54;
+  box-shadow: inset 0 0 0 1px #d6cdc0;
 }
 
 /* Action buttons */
@@ -556,7 +578,7 @@
   cursor: not-allowed;
 }
 
-/* Icon-only buttons in the table (Adjust, Edit, Delete) */
+/* Icon-only buttons in the table (Adjust, Edit, Archive, Restore) */
 .inv-btn-icon {
   width: 36px;
   height: 36px;
@@ -587,15 +609,29 @@
   color: #ffffff;
 }
 
-.inv-btn-delete {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border-color: #fca5a5;
+/* Archive */
+.inv-btn-archive {
+  background-color: #faf7f2;
+  color: #6b5d54;
+  border-color: #d6cdc0;
 }
-.inv-btn-delete:hover:not(:disabled) {
-  background-color: #dc2626;
+.inv-btn-archive:hover:not(:disabled) {
+  background-color: #6b5d54;
   color: #ffffff;
-  border-color: #dc2626;
+  border-color: #6b5d54;
+}
+
+/* Restore button */
+.inv-btn-restore {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border-color: #d1d5db;
+  padding: 7px 14px;
+}
+.inv-btn-restore:hover:not(:disabled) {
+  background-color: #4b5563;
+  color: #ffffff;
+  border-color: #4b5563;
 }
 
 /* Footer / pagination */
@@ -669,7 +705,7 @@
 }
 
 /* ==========================================================================
-   Modals (add / edit, adjust stock, history, delete)
+   Modals (add / edit, adjust stock, history, archive)
    ========================================================================== */
 .inv-modal-backdrop {
   position: fixed;
@@ -700,7 +736,7 @@
   overflow: hidden;
 }
 
-/* Delete modal */
+/* Archive modal */
 .inv-modal.inv-modal-auto {
   height: auto;
 }
@@ -720,6 +756,11 @@
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--text-dark, #2c1a14);
+}
+
+/* Archived */
+.inv-header-badge {
+  margin-top: 8px;
 }
 
 .inv-modal-close {
@@ -790,7 +831,8 @@
 
 .inv-btn-primary,
 .inv-btn-secondary,
-.inv-btn-danger {
+.inv-btn-danger,
+.inv-btn-quiet {
   padding: 10px 22px;
   border-radius: 50px;
   font-size: 0.92rem;
@@ -828,9 +870,28 @@
   border-color: #b91c1c;
 }
 
+.inv-btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #ffffff;
+  color: #6b5d54;
+  border: 1px solid #d6cdc0;
+}
+.inv-btn-quiet i {
+  line-height: 1;
+}
+.inv-btn-quiet:hover:not(:disabled) {
+  background-color: #6b5d54;
+  color: #ffffff;
+  border-color: #6b5d54;
+}
+
 .inv-btn-primary:disabled,
 .inv-btn-secondary:disabled,
-.inv-btn-danger:disabled {
+.inv-btn-danger:disabled,
+.inv-btn-quiet:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -885,7 +946,6 @@
   appearance: none;
 }
 
-/* Text box that appears under the category dropdown for "+ Add new category" */
 .inv-new-category {
   margin-top: 2px;
   border-color: var(--text-light-brown, #8c5839);
@@ -921,6 +981,19 @@
   margin: 4px 0 0;
 }
 
+/* Archive confirmation */
+.inv-note-box {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background-color: var(--bg-color, #faf7f2);
+  border: 1px solid var(--card-border, #dfd8cc);
+  color: var(--text-body, #594d46);
+  font-size: 0.9rem;
+}
+.inv-note-box p {
+  margin: 4px 0 0;
+}
+
 /* Adjust stock */
 .inv-adjust-item {
   margin: 0;
@@ -946,6 +1019,10 @@
 
 .inv-segmented button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; 
   background: none;
   border: none;
   padding: 8px 12px;
@@ -956,6 +1033,12 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+}
+
+.inv-segmented button i {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .inv-segmented button.active {
@@ -971,14 +1054,27 @@
 /* ==========================================================================
    Audit trail: item details grid and stock history timeline
    ========================================================================== */
-.inv-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+
+.inv-detail-card {
   padding: 16px 20px;
   background-color: var(--bg-color, #faf7f2);
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 16px;
+}
+
+.inv-detail-card-title {
+  margin: 0 0 8px 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.inv-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
 }
 
 .inv-meta-label {
@@ -1046,6 +1142,12 @@
 .inv-move-dot.edited {
   background-color: #3b82f6;
 }
+.inv-move-dot.archived {
+  background-color: #8c7a70;
+}
+.inv-move-dot.restored {
+  background-color: #047857;
+}
 
 .inv-move-head {
   display: flex;
@@ -1076,6 +1178,14 @@
 .inv-move-badge.edited {
   background-color: #dbeafe;
   color: #1e40af;
+}
+.inv-move-badge.archived {
+  background-color: #f1ede6;
+  color: #6b5d54;
+}
+.inv-move-badge.restored {
+  background-color: #d1fae5;
+  color: #047857;
 }
 
 .inv-move-qty {
@@ -1213,7 +1323,8 @@
 
   .inv-modal-footer .inv-btn-primary,
   .inv-modal-footer .inv-btn-secondary,
-  .inv-modal-footer .inv-btn-danger {
+  .inv-modal-footer .inv-btn-danger,
+  .inv-modal-footer .inv-btn-quiet {
     flex: 1 1 auto;
   }
 

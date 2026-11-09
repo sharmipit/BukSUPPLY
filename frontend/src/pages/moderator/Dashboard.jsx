@@ -52,6 +52,7 @@ const ROUTES = {
 
 const EMPTY_FORM = {
   name: '',
+  supplier: '',
   category: DEFAULT_CATEGORIES[0],
   unit: 'pcs',
   quantity: 0,
@@ -303,9 +304,15 @@ const Dashboard = ({
     create: createInventoryItem,
     update: updateInventoryItem,
     adjust: adjustInventory,
-    remove: removeInventoryItem,
+    archive: archiveInventoryItem,
   } = useInventory();
-  const inventory = inventoryProp ?? items;
+  // Archived items are hidden from the dashboard (they live under Inventory > Archived).
+  // This also keeps requests from being matched to an archived item.
+  const activeItems = useMemo(() => items.filter((i) => !i.archived), [items]);
+  const inventory = useMemo(
+    () => (inventoryProp ?? items).filter((i) => !i.archived),
+    [inventoryProp, items]
+  );
   const invReady = !invLoading && !invError;
 
   const {
@@ -363,12 +370,12 @@ const Dashboard = ({
   const getCheck = (req) => {
     const lines = (req.itemsList || []).map((l) => {
       const inv =
-        items.find((i) => i._id === String(l.inventoryItemId)) ||
-        items.find((i) => norm(i.name) === norm(l.name));
+        activeItems.find((i) => i._id === String(l.inventoryItemId)) ||
+        activeItems.find((i) => norm(i.name) === norm(l.name));
       return { ...l, inv, enough: !!inv && l.qty <= inv.quantity };
     });
     const purchaseLines = (req.purchaseItems || []).map((l) => {
-      const inv = items.find((i) => norm(i.name) === norm(l.name));
+      const inv = activeItems.find((i) => norm(i.name) === norm(l.name));
       return { ...l, inv, enough: !!inv && l.qty <= inv.quantity };
     });
     return {
@@ -580,9 +587,10 @@ const Dashboard = ({
   const [historyId, setHistoryId] = useState(null);
   const historyItem = inventory.find((i) => i.id === historyId) || null;
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  // Archive modal
+  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState('');
 
   const openAddModal = () => {
     setEditingId(null);
@@ -596,6 +604,7 @@ const Dashboard = ({
     setEditingId(item.id);
     setForm({
       name: item.name,
+      supplier: item.supplier || '',
       category: item.category,
       unit: item.unit,
       quantity: item.quantity,
@@ -622,6 +631,7 @@ const Dashboard = ({
 
     const cleaned = {
       name: form.name.trim(),
+      supplier: form.supplier.trim(),
       category,
       unit: form.unit.trim() || 'pcs',
       quantity: Math.max(0, Number(form.quantity) || 0),
@@ -691,32 +701,33 @@ const Dashboard = ({
     }
   };
 
-  const openDeleteModal = (item) => {
-    setDeleteError('');
-    setDeleteTarget(item);
+  const openArchiveModal = (item) => {
+    setArchiveError('');
+    setArchiveTarget(item);
   };
 
-  const closeDeleteModal = () => {
-    if (deleting) return;
-    setDeleteError('');
-    setDeleteTarget(null);
+  const closeArchiveModal = () => {
+    if (archiving) return;
+    setArchiveError('');
+    setArchiveTarget(null);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget || deleting) return;
-    setDeleting(true);
-    setDeleteError('');
+  // Archive hides the item, it is never deleted. Restore it from Inventory > Archived.
+  const handleConfirmArchive = async () => {
+    if (!archiveTarget || archiving) return;
+    setArchiving(true);
+    setArchiveError('');
     try {
-      await removeInventoryItem(deleteTarget.id);
+      await archiveInventoryItem(archiveTarget.id);
       setNotice({
         type: 'success',
-        text: `${deleteTarget.name} (${deleteTarget.id}) was deleted.`,
+        text: `${archiveTarget.name} (${archiveTarget.id}) was archived.`,
       });
-      setDeleteTarget(null);
+      setArchiveTarget(null);
     } catch (err) {
-      setDeleteError(errMsg(err));
+      setArchiveError(errMsg(err));
     } finally {
-      setDeleting(false);
+      setArchiving(false);
     }
   };
 
@@ -779,6 +790,11 @@ const Dashboard = ({
         String(a.name).localeCompare(String(b.name))
     )
     .slice(0, PREVIEW_LIMIT);
+
+  // Latest movement that has a reference number (delivery / PO / requisition slip)
+  const lastRefMove = historyItem
+    ? [...(historyItem.movements || [])].reverse().find((m) => m.reference)
+    : null;
 
   return (
     <div className="dashboard">
@@ -1024,10 +1040,10 @@ const Dashboard = ({
                         </div>
                       </td>
                       <td>
-                        <div className="db-stock-text">
+                        <div className={`db-stock-text ${statusClass(status)}`}>
                           <strong>{item.quantity}</strong> {item.unit}
                         </div>
-                        <div className="db-stock-bar" aria-hidden="true">
+                        <div className={`db-stock-bar ${statusClass(status)}`} aria-hidden="true">
                           <div
                             className={`db-stock-fill ${statusClass(status)}`}
                             style={{ width: `${getStockFill(item)}%` }}
@@ -1698,6 +1714,20 @@ const Dashboard = ({
                 />
               </div>
 
+              <div className="db-field">
+                <label htmlFor="db-supplier">Supplier name (optional)</label>
+                <input
+                  id="db-supplier"
+                  type="text"
+                  className="db-input"
+                  value={form.supplier}
+                  onChange={(e) => handleFormChange('supplier', e.target.value)}
+                  placeholder="e.g. Cagayan Office Depot"
+                  maxLength={120}
+                />
+                <span className="db-field-hint">Who usually delivers or sells this item.</span>
+              </div>
+
               <div className="db-field-row">
                 <div className="db-field">
                   <label htmlFor="db-category">Category</label>
@@ -1973,22 +2003,66 @@ const Dashboard = ({
             </div>
 
             <div className="inv-modal-body">
-              <div className="inv-meta-grid">
-                <div>
-                  <span className="inv-meta-label">On hand</span>
-                  <span className="inv-meta-value">
-                    {historyItem.quantity} {historyItem.unit}
-                  </span>
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Stock</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">On hand</span>
+                      <span className="inv-meta-value">{historyItem.quantity} {historyItem.unit}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Reorder level</span>
+                      <span className="inv-meta-value">{historyItem.reorderLevel} {historyItem.unit}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Usual limit per request</span>
+                      <span className="inv-meta-value">{historyItem.maxNormal} {historyItem.unit}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="inv-meta-label">Added by</span>
-                  <span className="inv-meta-value">{historyItem.addedBy}</span>
-                  <span className="inv-meta-sub">{fmtDateTime(historyItem.dateAdded)}</span>
+              </div>
+
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Item info</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">Category</span>
+                      <span className="inv-meta-value">{historyItem.category}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Supplier</span>
+                      <span className="inv-meta-value">{historyItem.supplier || 'Not set'}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Last reference no.</span>
+                      <span className="inv-meta-value">{lastRefMove ? lastRefMove.reference : '—'}</span>
+                      {lastRefMove && (
+                        <span className="inv-meta-sub">
+                          {lastRefMove.type} · {fmtDateTime(lastRefMove.date)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="inv-meta-label">Last updated by</span>
-                  <span className="inv-meta-value">{historyItem.updatedBy}</span>
-                  <span className="inv-meta-sub">{fmtDateTime(historyItem.updated)}</span>
+              </div>
+
+              <div className="inv-detail-group">
+                <h4 className="inv-detail-card-title">Activity</h4>
+                <div className="inv-detail-card">
+                  <div className="inv-meta-grid">
+                    <div>
+                      <span className="inv-meta-label">Added by</span>
+                      <span className="inv-meta-value">{historyItem.addedBy}</span>
+                      <span className="inv-meta-sub">{fmtDateTime(historyItem.dateAdded)}</span>
+                    </div>
+                    <div>
+                      <span className="inv-meta-label">Last updated by</span>
+                      <span className="inv-meta-value">{historyItem.updatedBy}</span>
+                      <span className="inv-meta-sub">{fmtDateTime(historyItem.updated)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2033,13 +2107,14 @@ const Dashboard = ({
               </button>
               <button
                 type="button"
-                className="inv-btn-danger"
+                className="inv-btn-quiet"
                 onClick={() => {
                   setHistoryId(null);
-                  openDeleteModal(historyItem);
+                  openArchiveModal(historyItem);
                 }}
               >
-                Delete
+                <i className="bi bi-archive"></i>
+                Archive
               </button>
               <button
                 type="button"
@@ -2066,24 +2141,24 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Inventory Item Delete Confirmation */}
-      {deleteTarget && (
-        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeDeleteModal}>
+      {/* Inventory: archive confirmation */}
+      {archiveTarget && (
+        <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeArchiveModal}>
           <div
             className="inv-modal inv-modal-auto"
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="db-delete-title"
+            aria-labelledby="db-archive-title"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="inv-modal-header">
-              <h3 id="db-delete-title">Delete inventory item?</h3>
+              <h3 id="db-archive-title">Archive inventory item?</h3>
               <button
                 type="button"
                 className="inv-modal-close"
-                onClick={closeDeleteModal}
+                onClick={closeArchiveModal}
                 aria-label="Close"
-                disabled={deleting}
+                disabled={archiving}
               >
                 <i className="bi bi-x-lg"></i>
               </button>
@@ -2091,22 +2166,24 @@ const Dashboard = ({
 
             <div className="inv-modal-body">
               <p className="inv-confirm-text">
-                <strong>{deleteTarget.name}</strong> · {deleteTarget.id}
+                <strong>{archiveTarget.name}</strong> · {archiveTarget.id}
               </p>
 
-              <div className="inv-error-box">
-                <strong>This action cannot be undone</strong>
+              <div className="inv-note-box">
+                <strong>The item will be hidden, not deleted</strong>
                 <p>
-                  Are you sure you want to delete item {deleteTarget.id}?
-                  {deleteTarget.quantity > 0 &&
-                    ` It still has ${deleteTarget.quantity} ${deleteTarget.unit} on hand.`}
+                  It will no longer appear in requests or in the stock counts, but its details and
+                  stock history are kept. You can restore it anytime from the Archived filter on the
+                  Inventory page.
+                  {archiveTarget.quantity > 0 &&
+                    ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
                 </p>
               </div>
 
-              {deleteError && (
+              {archiveError && (
                 <div className="inv-error-box">
-                  <strong>Could not delete</strong>
-                  <p>{deleteError}</p>
+                  <strong>Could not archive</strong>
+                  <p>{archiveError}</p>
                 </div>
               )}
             </div>
@@ -2115,18 +2192,18 @@ const Dashboard = ({
               <button
                 type="button"
                 className="inv-btn-secondary"
-                onClick={closeDeleteModal}
-                disabled={deleting}
+                onClick={closeArchiveModal}
+                disabled={archiving}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="inv-btn-danger"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
+                className="inv-btn-primary"
+                onClick={handleConfirmArchive}
+                disabled={archiving}
               >
-                {deleting ? 'Deleting...' : 'Delete item'}
+                {archiving ? 'Archiving...' : 'Archive item'}
               </button>
             </div>
           </div>

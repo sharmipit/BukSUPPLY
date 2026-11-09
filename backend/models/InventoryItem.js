@@ -11,7 +11,7 @@ const Counter =
 const movementSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["Created", "Received", "Withdrawn", "Edited"],
+    enum: ["Created", "Received", "Withdrawn", "Edited", "Archived", "Restored"],
     required: true,
   },
   qty: Number,
@@ -28,10 +28,15 @@ const itemSchema = new mongoose.Schema(
     code: { type: String, unique: true, index: true },
     name: { type: String, required: true, trim: true },
     category: { type: String, required: true, trim: true },
+    supplier: { type: String, default: "", trim: true, maxlength: 120 },
     unit: { type: String, default: "pcs", trim: true },
     quantity: { type: Number, default: 0, min: 0 },
     reorderLevel: { type: Number, default: 10, min: 0 },
     maxNormal: { type: Number, default: 10, min: 1 },
+    // Archived items are hidden from requests and counts, but never deleted
+    archived: { type: Boolean, default: false, index: true },
+    archivedAt: Date,
+    archivedBy: String,
     addedBy: String,
     updatedBy: String,
     movements: [movementSchema],
@@ -47,6 +52,9 @@ itemSchema.set("toJSON", {
     ret._id = String(ret._id);
     ret.dateAdded = ret.createdAt;
     ret.updated = ret.updatedAt;
+    // Old documents have no supplier / archived fields yet
+    ret.supplier = ret.supplier || "";
+    ret.archived = !!ret.archived;
     if (ret.movements) {
       ret.movements = ret.movements.map((m) => ({
         ...m,
