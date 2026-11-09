@@ -97,6 +97,12 @@ exports.verifyLogin = async (req, res) => {
     if (!ok) return res.status(401).json({ message: 'That code is not correct.' });
 
     const { issueSession } = require('./authController');
+    const { logActivity } = require('../services/activityLog');
+    await logActivity(
+      user,
+      { category: 'Account', action: 'SIGN_IN', description: 'Signed in with two-step verification' },
+      req
+    );
     res.json(issueSession(user));
   } catch (err) {
     console.error('2fa verify error:', err);
