@@ -1,0 +1,268 @@
+/* ==========================================================================
+   BukSUPPLY - Date Field (custom calendar picker)
+   ========================================================================== */
+
+.df-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  font-family: inherit;
+}
+
+.df-label {
+  padding-left: 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #8c7a70;
+}
+
+.df-btn {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 50px;
+  background-color: #ffffff;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-dark, #2c1a14);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.df-btn > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.df-btn i {
+  flex-shrink: 0;
+  color: #8c7a70;
+  transition: color 0.2s ease;
+}
+
+.df-btn.placeholder > span {
+  font-weight: 500;
+  color: #8c7a70;
+}
+
+.df-btn:hover {
+  border-color: #8c5839;
+  background-color: #faf7f2;
+}
+
+.df-btn.filled {
+  border-color: #8c5839;
+}
+
+.df-btn.filled i,
+.df-btn.open i {
+  color: #8c5839;
+}
+
+.df-btn:focus-visible {
+  outline: 2px solid var(--text-light-brown, #8c5839);
+  outline-offset: 2px;
+}
+
+.df-btn.open {
+  border-color: #8c5839;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.12);
+}
+
+/* Calendar popup */
+.df-calendar {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: min(290px, calc(100vw - 32px));
+  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 20px;
+  box-shadow: 0 14px 36px rgba(44, 26, 20, 0.16);
+  animation: df-pop-in 0.15s ease;
+}
+
+.df-field.align-right .df-calendar {
+  left: auto;
+  right: 0;
+}
+
+@keyframes df-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.df-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.df-cal-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dark, #2c1a14);
+}
+
+.df-cal-nav {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 50%;
+  background-color: #ffffff;
+  color: #8c5839;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.df-cal-nav:hover {
+  background-color: #8c5839;
+  border-color: #8c5839;
+  color: #ffffff;
+}
+
+.df-cal-nav:focus-visible,
+.df-cal-day:focus-visible,
+.df-cal-link:focus-visible {
+  outline: 2px solid #8c5839;
+  outline-offset: 2px;
+}
+
+.df-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.df-cal-weekdays {
+  margin-bottom: 4px;
+}
+
+.df-cal-weekdays span {
+  padding: 4px 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #8c7a70;
+}
+
+.df-cal-day {
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dark, #2c1a14);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.df-cal-day:hover:not(:disabled):not(.selected) {
+  background-color: #f5efe6;
+}
+
+.df-cal-day.today {
+  border-color: #8c5839;
+  color: #8c5839;
+  font-weight: 700;
+}
+
+.df-cal-day.in-range {
+  background-color: #f5efe6;
+  border-radius: 8px;
+}
+
+.df-cal-day.selected {
+  background-color: #8c5839;
+  border-color: #8c5839;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.df-cal-day:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.df-cal-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+}
+
+.df-cal-link {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8c5839;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.df-cal-link:hover:not(:disabled) {
+  background-color: #f5efe6;
+}
+
+.df-cal-link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .df-field.align-right .df-calendar {
+    left: 0;
+    right: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-calendar {
+    animation: none;
+  }
+  .df-btn,
+  .df-cal-nav,
+  .df-cal-day,
+  .df-cal-link {
+    transition: none;
+  }
+}
