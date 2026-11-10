@@ -63,4 +63,16 @@ router.put('/:section', async (req, res) => {
   }
 });
 
+// Restore one section to its default values
+router.post('/:section/reset', async (req, res) => {
+  try {
+    const result = settings.reset(req.params.section);
+    const title = SECTION_TITLE[req.params.section] || req.params.section;
+    await log(req, 'SETTINGS_RESET', `Reset ${title} settings to default`, title);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
 module.exports = router;

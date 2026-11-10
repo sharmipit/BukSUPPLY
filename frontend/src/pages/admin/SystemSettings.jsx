@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
@@ -25,6 +25,7 @@ const INITIAL = {
   recaptchaSiteKey: '',
   recaptchaSiteKeySet: false,
   recaptchaSiteKeyMasked: '',
+  recaptchaSiteKeyPublic: '',
   recaptchaSecretKey: '',
   recaptchaSecretKeySet: false,
 
@@ -64,7 +65,7 @@ const SECTION_TITLE = {
 // Includes the server's "xxxSet" / "xxxMasked" helper keys
 const keysFor = (section) => SECTION_FIELDS[section].flatMap((f) => [f, `${f}Set`, `${f}Masked`]);
 
-// ---- validation (the server checks again) ----
+// ---- validation (the server checks again, and also checks with the real provider) ----
 const RE = {
   googleClientId: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/i,
   recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
@@ -119,6 +120,8 @@ const VALIDATE = {
     const key = t(f.pdfshiftApiKey);
     if (key && badSecret(key, 10))
       return 'The PDFShift API key looks too short or contains spaces.';
+    if (key && !key.startsWith('sk_'))
+      return 'PDFShift API keys start with "sk_". Copy it again from your PDFShift dashboard.';
     if (f.pdfshiftEnabled && !(key || f.pdfshiftApiKeySet))
       return 'Add the PDFShift API key, or turn PDF downloads off.';
     return '';
@@ -127,10 +130,32 @@ const VALIDATE = {
     const key = t(f.nutrientApiKey);
     if (key && badSecret(key, 10))
       return 'The Nutrient API key looks too short or contains spaces.';
+    if (key && !/^pdf_(live|test)_/.test(key))
+      return 'Nutrient API keys start with "pdf_live_". Copy it again from your Nutrient dashboard.';
     if (f.nutrientEnabled && !(key || f.nutrientApiKeySet))
       return 'Add the Nutrient API key, or turn Excel downloads off.';
     return '';
   },
+};
+
+// ---- Google reCAPTCHA script (loaded once, only when the admin confirms new keys) ----
+let recaptchaLoader = null;
+const loadRecaptcha = () => {
+  if (window.grecaptcha && window.grecaptcha.render) return Promise.resolve(window.grecaptcha);
+  if (!recaptchaLoader) {
+    recaptchaLoader = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+      s.async = true;
+      s.onload = () => window.grecaptcha.ready(() => resolve(window.grecaptcha));
+      s.onerror = () => {
+        recaptchaLoader = null;
+        reject(new Error('Could not load reCAPTCHA from Google. Check your connection.'));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return recaptchaLoader;
 };
 
 // ---- small components ----
@@ -162,7 +187,7 @@ const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
 // Public ID/key. When one is saved, only the first 5 characters are shown
 // (e.g. "6LcAb**************") as a locked value with a "Change" button.
 // Click "Change" to type a replacement. Parent remounts this (via `key`)
-// after every save/discard so it always returns to the locked state.
+// after every save/discard/reset so it always returns to the locked state.
 const MaskedInput = ({ id, value, isSet, masked, onChange, placeholder }) => {
   const [editing, setEditing] = useState(false);
 
@@ -259,6 +284,136 @@ const ToggleRow = ({ id, label, hint, checked, onChange }) => (
   </div>
 );
 
+// Confirmation dialog that matches the settings cards
+const ConfirmModal = ({ title, confirmLabel, busy, onConfirm, onCancel, children }) => {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !busy) onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
+
+  return (
+    <div
+      className="ss-modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div
+        className="db-section-card ss-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ss-modal-title"
+      >
+        <div className="ss-card-head">
+          <div className="db-stat-icon-circle ss-card-icon">
+            <i className="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          </div>
+          <div className="ss-card-headtext">
+            <h2 id="ss-modal-title" className="ss-card-title">
+              {title}
+            </h2>
+          </div>
+        </div>
+
+        <div className="ss-modal-body">{children}</div>
+
+        <div className="ss-card-foot">
+          <button type="button" className="db-btn-secondary" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button type="button" className="db-btn-primary" onClick={onConfirm} disabled={busy}>
+            {busy ? 'Resetting...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Shows Google's real "I'm not a robot" box so the server can confirm the keys work together
+const RecaptchaModal = ({ siteKey, onToken, onCancel }) => {
+  const boxRef = useRef(null);
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+  const [problem, setProblem] = useState('');
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadRecaptcha()
+      .then((grecaptcha) => {
+        if (cancelled || !boxRef.current) return;
+        grecaptcha.render(boxRef.current, {
+          sitekey: siteKey,
+          callback: (token) => onTokenRef.current(token),
+          'expired-callback': () => setProblem('The check expired. Tick the box again.'),
+          'error-callback': () =>
+            setProblem(
+              'Google could not run the check. Make sure the site key is correct and allowed for this website.'
+            ),
+        });
+      })
+      .catch((e) => {
+        if (!cancelled) setProblem(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteKey]);
+
+  return (
+    <div
+      className="ss-modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div
+        className="db-section-card ss-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ss-captcha-title"
+      >
+        <div className="ss-card-head">
+          <div className="db-stat-icon-circle ss-card-icon">
+            <i className="bi bi-shield-check" aria-hidden="true"></i>
+          </div>
+          <div className="ss-card-headtext">
+            <h2 id="ss-captcha-title" className="ss-card-title">
+              Confirm your reCAPTCHA keys
+            </h2>
+          </div>
+        </div>
+
+        <div className="ss-modal-body">
+          <p>
+            Tick the box below. Google will check that the site key and secret key are real and
+            belong together, and the keys are saved right after.
+          </p>
+          <div className="ss-captcha" ref={boxRef}></div>
+          {problem && <p className="ss-captcha-problem">{problem}</p>}
+        </div>
+
+        <div className="ss-card-foot">
+          <button type="button" className="db-btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // One card = one API = its own Save button
 const SettingsCard = ({
   icon,
@@ -271,6 +426,7 @@ const SettingsCard = ({
   disabled,
   onSave,
   onDiscard,
+  onReset,
   children,
 }) => (
   <div className="db-section-card ss-card">
@@ -289,7 +445,7 @@ const SettingsCard = ({
 
     {error && (
       <div className="db-error-box ss-error ss-card-error" role="alert">
-        <strong>Could not save</strong>
+        <strong>Could not save or reset</strong>
         <p>{error}</p>
       </div>
     )}
@@ -298,6 +454,15 @@ const SettingsCard = ({
       <span className="ss-card-foot-text" role="status">
         {dirty ? 'You have unsaved changes.' : 'All changes saved.'}
       </span>
+      <button
+        type="button"
+        className="db-btn-secondary"
+        onClick={onReset}
+        disabled={saving || disabled}
+        title="Restore the default values"
+      >
+        Reset to default
+      </button>
       <button
         type="button"
         className="db-btn-secondary"
@@ -326,7 +491,9 @@ function SystemSettingsContent({ token, onLock }) {
   const [errors, setErrors] = useState({}); // { google: '...', smtp: '...' }
   const [loadError, setLoadError] = useState('');
   const [notice, setNotice] = useState(null);
-  // Bumped after save/discard so MaskedInput returns to its locked state
+  const [resetSection, setResetSection] = useState(null); // card waiting for reset confirmation
+  const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA key confirmation
+  // Bumped after save/discard/reset so MaskedInput returns to its locked state
   const [version, setVersion] = useState({});
 
   // Load the saved settings from the server
@@ -379,12 +546,41 @@ function SystemSettingsContent({ token, onLock }) {
     nutrient: getStatus(saved.nutrientEnabled, saved.nutrientApiKeySet),
   };
 
-  const handleSave = async (section) => {
+  // Used after both Save and Reset: take the server's answer for this card only,
+  // so edits in other cards are kept
+  const applyServerData = (section, data) => {
+    setSaved(data);
+    setForm((prev) => {
+      const next = { ...prev };
+      keysFor(section).forEach((k) => {
+        if (k in data) next[k] = data[k];
+      });
+      return next;
+    });
+    bump(section);
+  };
+
+  // The site key the confirmation box should use: the new one if typed, else the saved one
+  const captchaSiteKey = t(form.recaptchaSiteKey) || saved.recaptchaSiteKeyPublic || '';
+
+  // `extra` carries the solved reCAPTCHA token on the second pass
+  const handleSave = async (section, extra = {}) => {
     if (!isDirty(section) || savingSection) return;
     setError(section, '');
 
     const problem = VALIDATE[section](form);
     if (problem) return setError(section, problem);
+
+    // New reCAPTCHA keys must be confirmed with a real "I'm not a robot" check first
+    if (
+      section === 'recaptcha' &&
+      !extra.recaptchaToken &&
+      (t(form.recaptchaSiteKey) || t(form.recaptchaSecretKey)) &&
+      captchaSiteKey &&
+      (t(form.recaptchaSecretKey) || saved.recaptchaSecretKeySet)
+    ) {
+      return setCaptchaOpen(true);
+    }
 
     setSavingSection(section);
     try {
@@ -394,6 +590,7 @@ function SystemSettingsContent({ token, onLock }) {
         body[k] = form[k];
       });
       if (section === 'smtp') body.smtpPort = Number(form.smtpPort) || 587;
+      if (extra.recaptchaToken) body.recaptchaToken = extra.recaptchaToken;
 
       const res = await fetch(`${API}/api/admin/settings/${section}`, {
         method: 'PUT',
@@ -406,21 +603,42 @@ function SystemSettingsContent({ token, onLock }) {
         throw new Error(data.message || 'Could not save the settings.');
       }
 
-      setSaved(data);
-      // Refresh only this card's fields so edits in other cards are kept
-      setForm((prev) => {
-        const next = { ...prev };
-        keysFor(section).forEach((k) => {
-          if (k in data) next[k] = data[k];
-        });
-        return next;
-      });
-      bump(section);
+      applyServerData(section, data);
       setNotice({ type: 'success', text: `${SECTION_TITLE[section]} settings were saved.` });
     } catch (err) {
       setError(section, err.message || 'Could not save the settings.');
     } finally {
       setSavingSection(null);
+    }
+  };
+
+  // Called from the confirmation modal
+  const handleReset = async (section) => {
+    if (savingSection) return;
+
+    setError(section, '');
+    setSavingSection(section);
+    try {
+      const res = await fetch(`${API}/api/admin/settings/${section}/reset`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.code === 'SU_LOCKED') onLock();
+        throw new Error(data.message || 'Could not reset the settings.');
+      }
+
+      applyServerData(section, data);
+      setNotice({
+        type: 'success',
+        text: `${SECTION_TITLE[section]} was reset to default.`,
+      });
+    } catch (err) {
+      setError(section, err.message || 'Could not reset the settings.');
+    } finally {
+      setSavingSection(null);
+      setResetSection(null);
     }
   };
 
@@ -445,6 +663,7 @@ function SystemSettingsContent({ token, onLock }) {
     disabled: !!savingSection && savingSection !== section,
     onSave: () => handleSave(section),
     onDiscard: () => handleDiscard(section),
+    onReset: () => setResetSection(section),
   });
 
   // Must come after all hooks
@@ -459,7 +678,8 @@ function SystemSettingsContent({ token, onLock }) {
           <p className="db-subtitle">
             Manage the keys and connections used by <strong>BukSUPPLY</strong>. Each section is
             saved on its own. Saved keys are hidden; leave a field empty to keep its current value.
-            Database settings are managed in the server configuration.
+            Use <em>Reset to default</em> to go back to the original values. Database settings are
+            managed in the server configuration.
           </p>
         </div>
       </div>
@@ -560,7 +780,7 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-rc-secret"
             label="Secret key"
-            hint="Private. Checked with Google before it is saved."
+            hint="Private. New keys are confirmed with Google when you save."
           >
             <SecretInput
               id="ss-rc-secret"
@@ -721,6 +941,32 @@ function SystemSettingsContent({ token, onLock }) {
           </Field>
         </div>
       </SettingsCard>
+
+      {/* reCAPTCHA key confirmation */}
+      {captchaOpen && (
+        <RecaptchaModal
+          siteKey={captchaSiteKey}
+          onToken={(recaptchaToken) => {
+            setCaptchaOpen(false);
+            handleSave('recaptcha', { recaptchaToken });
+          }}
+          onCancel={() => setCaptchaOpen(false)}
+        />
+      )}
+
+      {/* Reset confirmation */}
+      {resetSection && (
+        <ConfirmModal
+          title={`Reset ${SECTION_TITLE[resetSection]}?`}
+          confirmLabel="Reset to default"
+          busy={savingSection === resetSection}
+          onConfirm={() => handleReset(resetSection)}
+          onCancel={() => setResetSection(null)}
+        >
+          <p>This replaces the saved values for this section with the default values.</p>
+          <p>Any unsaved changes in this card will also be discarded.</p>
+        </ConfirmModal>
+      )}
 
       {/* Toast */}
       {notice && (
