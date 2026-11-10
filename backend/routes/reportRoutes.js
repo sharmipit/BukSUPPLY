@@ -4,7 +4,12 @@ const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
 const ExportHistory = require('../models/ExportHistory');
 const { protect, restrictTo } = require('../middleware/auth');
-const { buildPdf, buildXlsx, buildIssuancePdf } = require('../services/reportFiles');
+const {
+  buildPdf,
+  buildXlsx,
+  buildIssuancePdf,
+  buildIssuanceXlsx,
+} = require('../services/reportFiles');
 
 const router = express.Router();
 
@@ -160,10 +165,16 @@ router.get('/verify/:code', async (req, res, next) => {
   }
 });
 
-// ---------- Issuance slip (PDF for one requisition) ----------
+// ---------- Issuance slip (PDF or editable Excel for one requisition) ----------
+// ?format=pdf (default) or ?format=xlsx
 // Must stay above '/:type' so "issuance" is never read as a report type.
 router.get('/issuance/:slip/export', async (req, res, next) => {
   try {
+    const format = str(req.query.format) || 'pdf';
+    if (!FORMATS.includes(format)) {
+      return res.status(400).json({ message: 'Invalid format.' });
+    }
+
     // Adjust field names (slipNumber, reviewedAt, reviewedBy, remarks) to your Requisition model
     const slip = await Requisition.findOne({ slipNumber: str(req.params.slip) })
       .populate('requester', 'firstName lastName email')
@@ -209,7 +220,10 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
 
     let file;
     try {
-      file = await buildIssuancePdf(slipData, lines, meta);
+      file =
+        format === 'xlsx'
+          ? await buildIssuanceXlsx(slipData, lines, meta)
+          : await buildIssuancePdf(slipData, lines, meta);
     } catch (err) {
       console.error('Issuance slip generation failed:', err.message);
       if (err.userFacing) return res.status(403).json({ message: err.message });
@@ -218,7 +232,7 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
 
     await ExportHistory.create({
       report: 'issuance',
-      format: 'pdf',
+      format,
       filters: { slip: slipData.id },
       user: meta.generatedBy,
       code: meta.code,
@@ -226,8 +240,16 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
     });
 
     const safeId = String(slipData.id).replace(/[^\w.-]/g, '_');
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="issuance-slip-${safeId}.pdf"`);
+    res.setHeader(
+      'Content-Type',
+      format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'application/pdf'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="issuance-slip-${safeId}.${format}"`
+    );
     res.send(file);
   } catch (e) {
     next(e);

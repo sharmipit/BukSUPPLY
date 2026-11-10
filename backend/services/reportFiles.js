@@ -1,5 +1,5 @@
 const settings = require('./settings');
-const { buildLocalPdf, buildLocalXlsx } = require('./localReportFiles');
+const { buildLocalPdf, buildLocalXlsx, buildLocalIssuanceXlsx } = require('./localReportFiles');
 
 // After an external service fails (limit reached, bad key, outage), skip it for this long
 // and use the self-hosted builder instead.
@@ -223,6 +223,83 @@ function buildIssuanceHtml(slip, lines) {
   </body></html>`;
 }
 
+// ---------- Issuance slip as Excel (one model feeds both the external and local builders) ----------
+const issuanceXlsxModel = (slip, lines, meta) => ({
+  org: ORG_NAME,
+  subtitle: `${SYSTEM_NAME} – ${SYSTEM_SUBTITLE}`,
+  title: TITLES.issuance,
+  info: [
+    ['Issuance no.', `ISS-${slip.id}`],
+    ['Requisition no.', slip.id],
+    ['Requested by', slip.requestedBy || ''],
+    ['Department', slip.department || ''],
+    ['Date filed', fmtDate(slip.filedAt)],
+    ['Date approved', fmtDate(slip.approvedAt)],
+    ['Purpose', slip.purpose || ''],
+  ],
+  items: lines.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit || '' })),
+  remarks: slip.remarks || '',
+  signatures: [
+    { role: 'Approved by (signature over printed name)', name: slip.approvedBy || '' },
+    { role: 'Issued by (signature over printed name)', name: meta.generatedBy || '' },
+    { role: 'Received by (signature over printed name)', name: slip.requestedBy || '' },
+  ],
+  code: meta.code,
+  footerLines: [
+    ...closingLines(meta).slice(0, 2),
+    'Yellow cells are editable.',
+    '*** End of slip ***',
+  ],
+});
+
+// HTML for Nutrient (colspan stands in for merged cells; bgcolor marks editable cells)
+function buildIssuanceXlsxHtml(m) {
+  const EDIT = 'bgcolor="#FFF9DB" style="background-color:#FFF9DB"';
+  const line = (text, bold) =>
+    `<tr><td colspan="4">${bold ? '<b>' : ''}${esc(text)}${bold ? '</b>' : ''}</td></tr>`;
+  const blank = '<tr><td colspan="4"></td></tr>';
+
+  const sigPairs = [];
+  for (let i = 0; i < m.signatures.length; i += 2) sigPairs.push(m.signatures.slice(i, i + 2));
+
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body>
+  <table>
+    ${line(m.org, true)}
+    ${line(m.subtitle)}
+    ${line(m.title, true)}
+    ${blank}
+    ${m.info
+      .map(
+        ([k, v]) =>
+          `<tr><td colspan="2"><b>${esc(k)}</b></td><td colspan="2" ${EDIT}>${esc(v)}</td></tr>`
+      )
+      .join('')}
+    ${blank}
+    <tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit</th></tr>
+    ${m.items
+      .map(
+        (l, i) =>
+          `<tr><td>${i + 1}</td><td ${EDIT}>${esc(l.name)}</td><td ${EDIT}>${esc(l.qty)}</td><td ${EDIT}>${esc(l.unit)}</td></tr>`
+      )
+      .join('')}
+    ${[1, 2, 3].map(() => `<tr><td></td><td ${EDIT}></td><td ${EDIT}></td><td ${EDIT}></td></tr>`).join('')}
+    ${blank}
+    ${line('Remarks', true)}
+    <tr><td colspan="4" ${EDIT}>${esc(m.remarks)}</td></tr>
+    ${blank}
+    ${sigPairs
+      .map(
+        (pair) => `
+    <tr>${pair.map(() => '<td colspan="2"><br><br></td>').join('')}</tr>
+    <tr>${pair.map((s) => `<td colspan="2" ${EDIT}><b>${esc(s.name)}</b></td>`).join('')}</tr>
+    <tr>${pair.map((s) => `<td colspan="2"><i>${esc(s.role)}</i></td>`).join('')}</tr>
+    ${blank}`
+      )
+      .join('')}
+    ${m.footerLines.map((t) => line(t)).join('')}
+  </table></body></html>`;
+}
+
 // ---- External API call. Confirm header/footer/margin options in PDFShift's docs. ----
 async function buildPdfExternal(type, html, meta, landscape = true) {
   const s = settings.get();
@@ -276,17 +353,13 @@ function buildXlsxHtml(type, rows, summary, meta) {
   </table></body></html>`;
 }
 
-// ---- External API call. Confirm endpoint/options in Nutrient's docs. ----
-async function buildXlsxExternal(type, rows, summary, meta) {
+// ---- External API call (shared by reports and the issuance slip). Confirm endpoint/options in Nutrient's docs. ----
+async function nutrientHtmlToXlsx(html, filename) {
   const s = settings.get();
   if (!s.nutrientApiKey) throw new Error('Excel service is not configured.');
 
   const form = new FormData(); // global in Node 18+, same as fetch
-  form.append(
-    'document',
-    new Blob([buildXlsxHtml(type, rows, summary, meta)], { type: 'text/html' }),
-    'report.html'
-  );
+  form.append('document', new Blob([html], { type: 'text/html' }), filename);
   form.append(
     'instructions',
     JSON.stringify({ parts: [{ html: 'document' }], output: { type: 'xlsx' } })
@@ -305,6 +378,12 @@ async function buildXlsxExternal(type, rows, summary, meta) {
   }
   return Buffer.from(await res.arrayBuffer());
 }
+
+const buildXlsxExternal = (type, rows, summary, meta) =>
+  nutrientHtmlToXlsx(buildXlsxHtml(type, rows, summary, meta), 'report.html');
+
+const buildIssuanceXlsxExternal = (model) =>
+  nutrientHtmlToXlsx(buildIssuanceXlsxHtml(model), 'slip.html');
 
 // ---- External first, self-hosted as the fallback ----
 const tableData = (type, rows) => ({
@@ -377,4 +456,23 @@ async function buildXlsx(type, rows, summary, meta) {
   return withFallback('xlsx', () => buildXlsxExternal(type, rows, summary, meta), local);
 }
 
-module.exports = { buildPdf, buildXlsx, buildIssuancePdf };
+// Editable issuance slip as Excel: Nutrient first, self-hosted builder as the fallback
+async function buildIssuanceXlsx(slip, lines, meta) {
+  if (!settings.get().nutrientEnabled) {
+    throw userError('Excel downloads are turned off by the administrator.');
+  }
+
+  const model = issuanceXlsxModel(slip, lines, meta);
+  const local = () => buildLocalIssuanceXlsx(model);
+
+  if (XLSX_ENGINE === 'local') {
+    console.log(
+      '[reports] xlsx: issuance slip built by the self-hosted builder (XLSX_ENGINE=local)'
+    );
+    return local();
+  }
+
+  return withFallback('xlsx', () => buildIssuanceXlsxExternal(model), local);
+}
+
+module.exports = { buildPdf, buildXlsx, buildIssuancePdf, buildIssuanceXlsx };

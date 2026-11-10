@@ -1,81 +1,14 @@
 /* ==========================================================================
-   BukSUPPLY - Issuance Slip Modal Styles
+   BukSUPPLY - Issuance Slip Paper Preview
+   (the modal shell, header, body and footer come from Requests.css)
    ========================================================================== */
 
-.isl-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1060;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(44, 26, 20, 0.45);
-  backdrop-filter: blur(2px);
-}
-.isl-modal {
-  display: flex;
-  flex-direction: column;
-  width: min(900px, 100%);
-  max-height: 92vh;
-  padding: 24px 28px;
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--card-border, #dfd8cc);
-  border-radius: 24px;
-  box-shadow: 0 12px 32px rgba(44, 26, 20, 0.18);
-  font-family:
-    'Poppins',
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-}
-.isl-modal *,
-.isl-modal *::before,
-.isl-modal *::after {
-  box-sizing: border-box;
-}
-.isl-modal button {
-  font-family: inherit;
-}
-.isl-modal-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-.isl-modal-bar h2 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text-dark, #2c1a14);
-  margin: 0 0 2px;
-}
-.isl-muted {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-body, #594d46);
-}
-.isl-modal-close {
-  background: none;
-  border: none;
-  padding: 6px;
-  cursor: pointer;
-  color: var(--text-body, #594d46);
-  font-size: 1rem;
-  border-radius: 8px;
-}
-.isl-modal-close:hover {
-  background: #f5efe6;
-}
-
 .isl-paper-wrap {
-  flex: 1;
-  overflow: auto;
+  overflow-x: auto;
   padding: 24px;
   background: #e5e5e5;
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 16px;
-  margin-bottom: 16px;
 }
 .isl-paper {
   display: flex;
@@ -188,68 +121,13 @@
   text-align: right;
 }
 
-/* Buttons */
-.isl-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.isl-btn-primary,
-.isl-btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 50px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.isl-btn-primary {
-  background: var(--btn-dark, #2c1a14);
-  color: #fff;
-  border: none;
-}
-.isl-btn-primary:hover:not(:disabled) {
-  background: var(--text-light-brown, #8c5839);
-}
-.isl-btn-secondary {
-  background: #fff;
-  color: var(--text-dark, #2c1a14);
-  border: 1px solid var(--card-border, #dfd8cc);
-}
-.isl-btn-secondary:hover:not(:disabled) {
-  background: #faf7f2;
-  border-color: #8c5839;
-}
-.isl-btn-primary:disabled,
-.isl-btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-@media (max-width: 900px) {
-  .isl-modal {
-    padding: 16px;
-    border-radius: 20px;
-  }
-  .isl-paper-wrap {
-    padding: 12px;
-  }
-}
-
+/* Scrollbar (same as the details modal body) */
 .isl-paper-wrap::-webkit-scrollbar {
   width: 14px;
   height: 14px;
 }
 .isl-paper-wrap::-webkit-scrollbar-track {
   background: transparent;
-}
-.isl-paper-wrap::-webkit-scrollbar-track:vertical {
-  margin: 10px 0;
 }
 .isl-paper-wrap::-webkit-scrollbar-track:horizontal {
   margin: 0 10px;
@@ -264,6 +142,9 @@
   background-color: #8c5839;
   background-clip: padding-box;
 }
-.isl-paper-wrap::-webkit-scrollbar-corner {
-  background: transparent;
+
+@media (max-width: 900px) {
+  .isl-paper-wrap {
+    padding: 12px;
+  }
 }
