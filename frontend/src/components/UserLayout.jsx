@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
 import menuCss from '../styles/menu.css?raw';
 import LogoutModal from '../components/LogoutModal';
+import NotificationsModal from '../components/NotificationsModal';
 
 import { DEFAULT_AVATAR, getAvatar } from '../utils/avatar';
 
@@ -224,7 +225,6 @@ export default function UserLayout() {
   usePage(menuCss);
 
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
 
   const isProfilePage = /\/profile\/?$/.test(pathname);
@@ -386,13 +386,8 @@ export default function UserLayout() {
           </button>
 
           <div className="topbar-right">
-            <button
-              className="icon-btn bell"
-              aria-label="Notifications"
-              onClick={() => navigate(`${base}/notifications`)}
-            >
-              <i className="bi bi-bell"></i>
-            </button>
+            {/* Bell button: opens the notifications popup */}
+            <NotificationsModal base={base} />
 
             <ProfileMenu
               base={base}
