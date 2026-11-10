@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Requests.css';
 import '../styles/IssuanceSlip.css';
 
@@ -33,6 +34,11 @@ export default function IssuanceSlipPreview({
 }) {
   const [openedAt] = useState(() => new Date());
   const anyBusy = Boolean(busy || excelBusy);
+
+  const { user } = useAuth();
+  // ASSUMPTION: adjust `user?.role` if your auth context stores the role elsewhere
+  const role = String(user?.role || '').toLowerCase();
+  const canDownload = ['admin', 'administrator', 'moderator'].includes(role);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -75,8 +81,12 @@ export default function IssuanceSlipPreview({
 
         <div className="rq-modal-body">
           <p className="rq-muted-text">
-            This is how the PDF file will look.
-            {onDownloadExcel && ' The Excel version has the same content and can be edited.'}
+            {canDownload
+              ? 'This is how the PDF file will look.'
+              : 'This is a preview of the issuance slip.'}
+            {canDownload &&
+              onDownloadExcel &&
+              ' The Excel version has the same content and can be edited.'}
           </p>
 
           <div className="isl-paper-wrap">
@@ -166,15 +176,21 @@ export default function IssuanceSlipPreview({
             Close
           </button>
 
-          <button className="rq-btn-secondary" onClick={onDownloadExcel} disabled={anyBusy}>
-            <i className={`bi ${excelBusy ? 'bi-hourglass-split' : 'bi-file-earmark-excel'}`}></i>
-            {excelBusy ? 'Generating Excel...' : 'Download Excel'}
-          </button>
+          {canDownload && (
+            <>
+              <button className="rq-btn-secondary" onClick={onDownloadExcel} disabled={anyBusy}>
+                <i
+                  className={`bi ${excelBusy ? 'bi-hourglass-split' : 'bi-file-earmark-excel'}`}
+                ></i>
+                {excelBusy ? 'Generating Excel...' : 'Download Excel'}
+              </button>
 
-          <button className="rq-btn-primary" onClick={onDownload} disabled={anyBusy}>
-            <i className={`bi ${busy ? 'bi-hourglass-split' : 'bi-file-earmark-pdf'}`}></i>
-            {busy ? 'Downloading...' : 'Download PDF'}
-          </button>
+              <button className="rq-btn-primary" onClick={onDownload} disabled={anyBusy}>
+                <i className={`bi ${busy ? 'bi-hourglass-split' : 'bi-file-earmark-pdf'}`}></i>
+                {busy ? 'Downloading...' : 'Download PDF'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
