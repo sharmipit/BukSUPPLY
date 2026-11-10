@@ -980,12 +980,6 @@ export default function Requests() {
                 Close
               </button>
 
-              {['Approved', 'Accepted'].includes(detailsReq.status) && (
-                <button className="rq-btn-slip" onClick={() => setSlipId(detailsReq.id)}>
-                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
-                </button>
-              )}
-
               {detailsActions.undo && (
                 <button
                   className="rq-btn-secondary"
@@ -1011,6 +1005,13 @@ export default function Requests() {
                   Deny
                 </button>
               )}
+
+              {['Approved', 'Accepted'].includes(detailsReq.status) && (
+                <button className="rq-btn-secondary" onClick={() => setSlipId(detailsReq.id)}>
+                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
+                </button>
+              )}
+
               {detailsActions.acknowledge && (
                 <button
                   className="rq-btn-primary"
