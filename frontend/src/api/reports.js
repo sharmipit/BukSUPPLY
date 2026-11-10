@@ -38,18 +38,23 @@ export async function downloadReport(type, format, filters) {
 }
 
 /**
- * Downloads the issuance slip PDF for one requisition (same PDF pipeline as the reports).
+ * Downloads the issuance slip for one requisition (same pipeline as the reports).
+ * format: 'pdf' (default) or 'xlsx' (editable Excel).
  */
-export async function downloadIssuanceSlip(id) {
+async function downloadSlip(id, format) {
   try {
     const response = await api.get(`/reports/issuance/${encodeURIComponent(id)}/export`, {
+      params: { format },
       responseType: 'blob',
     });
-    saveBlob(response.data, `issuance-slip-${id}.pdf`);
+    saveBlob(response.data, `issuance-slip-${id}.${format}`);
   } catch (err) {
     await throwBlobError(err);
   }
 }
+
+export const downloadIssuanceSlip = (id) => downloadSlip(id, 'pdf');
+export const downloadIssuanceSlipExcel = (id) => downloadSlip(id, 'xlsx');
 
 /**
  * Fetches the report rows as JSON (used for the preview before downloading).

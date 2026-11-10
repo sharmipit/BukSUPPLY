@@ -103,4 +103,155 @@ async function buildLocalXlsx({ org, subtitle, title, info, code, footerLines, h
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-module.exports = { buildLocalPdf, buildLocalXlsx };
+// ---------- Issuance slip as an editable sheet ----------
+const FILL_EDIT = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9DB' } }; // editable cells
+const FILL_HEAD = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6E6' } };
+const THIN_LINE = { style: 'thin', color: { argb: 'FF000000' } };
+
+// model = { org, subtitle, title, info, items, remarks, signatures, code, footerLines }
+async function buildLocalIssuanceXlsx(model) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Issuance Slip', {
+    pageSetup: {
+      paperSize: 9, // A4
+      orientation: 'portrait',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.5, right: 0.5, top: 0.8, bottom: 0.8, header: 0.3, footer: 0.3 },
+    },
+  });
+  ws.columns = [{ width: 7 }, { width: 42 }, { width: 14 }, { width: 16 }];
+
+  let r = 1; // current row
+
+  // Title block (merged across A:D)
+  const centerLine = (text, size, bold) => {
+    const c = ws.getCell(r, 1);
+    c.value = text;
+    c.font = { name: FONT, size, bold };
+    c.alignment = { horizontal: 'center' };
+    ws.mergeCells(r, 1, r, 4);
+    r++;
+  };
+  centerLine(model.org, 14, true);
+  centerLine(model.subtitle, 11, false);
+  centerLine(model.title, 12, true);
+  r++;
+
+  // Details: label (A:B) | value (C:D, editable)
+  model.info.forEach(([label, value]) => {
+    const l = ws.getCell(r, 1);
+    l.value = label;
+    l.font = { name: FONT, size: 11, bold: true };
+    l.border = BORDER;
+    const v = ws.getCell(r, 3);
+    v.value = value || '';
+    v.font = { name: FONT, size: 11 };
+    v.fill = FILL_EDIT;
+    v.border = BORDER;
+    v.alignment = { wrapText: true, vertical: 'top' };
+    ws.mergeCells(r, 1, r, 2);
+    ws.mergeCells(r, 3, r, 4);
+    if (label === 'Purpose') ws.getRow(r).height = 45;
+    r++;
+  });
+  r++;
+
+  // Items table
+  ['#', 'Item', 'Quantity', 'Unit'].forEach((h, i) => {
+    const c = ws.getCell(r, i + 1);
+    c.value = h;
+    c.font = { name: FONT, bold: true };
+    c.fill = FILL_HEAD;
+    c.border = BORDER;
+    c.alignment = { horizontal: 'center' };
+  });
+  r++;
+
+  model.items.forEach((l, i) => {
+    [i + 1, l.name, l.qty, l.unit].forEach((val, j) => {
+      const c = ws.getCell(r, j + 1);
+      c.value = val;
+      c.font = { name: FONT, size: 11 };
+      c.border = BORDER;
+      c.fill = FILL_EDIT;
+      c.alignment = { horizontal: j === 1 ? 'left' : 'center', wrapText: true };
+    });
+    r++;
+  });
+
+  // Spare rows for items added by hand
+  for (let k = 0; k < 3; k++) {
+    for (let j = 1; j <= 4; j++) {
+      const c = ws.getCell(r, j);
+      c.border = BORDER;
+      c.fill = FILL_EDIT;
+    }
+    r++;
+  }
+  r++;
+
+  // Remarks
+  const rl = ws.getCell(r, 1);
+  rl.value = 'Remarks';
+  rl.font = { name: FONT, size: 11, bold: true };
+  ws.mergeCells(r, 1, r, 4);
+  r++;
+
+  const rv = ws.getCell(r, 1);
+  rv.value = model.remarks || '';
+  rv.font = { name: FONT, size: 11 };
+  rv.fill = FILL_EDIT;
+  rv.border = BORDER;
+  rv.alignment = { wrapText: true, vertical: 'top' };
+  ws.mergeCells(r, 1, r + 1, 4);
+  r += 3;
+
+  // Signature blocks, two per row (A:B and C:D)
+  const sigBlock = (row, c1, sig) => {
+    // blank space for the handwritten signature
+    ws.mergeCells(row, c1, row, c1 + 1);
+    ws.getRow(row).height = 38;
+
+    // printed name (editable)
+    const nameCell = ws.getCell(row + 1, c1);
+    nameCell.value = sig.name || '';
+    nameCell.font = { name: FONT, size: 11, bold: true };
+    nameCell.fill = FILL_EDIT;
+    nameCell.alignment = { horizontal: 'center' };
+    nameCell.border = { top: THIN_LINE };
+    ws.mergeCells(row + 1, c1, row + 1, c1 + 1);
+
+    // role label
+    const roleCell = ws.getCell(row + 2, c1);
+    roleCell.value = sig.role;
+    roleCell.font = { name: FONT, size: 10, italic: true };
+    roleCell.alignment = { horizontal: 'center' };
+    ws.mergeCells(row + 2, c1, row + 2, c1 + 1);
+  };
+
+  for (let i = 0; i < model.signatures.length; i += 2) {
+    sigBlock(r, 1, model.signatures[i]);
+    if (model.signatures[i + 1]) sigBlock(r, 3, model.signatures[i + 1]);
+    r += 4; // 3 rows used + 1 spacer
+  }
+
+  // Footer lines (verification code, edit note)
+  model.footerLines.forEach((text) => {
+    const c = ws.getCell(r, 1);
+    c.value = text;
+    c.font = { name: FONT, size: 10 };
+    ws.mergeCells(r, 1, r, 4);
+    r++;
+  });
+
+  // Printed header and footer
+  const safe = (s) => String(s).replace(/&/g, '&&');
+  ws.headerFooter.oddHeader = `&L&"${FONT},Bold"${safe(model.org)}&R&"${FONT},Bold"${safe(model.title)}`;
+  ws.headerFooter.oddFooter = `&L&"${FONT},Regular"&9Verification code: ${safe(model.code)}&R&"${FONT},Regular"&9Page &P of &N`;
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+module.exports = { buildLocalPdf, buildLocalXlsx, buildLocalIssuanceXlsx };

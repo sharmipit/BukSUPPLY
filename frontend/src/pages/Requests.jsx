@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import useAllRequisitions from '../hooks/useAllRequisitions';
 import useInventory from '../hooks/useInventory';
 import { errMsg } from '../api/client';
-import { downloadIssuanceSlip } from '../api/reports';
+import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../api/reports';
 import { shortName } from '../utils/formatName';
 import FilterDropdown from '../components/FilterDropdown';
 import IssuanceSlipPreview from '../components/IssuanceSlipPreview';
@@ -247,6 +247,7 @@ export default function Requests() {
   const [remarks, setRemarks] = useState('');
   const [slipId, setSlipId] = useState(null);
   const [slipBusy, setSlipBusy] = useState(false);
+  const [excelBusy, setExcelBusy] = useState(false);
 
   const [notice, setNotice] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -525,6 +526,25 @@ export default function Requests() {
       setNotice({ type: 'error', text: `Could not download the slip. ${errMsg(err)}` });
     } finally {
       setSlipBusy(false);
+    }
+  };
+
+  // Downloads the editable Excel version of the issuance slip
+  // Replace your existing handleDownloadSlipExcel function with this:
+  const handleDownloadSlipExcel = async () => {
+    if (!slipReq || excelBusy) return;
+    setExcelBusy(true);
+    try {
+      await downloadIssuanceSlipExcel(slipReq.id);
+      setNotice({
+        type: 'success',
+        text: `Excel slip for ${slipReq.id} downloaded. You can edit it before printing.`,
+      });
+      setSlipId(null); // Optional: close the modal on success just like PDF, or keep it open if desired
+    } catch (err) {
+      setNotice({ type: 'error', text: `Could not create the Excel file. ${errMsg(err)}` });
+    } finally {
+      setExcelBusy(false);
     }
   };
 
@@ -1169,8 +1189,10 @@ export default function Requests() {
           lines={slipLines}
           generatedBy={actorName}
           busy={slipBusy}
+          excelBusy={excelBusy}
           onClose={() => setSlipId(null)}
           onDownload={handleDownloadSlip}
+          onDownloadExcel={() => handleDownloadSlipExcel(slipReq)}
         />
       )}
 
