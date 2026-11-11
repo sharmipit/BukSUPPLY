@@ -1144,3 +1144,9 @@
   background-color: #e5e7eb;
   color: #4b5563;
 }
+
+.db-notice-toast.error {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}

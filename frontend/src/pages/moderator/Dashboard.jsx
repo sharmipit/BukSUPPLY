@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import useInventory from '../../hooks/useInventory';
 import useAllRequisitions from '../../hooks/useAllRequisitions';
 import { errMsg } from '../../api/client';
-import { downloadIssuanceSlip } from '../../api/reports';
+import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
 
@@ -14,7 +14,7 @@ import '../../styles/Requests.css';
 import '../../styles/Inventory.css';
 
 // Flow: Pending -> Processing -> Approved (ready for release) -> Accepted (claimed)
-const OPEN_STATUSES = ['Pending', 'Processing', 'Approved', 'Purchasing'];
+const OPEN_STATUSES = ['Pending', 'Processing', 'Approved'];
 
 const PREVIEW_LIMIT = 5;
 
@@ -27,7 +27,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const NEW_CATEGORY = '__new__';
 
-// Pre-written remarks for Quick Action selection
+// Pre-written remarks (moderators can pick one, then edit it freely)
 const APPROVE_PRESETS = [
   'Approved. You may claim the item(s) at the Supply Office.',
   'Approved. Please bring a valid ID and your copy of the slip when claiming.',
@@ -125,7 +125,7 @@ const norm = (s) =>
 const isOpen = (req) => OPEN_STATUSES.includes(req.status);
 const hasPurchaseItems = (req) => (req.purchaseItems || []).length > 0;
 
-const getBlockers = (check, status) => [
+const getBlockers = (check) => [
   ...check.lines
     .filter((l) => !l.enough)
     .map((l) =>
@@ -133,7 +133,7 @@ const getBlockers = (check, status) => [
         ? `${l.name || l.inv.name}: needs ${l.qty}, only ${l.inv.quantity} ${l.inv.unit} on hand.`
         : `${l.name}: can't be found in the inventory.`
     ),
-  ...(status === 'Purchasing' ? check.purchaseLines : [])
+  ...check.purchaseLines
     .filter((l) => !l.enough)
     .map((l) =>
       l.inv
@@ -143,47 +143,28 @@ const getBlockers = (check, status) => [
 ];
 
 const getActions = (req, check) => {
-  const none = {
+  const a = {
     acknowledge: false,
     approve: false,
     release: false,
-    purchasing: false,
     deny: false,
     blocked: false,
   };
   const stockBlocked = check.short || check.buyShort;
 
-  if (req.status === 'Pending') return { ...none, acknowledge: true, deny: true };
-
-  if (req.status === 'Processing') {
-    return {
-      ...none,
-      approve: true,
-      purchasing: hasPurchaseItems(req),
-      deny: true,
-      blocked: stockBlocked,
-    };
+  if (req.status === 'Pending') {
+    a.acknowledge = true;
+    a.deny = true;
+  } else if (req.status === 'Processing') {
+    a.approve = true;
+    a.deny = true;
+    a.blocked = stockBlocked;
+  } else if (req.status === 'Approved') {
+    a.release = true;
+    a.deny = true; // unclaimed items: no deduction happens on deny
+    a.blocked = stockBlocked;
   }
-
-  if (req.status === 'Purchasing') {
-    return {
-      ...none,
-      approve: true,
-      deny: true,
-      blocked: stockBlocked,
-    };
-  }
-
-  if (req.status === 'Approved') {
-    return {
-      ...none,
-      release: true,
-      deny: true,
-      blocked: stockBlocked,
-    };
-  }
-
-  return none;
+  return a;
 };
 
 const nextStepText = (req, check) => {
@@ -194,14 +175,9 @@ const nextStepText = (req, check) => {
   if (req.status === 'Processing') {
     if (check.short || check.buyShort)
       return buy
-        ? 'Some items must still be purchased or restocked. Record them in the inventory, then approve. You can also send to Purchasing or deny the request.'
-        : 'Some items are not available in stock. Send it to Purchasing while you restock, or deny the request.';
+        ? 'Some items must still be purchased or restocked. Record them in the inventory (Add to inventory / Receive stock below), then approve. You can also deny the request.'
+        : 'Some items are not available in stock. Restock in Inventory (Adjust, then Receive stock), then come back and approve, or deny the request.';
     return 'Everything is available. Approve it with a remark so the requester knows they can claim the item(s), or deny it.';
-  }
-  if (req.status === 'Purchasing') {
-    if (check.short || check.buyShort)
-      return 'Waiting on stock. When the delivery arrives, record it in Inventory (Adjust, then Receive stock), then come back and approve.';
-    return 'All purchased items are in the inventory. Approve it with a remark for pick-up.';
   }
   if (req.status === 'Approved') {
     return 'Approved and waiting to be claimed. Once the requester picks up the item(s), mark them as claimed to deduct from the inventory. If they are never claimed, deny the request (nothing is deducted).';
@@ -211,13 +187,7 @@ const nextStepText = (req, check) => {
 
 function Stepper({ req }) {
   if (req.status === 'Denied' || req.status === 'Cancelled') return null;
-  const flow = [
-    'Pending',
-    'Processing',
-    ...(hasPurchaseItems(req) || req.status === 'Purchasing' ? ['Purchasing'] : []),
-    'Approved',
-    'Accepted',
-  ];
+  const flow = ['Pending', 'Processing', 'Approved', 'Accepted'];
   const current = flow.indexOf(req.status);
   return (
     <div className="rq-stepper-card">
@@ -244,6 +214,7 @@ function Stepper({ req }) {
   );
 }
 
+// Preset chips + editable textarea
 function RemarksField({ id, label, presets, value, onChange, hint }) {
   return (
     <div className="rq-field">
@@ -352,6 +323,7 @@ const Dashboard = ({
 
   const [slipId, setSlipId] = useState(null);
   const [slipBusy, setSlipBusy] = useState(false);
+  const [excelBusy, setExcelBusy] = useState(false);
 
   // Receive purchased stock
   const [receive, setReceive] = useState(null);
@@ -391,8 +363,8 @@ const Dashboard = ({
   const slipCheck = slipReq ? getCheck(slipReq) : null;
   const detailsActions = detailsReq ? getActions(detailsReq, detailsCheck) : null;
   const detailsBlockers =
-    invReady && detailsCheck && detailsReq && isOpen(detailsReq)
-      ? getBlockers(detailsCheck, detailsReq.status)
+    invReady && detailsCheck && detailsReq && isOpen(detailsReq) && detailsReq.status !== 'Pending'
+      ? getBlockers(detailsCheck)
       : [];
 
   const run = async (fn) => {
@@ -499,13 +471,6 @@ const Dashboard = ({
     closeDetails();
   };
 
-  const handleSendToPurchasing = async (req) => {
-    const ok = await run(() => setStatus(req.id, 'Purchasing'));
-    if (!ok) return;
-    setNotice({ type: 'success', text: `${req.id} was sent to purchasing.` });
-    closeDetails();
-  };
-
   const handleConfirmDecision = async () => {
     if (!decisionReq || busy) return;
     const text = remarks.trim();
@@ -516,7 +481,7 @@ const Dashboard = ({
       if (!ok) return;
       setNotice({
         type: 'success',
-        text: `${decisionReq.id} approved. It is ready for pick-up. Nothing is deducted until claimed.`,
+        text: `${decisionReq.id} approved. It's ready for release. Nothing is deducted until it's claimed.`,
       });
     } else if (decision.type === 'release') {
       const result = await run(() => setStatus(decisionReq.id, 'Accepted'));
@@ -537,7 +502,7 @@ const Dashboard = ({
       if (!text) return;
       const ok = await run(() => setStatus(decisionReq.id, 'Denied', text));
       if (!ok) return;
-      setNotice({ type: 'success', text: `${decisionReq.id} was denied.` });
+      setNotice({ type: 'success', text: `${decisionReq.id} was denied. No stock was deducted.` });
     }
     closeDecision();
     closeDetails();
@@ -557,6 +522,35 @@ const Dashboard = ({
     }
   };
 
+  // Downloads the editable Excel version of the issuance slip
+  const handleDownloadSlipExcel = async () => {
+    if (!slipReq || excelBusy) return;
+    setExcelBusy(true);
+    try {
+      await downloadIssuanceSlipExcel(slipReq.id);
+      setNotice({
+        type: 'success',
+        text: `Excel slip for ${slipReq.id} downloaded. You can edit it before printing.`,
+      });
+      setSlipId(null);
+    } catch (err) {
+      setNotice({ type: 'error', text: `Could not create the Excel file. ${errMsg(err)}` });
+    } finally {
+      setExcelBusy(false);
+    }
+  };
+
+  const decisionTitle = {
+    approve: 'Approve request?',
+    release: 'Mark as claimed?',
+    deny: 'Deny request?',
+  };
+  const decisionButton = {
+    approve: 'Approve request',
+    release: 'Confirm release',
+    deny: 'Deny request',
+  };
+
   const slipLines = slipReq
     ? [...slipCheck.lines, ...slipCheck.purchaseLines].map((l) => ({
         name: l.name || l.inv?.name,
@@ -564,6 +558,21 @@ const Dashboard = ({
         unit: l.inv?.unit || l.unit || '',
       }))
     : [];
+
+  // Empty / loading / error row (same as the Requests page)
+  const messageRow = (icon, title, text) => (
+    <tr>
+      <td colSpan="6" className="rq-empty-cell">
+        <div className="rq-empty-content">
+          <div className="rq-empty-icon">
+            <i className={`bi ${icon}`}></i>
+          </div>
+          <h4>{title}</h4>
+          <p>{text}</p>
+        </div>
+      </td>
+    </tr>
+  );
 
   /* ================================================================ */
   /* Inventory Management State and Actions                           */
@@ -838,8 +847,8 @@ const Dashboard = ({
         ))}
       </div>
 
-      {/* Requisitions Table */}
-      <div className="db-section-card">
+      {/* Requisitions Table (same table as the Requests page) */}
+      <div className="rq-section-card">
         <div className="db-card-header">
           <div>
             <h3 className="db-card-title">Recent Requisition Slips</h3>
@@ -849,124 +858,108 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="db-table-wrapper">
-          <table className="db-table">
+        <div className="rq-table-wrapper">
+          <table className="rq-table">
             <thead>
               <tr>
                 <th className="col-slip">Requisition Slip</th>
                 <th className="col-requester">Requested By</th>
-                <th className="col-title">Title &amp; Purpose</th>
-                <th className="col-items">Item &amp; Quantity</th>
+                <th className="col-title">Title & Purpose</th>
+                <th className="col-items">Item & Quantity</th>
                 <th className="col-status">Status</th>
-                <th className="col-actions db-text-end">Action</th>
+                <th className="col-actions text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              {slipsLoading ? (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-hourglass-split" aria-hidden="true"></i>
-                      </div>
-                      <h4>Loading...</h4>
-                      <p>Fetching requisition slips.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : slipsError ? (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-exclamation-circle" aria-hidden="true"></i>
-                      </div>
-                      <h4>Could not load requests</h4>
-                      <p>{slipsError}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : currentItems.length > 0 ? (
-                currentItems.map((req) => (
-                  <tr key={req.id} className="db-row-clickable" onClick={() => openDetails(req.id)}>
-                    <td className="db-nowrap-cell">
-                      <div className="db-slip-id">{req.id}</div>
-                      <div className="db-sub">{fmtDate(req.date)}</div>
-                    </td>
-                    <td>
-                      <div className="db-strong db-cell-clamp" title={req.requestedBy}>
-                        {shortName(req.requestedBy)}
-                      </div>
-                      <div className="db-sub db-cell-clamp" title={req.department}>
-                        {req.department}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="db-strong db-cell-clamp" title={req.title}>
-                        {req.title}
-                      </div>
-                      <div className="db-sub db-cell-clamp" title={req.purpose}>
-                        {req.purpose}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="db-cell-clamp" title={summarize(req)}>
-                        {summarize(req)}
-                      </div>
-                    </td>
-                    <td className="db-nowrap-cell">
-                      <span className={`db-badge ${req.status.toLowerCase()}`}>{req.status}</span>
-                    </td>
-                    <td className="db-text-end" onClick={(e) => e.stopPropagation()}>
-                      <div className="db-action-buttons">
-                        {isOpen(req) ? (
-                          <button
-                            type="button"
-                            className="db-btn-action db-btn-review"
-                            onClick={() => openDetails(req.id)}
+              {slipsLoading
+                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching requisition slips.')
+                : slipsError
+                  ? messageRow('bi-exclamation-circle', 'Could not load requests', slipsError)
+                  : currentItems.length > 0
+                    ? currentItems.map((req) => (
+                        <tr
+                          key={req.id}
+                          className="rq-row-clickable"
+                          onClick={() => openDetails(req.id)}
+                        >
+                          <td className="align-middle nowrap-cell">
+                            <div className="rq-slip-id">{req.id}</div>
+                            <div className="rq-sub">{fmtDate(req.date)}</div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="rq-strong cell-clamp" title={req.requestedBy}>
+                              {shortName(req.requestedBy)}
+                            </div>
+                            <div className="rq-sub cell-clamp" title={req.department}>
+                              {req.department}
+                            </div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="rq-strong cell-clamp" title={req.title}>
+                              {req.title}
+                            </div>
+                            <div className="rq-sub cell-clamp" title={req.purpose}>
+                              {req.purpose}
+                            </div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="cell-clamp" title={summarize(req)}>
+                              {summarize(req)}
+                            </div>
+                          </td>
+                          <td className="align-middle nowrap-cell">
+                            <span className={`rq-badge ${req.status.toLowerCase()}`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td
+                            className="text-end align-middle"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <i className="bi bi-clipboard-check"></i> Review
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="db-btn-action db-btn-view"
-                            onClick={() => openDetails(req.id)}
-                          >
-                            <i className="bi bi-eye"></i> View
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-check-circle" aria-hidden="true"></i>
-                      </div>
-                      <h4>No Requests Found</h4>
-                      <p>
-                        No requisition slips have been submitted yet. New requests will appear here
-                        automatically.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
+                            <div className="rq-action-buttons">
+                              {isOpen(req) ? (
+                                <button
+                                  type="button"
+                                  className="rq-btn-action rq-btn-review"
+                                  onClick={() => openDetails(req.id)}
+                                >
+                                  <i className="bi bi-clipboard-check"></i> Review
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="rq-btn-action rq-btn-view"
+                                  onClick={() => openDetails(req.id)}
+                                >
+                                  <i className="bi bi-eye"></i> View
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    : messageRow(
+                        'bi-inbox',
+                        'No Requests Found',
+                        'No requisition slips have been submitted yet. New requests will appear here automatically.'
+                      )}
             </tbody>
           </table>
         </div>
 
-        <div className="db-footer-bar">
-          <button type="button" className="db-view-btn" onClick={handleViewRequests}>
-            View all requests
-            <span className="db-view-arrow">
-              <i className="bi bi-arrow-right"></i>
-            </span>
-          </button>
+        <div className="rq-footer-bar">
+          <span>
+            Showing {currentItems.length} of {slips.length} requests
+          </span>
+          <div className="rq-pagination">
+            <button
+              type="button"
+              className="rq-btn-action rq-btn-view"
+              onClick={handleViewRequests}
+            >
+              View all requests <i className="bi bi-arrow-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1191,10 +1184,10 @@ const Dashboard = ({
                 </div>
               )}
 
-              {detailsReq.status === 'Denied' && detailsReq.denyReason && (
+              {detailsReq.status === 'Denied' && detailsReq.remarks && (
                 <div className="rq-deny-box">
                   <strong>Reason for denial</strong>
-                  <p>{detailsReq.denyReason}</p>
+                  <p>{detailsReq.remarks}</p>
                 </div>
               )}
 
@@ -1267,7 +1260,7 @@ const Dashboard = ({
               {hasPurchaseItems(detailsReq) && (
                 <>
                   <h4 className="rq-section-title">Items to purchase</h4>
-                  {detailsReq.status === 'Purchasing' && (
+                  {detailsReq.status === 'Processing' && (
                     <p className="rq-muted-text">
                       Once these are bought, add each one to the inventory. Then you can approve.
                     </p>
@@ -1283,7 +1276,7 @@ const Dashboard = ({
                           {p.reason && <div className="rq-sub">{p.reason}</div>}
                         </div>
 
-                        {detailsReq.status === 'Purchasing' && invReady && (
+                        {detailsReq.status === 'Processing' && invReady && (
                           <div className="rq-buy-status">
                             {p.enough ? (
                               <span className="rq-buy-ok">
@@ -1323,36 +1316,32 @@ const Dashboard = ({
                 Close
               </button>
 
-              {['Approved', 'Accepted'].includes(detailsReq.status) && (
-                <button
-                  type="button"
-                  className="rq-btn-slip"
-                  onClick={() => setSlipId(detailsReq.id)}
-                >
-                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
-                </button>
-              )}
-
               {detailsActions.deny && (
                 <button
                   type="button"
                   className="rq-btn-danger-outline"
                   onClick={() => openDecision('deny', detailsReq.id)}
                   disabled={busy}
+                  title={
+                    detailsReq.status === 'Approved'
+                      ? 'Deny as unclaimed (nothing is deducted)'
+                      : undefined
+                  }
                 >
                   Deny
                 </button>
               )}
-              {detailsActions.purchasing && (
+
+              {['Approved', 'Accepted'].includes(detailsReq.status) && (
                 <button
                   type="button"
                   className="rq-btn-secondary"
-                  onClick={() => handleSendToPurchasing(detailsReq)}
-                  disabled={busy}
+                  onClick={() => setSlipId(detailsReq.id)}
                 >
-                  {busy ? 'Saving...' : 'Send to purchasing'}
+                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
                 </button>
               )}
+
               {detailsActions.acknowledge && (
                 <button
                   type="button"
@@ -1404,13 +1393,7 @@ const Dashboard = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="rq-modal-header">
-              <h3>
-                {decision.type === 'approve'
-                  ? 'Approve request?'
-                  : decision.type === 'release'
-                    ? 'Mark as claimed?'
-                    : 'Deny request?'}
-              </h3>
+              <h3>{decisionTitle[decision.type]}</h3>
               <button
                 type="button"
                 className="rq-modal-close"
@@ -1523,13 +1506,7 @@ const Dashboard = ({
                 onClick={handleConfirmDecision}
                 disabled={busy || (['approve', 'deny'].includes(decision.type) && !remarks.trim())}
               >
-                {busy
-                  ? 'Saving...'
-                  : decision.type === 'approve'
-                    ? 'Approve request'
-                    : decision.type === 'release'
-                      ? 'Confirm release'
-                      : 'Deny request'}
+                {busy ? 'Saving...' : decisionButton[decision.type]}
               </button>
             </div>
           </div>
@@ -1543,8 +1520,10 @@ const Dashboard = ({
           lines={slipLines}
           generatedBy={actorName}
           busy={slipBusy}
+          excelBusy={excelBusy}
           onClose={() => setSlipId(null)}
           onDownload={handleDownloadSlip}
+          onDownloadExcel={handleDownloadSlipExcel}
         />
       )}
 
@@ -2009,15 +1988,21 @@ const Dashboard = ({
                   <div className="inv-meta-grid">
                     <div>
                       <span className="inv-meta-label">On hand</span>
-                      <span className="inv-meta-value">{historyItem.quantity} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.quantity} {historyItem.unit}
+                      </span>
                     </div>
                     <div>
                       <span className="inv-meta-label">Reorder level</span>
-                      <span className="inv-meta-value">{historyItem.reorderLevel} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.reorderLevel} {historyItem.unit}
+                      </span>
                     </div>
                     <div>
                       <span className="inv-meta-label">Usual limit per request</span>
-                      <span className="inv-meta-value">{historyItem.maxNormal} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.maxNormal} {historyItem.unit}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2037,7 +2022,9 @@ const Dashboard = ({
                     </div>
                     <div>
                       <span className="inv-meta-label">Last reference no.</span>
-                      <span className="inv-meta-value">{lastRefMove ? lastRefMove.reference : '—'}</span>
+                      <span className="inv-meta-value">
+                        {lastRefMove ? lastRefMove.reference : '—'}
+                      </span>
                       {lastRefMove && (
                         <span className="inv-meta-sub">
                           {lastRefMove.type} · {fmtDateTime(lastRefMove.date)}
