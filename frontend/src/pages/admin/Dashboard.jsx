@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import useInventory from '../../hooks/useInventory';
 import useAllRequisitions from '../../hooks/useAllRequisitions';
 import { errMsg } from '../../api/client';
-import { downloadIssuanceSlip } from '../../api/reports';
+import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
 
@@ -438,6 +438,7 @@ const Dashboard = ({
   const [remarks, setRemarks] = useState('');
   const [slipId, setSlipId] = useState(null);
   const [slipBusy, setSlipBusy] = useState(false);
+  const [excelBusy, setExcelBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -655,6 +656,24 @@ const Dashboard = ({
     }
   };
 
+  // Downloads the editable Excel version of the issuance slip
+  const handleDownloadSlipExcel = async () => {
+    if (!slipReq || excelBusy) return;
+    setExcelBusy(true);
+    try {
+      await downloadIssuanceSlipExcel(slipReq.id);
+      setNotice({
+        type: 'success',
+        text: `Excel slip for ${slipReq.id} downloaded. You can edit it before printing.`,
+      });
+      setSlipId(null);
+    } catch (err) {
+      setNotice({ type: 'error', text: `Could not create the Excel file. ${errMsg(err)}` });
+    } finally {
+      setExcelBusy(false);
+    }
+  };
+
   const decisionTitle = {
     approve: 'Approve request?',
     release: 'Mark as claimed?',
@@ -676,6 +695,21 @@ const Dashboard = ({
         unit: l.inv?.unit || l.unit || '',
       }))
     : [];
+
+  // Empty / loading / error row (same as the Requests page)
+  const messageRow = (icon, title, text) => (
+    <tr>
+      <td colSpan="6" className="rq-empty-cell">
+        <div className="rq-empty-content">
+          <div className="rq-empty-icon">
+            <i className={`bi ${icon}`}></i>
+          </div>
+          <h4>{title}</h4>
+          <p>{text}</p>
+        </div>
+      </td>
+    </tr>
+  );
 
   /* ================================================================ */
   /* Inventory: add, edit, adjust, history, archive                     */
@@ -983,8 +1017,8 @@ const Dashboard = ({
         ))}
       </div>
 
-      {/* Requisition queue */}
-      <div className="db-section-card">
+      {/* Requisition queue (same table as the Requests page) */}
+      <div className="rq-section-card">
         <div className="db-card-header">
           <div>
             <h3 className="db-card-title">Recent Requisition Slips</h3>
@@ -994,124 +1028,108 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="db-table-wrapper">
-          <table className="db-table">
+        <div className="rq-table-wrapper">
+          <table className="rq-table">
             <thead>
               <tr>
                 <th className="col-slip">Requisition Slip</th>
                 <th className="col-requester">Requested By</th>
-                <th className="col-title">Title &amp; Purpose</th>
-                <th className="col-items">Item &amp; Quantity</th>
+                <th className="col-title">Title & Purpose</th>
+                <th className="col-items">Item & Quantity</th>
                 <th className="col-status">Status</th>
-                <th className="col-actions db-text-end">Action</th>
+                <th className="col-actions text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              {slipsLoading ? (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-hourglass-split" aria-hidden="true"></i>
-                      </div>
-                      <h4>Loading...</h4>
-                      <p>Fetching requisition slips.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : slipsError ? (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-exclamation-circle" aria-hidden="true"></i>
-                      </div>
-                      <h4>Could not load requests</h4>
-                      <p>{slipsError}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : currentItems.length > 0 ? (
-                currentItems.map((req) => (
-                  <tr key={req.id} className="db-row-clickable" onClick={() => openDetails(req.id)}>
-                    <td className="db-nowrap-cell">
-                      <div className="db-slip-id">{req.id}</div>
-                      <div className="db-sub">{fmtDate(req.date)}</div>
-                    </td>
-                    <td>
-                      <div className="db-strong db-cell-clamp" title={req.requestedBy}>
-                        {shortName(req.requestedBy)}
-                      </div>
-                      <div className="db-sub db-cell-clamp" title={req.department}>
-                        {req.department}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="db-strong db-cell-clamp" title={req.title}>
-                        {req.title}
-                      </div>
-                      <div className="db-sub db-cell-clamp" title={req.purpose}>
-                        {req.purpose}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="db-cell-clamp" title={summarize(req)}>
-                        {summarize(req)}
-                      </div>
-                    </td>
-                    <td className="db-nowrap-cell">
-                      <span className={`db-badge ${req.status.toLowerCase()}`}>{req.status}</span>
-                    </td>
-                    <td className="db-text-end" onClick={(e) => e.stopPropagation()}>
-                      <div className="db-action-buttons">
-                        {isOpen(req) ? (
-                          <button
-                            type="button"
-                            className="db-btn-action db-btn-review"
-                            onClick={() => openDetails(req.id)}
+              {slipsLoading
+                ? messageRow('bi-hourglass-split', 'Loading...', 'Fetching requisition slips.')
+                : slipsError
+                  ? messageRow('bi-exclamation-circle', 'Could not load requests', slipsError)
+                  : currentItems.length > 0
+                    ? currentItems.map((req) => (
+                        <tr
+                          key={req.id}
+                          className="rq-row-clickable"
+                          onClick={() => openDetails(req.id)}
+                        >
+                          <td className="align-middle nowrap-cell">
+                            <div className="rq-slip-id">{req.id}</div>
+                            <div className="rq-sub">{fmtDate(req.date)}</div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="rq-strong cell-clamp" title={req.requestedBy}>
+                              {shortName(req.requestedBy)}
+                            </div>
+                            <div className="rq-sub cell-clamp" title={req.department}>
+                              {req.department}
+                            </div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="rq-strong cell-clamp" title={req.title}>
+                              {req.title}
+                            </div>
+                            <div className="rq-sub cell-clamp" title={req.purpose}>
+                              {req.purpose}
+                            </div>
+                          </td>
+                          <td className="align-middle">
+                            <div className="cell-clamp" title={summarize(req)}>
+                              {summarize(req)}
+                            </div>
+                          </td>
+                          <td className="align-middle nowrap-cell">
+                            <span className={`rq-badge ${req.status.toLowerCase()}`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td
+                            className="text-end align-middle"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <i className="bi bi-clipboard-check"></i> Review
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="db-btn-action db-btn-view"
-                            onClick={() => openDetails(req.id)}
-                          >
-                            <i className="bi bi-eye"></i> View
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="db-empty-cell">
-                    <div className="db-empty-content">
-                      <div className="db-empty-icon">
-                        <i className="bi bi-check-circle" aria-hidden="true"></i>
-                      </div>
-                      <h4>No Requests Found</h4>
-                      <p>
-                        No requisition slips have been submitted yet. New requests will appear here
-                        automatically.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
+                            <div className="rq-action-buttons">
+                              {isOpen(req) ? (
+                                <button
+                                  type="button"
+                                  className="rq-btn-action rq-btn-review"
+                                  onClick={() => openDetails(req.id)}
+                                >
+                                  <i className="bi bi-clipboard-check"></i> Review
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="rq-btn-action rq-btn-view"
+                                  onClick={() => openDetails(req.id)}
+                                >
+                                  <i className="bi bi-eye"></i> View
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    : messageRow(
+                        'bi-inbox',
+                        'No Requests Found',
+                        'No requisition slips have been submitted yet. New requests will appear here automatically.'
+                      )}
             </tbody>
           </table>
         </div>
 
-        <div className="db-footer-bar">
-          <button type="button" className="db-view-btn" onClick={handleViewRequests}>
-            View all requests
-            <span className="db-view-arrow">
-              <i className="bi bi-arrow-right"></i>
-            </span>
-          </button>
+        <div className="rq-footer-bar">
+          <span>
+            Showing {currentItems.length} of {slips.length} requests
+          </span>
+          <div className="rq-pagination">
+            <button
+              type="button"
+              className="rq-btn-action rq-btn-view"
+              onClick={handleViewRequests}
+            >
+              View all requests <i className="bi bi-arrow-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1432,10 +1450,10 @@ const Dashboard = ({
                 </div>
               )}
 
-              {detailsReq.status === 'Denied' && detailsReq.denyReason && (
+              {detailsReq.status === 'Denied' && detailsReq.remarks && (
                 <div className="rq-deny-box">
                   <strong>Reason for denial</strong>
-                  <p>{detailsReq.denyReason}</p>
+                  <p>{detailsReq.remarks}</p>
                 </div>
               )}
 
@@ -1564,16 +1582,6 @@ const Dashboard = ({
                 Close
               </button>
 
-              {['Approved', 'Accepted'].includes(detailsReq.status) && (
-                <button
-                  type="button"
-                  className="rq-btn-slip"
-                  onClick={() => setSlipId(detailsReq.id)}
-                >
-                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
-                </button>
-              )}
-
               {detailsActions.undo && (
                 <button
                   type="button"
@@ -1601,6 +1609,17 @@ const Dashboard = ({
                   Deny
                 </button>
               )}
+
+              {['Approved', 'Accepted'].includes(detailsReq.status) && (
+                <button
+                  type="button"
+                  className="rq-btn-secondary"
+                  onClick={() => setSlipId(detailsReq.id)}
+                >
+                  <i className="bi bi-file-earmark-text"></i> Issuance Slip
+                </button>
+              )}
+
               {detailsActions.acknowledge && (
                 <button
                   type="button"
@@ -1788,8 +1807,10 @@ const Dashboard = ({
           lines={slipLines}
           generatedBy={actorName}
           busy={slipBusy}
+          excelBusy={excelBusy}
           onClose={() => setSlipId(null)}
           onDownload={handleDownloadSlip}
+          onDownloadExcel={handleDownloadSlipExcel}
         />
       )}
 
@@ -2256,15 +2277,21 @@ const Dashboard = ({
                   <div className="inv-meta-grid">
                     <div>
                       <span className="inv-meta-label">On hand</span>
-                      <span className="inv-meta-value">{historyItem.quantity} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.quantity} {historyItem.unit}
+                      </span>
                     </div>
                     <div>
                       <span className="inv-meta-label">Reorder level</span>
-                      <span className="inv-meta-value">{historyItem.reorderLevel} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.reorderLevel} {historyItem.unit}
+                      </span>
                     </div>
                     <div>
                       <span className="inv-meta-label">Usual limit per request</span>
-                      <span className="inv-meta-value">{historyItem.maxNormal} {historyItem.unit}</span>
+                      <span className="inv-meta-value">
+                        {historyItem.maxNormal} {historyItem.unit}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2284,7 +2311,9 @@ const Dashboard = ({
                     </div>
                     <div>
                       <span className="inv-meta-label">Last reference no.</span>
-                      <span className="inv-meta-value">{lastRefMove ? lastRefMove.reference : '—'}</span>
+                      <span className="inv-meta-value">
+                        {lastRefMove ? lastRefMove.reference : '—'}
+                      </span>
                       {lastRefMove && (
                         <span className="inv-meta-sub">
                           {lastRefMove.type} · {fmtDateTime(lastRefMove.date)}
