@@ -235,19 +235,55 @@
 .rq-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #8c5839 transparent;
 }
-.rq-table-wrapper::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+
+/* Table scrollbars: slim, no arrow buttons, light track, brown thumb on hover */
+.rq-table-wrapper::-webkit-scrollbar,
+.rq-lines-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-.rq-table-wrapper::-webkit-scrollbar-thumb {
+.rq-table-wrapper::-webkit-scrollbar-button,
+.rq-lines-wrap::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.rq-table-wrapper::-webkit-scrollbar-track,
+.rq-lines-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rq-table-wrapper::-webkit-scrollbar-thumb,
+.rq-lines-wrap::-webkit-scrollbar-thumb {
   background-color: #dfd8cc;
   border-radius: 50px;
 }
-.rq-table-wrapper::-webkit-scrollbar-thumb:hover {
+.rq-table-wrapper::-webkit-scrollbar-thumb:hover,
+.rq-lines-wrap::-webkit-scrollbar-thumb:hover {
   background-color: #8c5839;
+}
+
+/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
+   standard scrollbar properties are set, so reset them there */
+@supports selector(::-webkit-scrollbar) {
+  .rq-table-wrapper,
+  .rq-lines-wrap {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
+@supports not selector(::-webkit-scrollbar) {
+  .rq-table-wrapper,
+  .rq-lines-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+  .rq-table-wrapper:hover,
+  .rq-lines-wrap:hover {
+    scrollbar-color: #8c5839 transparent;
+  }
 }
 
 .rq-table {
