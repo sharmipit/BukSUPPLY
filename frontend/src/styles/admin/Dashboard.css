@@ -210,22 +210,60 @@
   color: var(--text-body, #594d46);
 }
 
-.db-table-wrapper {
+/* Table scrollbars (Requests, Inventory and Users tables look the same):
+   slim, no arrow buttons, light track, brown thumb on hover */
+.db-table-wrapper,
+.dashboard .rq-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #8c5839 transparent;
 }
-.db-table-wrapper::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+
+.dashboard .db-table-wrapper::-webkit-scrollbar,
+.dashboard .rq-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-.db-table-wrapper::-webkit-scrollbar-thumb {
+.dashboard .db-table-wrapper::-webkit-scrollbar-button,
+.dashboard .rq-table-wrapper::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.dashboard .db-table-wrapper::-webkit-scrollbar-track,
+.dashboard .rq-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dashboard .db-table-wrapper::-webkit-scrollbar-thumb,
+.dashboard .rq-table-wrapper::-webkit-scrollbar-thumb {
   background-color: #dfd8cc;
   border-radius: 50px;
 }
-.db-table-wrapper::-webkit-scrollbar-thumb:hover {
+.dashboard .db-table-wrapper::-webkit-scrollbar-thumb:hover,
+.dashboard .rq-table-wrapper::-webkit-scrollbar-thumb:hover {
   background-color: #8c5839;
+}
+
+/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
+   standard scrollbar properties are set, so reset them there */
+@supports selector(::-webkit-scrollbar) {
+  .dashboard .db-table-wrapper,
+  .dashboard .rq-table-wrapper {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+/* Firefox: no hover-on-thumb support, so the brown shows when hovering the table */
+@supports not selector(::-webkit-scrollbar) {
+  .dashboard .db-table-wrapper,
+  .dashboard .rq-table-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+  .dashboard .db-table-wrapper:hover,
+  .dashboard .rq-table-wrapper:hover {
+    scrollbar-color: #8c5839 transparent;
+  }
 }
 
 .db-table {
@@ -427,30 +465,35 @@
   border-color: var(--text-light-brown, #8c5839);
 }
 
-/* Footer / pagination */
+/* Footer bar (same look as the user dashboard table footer) */
 .db-footer-bar {
   padding: 16px 32px;
   background-color: var(--bg-color, #faf7f2);
   border-top: 1px solid var(--card-border, #dfd8cc);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--text-body, #594d46);
 }
 
-/* View all */
+/* View all link */
 .db-view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 4px;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0;
   border: none;
   background: none;
-  color: var(--text-dark, #2c1a14);
+  color: var(--text-light-brown, #8c5839);
   font-family: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  line-height: 1.4;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
   white-space: nowrap;
+  text-decoration: none;
   cursor: pointer;
   transition: color 0.2s ease;
 }
@@ -458,16 +501,10 @@
 .db-view-arrow {
   display: inline-flex;
   align-items: center;
-  font-size: 1.1rem;
-  transition: transform 0.2s ease;
 }
 
 .db-view-btn:hover {
-  color: var(--text-light-brown, #8c5839);
-}
-
-.db-view-btn:hover .db-view-arrow {
-  transform: translateX(4px);
+  color: var(--text-dark, #2c1a14);
 }
 
 .db-view-btn:focus-visible {

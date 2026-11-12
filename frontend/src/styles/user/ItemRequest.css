@@ -90,40 +90,59 @@
 
 .status-filter-tabs {
   display: flex;
-  justify-content: flex-start !important;
-  direction: ltr;
+  justify-content: flex-start;
   flex: 0 1 auto;
   gap: 6px;
   background-color: #ffffff;
   border: 1px solid var(--card-border, #dfd8cc);
   padding: 6px;
-  margin: 0;
   border-radius: 50px;
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #dfd8cc transparent;
-  -webkit-overflow-scrolling: touch;
 }
 
-.status-filter-tabs::-webkit-scrollbar {
+/* Filter tabs scrollbar: same design as the table scrollbar, slimmer */
+.item-request-container .status-filter-tabs::-webkit-scrollbar {
+  width: 4px;
   height: 4px;
 }
-
-.status-filter-tabs::-webkit-scrollbar-track {
+.item-request-container .status-filter-tabs::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.item-request-container .status-filter-tabs::-webkit-scrollbar-track {
   background: transparent;
 }
-
-.status-filter-tabs::-webkit-scrollbar-thumb {
+.item-request-container .status-filter-tabs::-webkit-scrollbar-thumb {
   background-color: #dfd8cc;
   border-radius: 50px;
 }
-
-.status-filter-tabs::-webkit-scrollbar-thumb:hover {
+.item-request-container .status-filter-tabs::-webkit-scrollbar-thumb:hover {
   background-color: #8c5839;
+}
+
+/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
+   standard scrollbar properties are set, so reset them there */
+@supports selector(::-webkit-scrollbar) {
+  .item-request-container .status-filter-tabs {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
+@supports not selector(::-webkit-scrollbar) {
+  .item-request-container .status-filter-tabs {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+  .item-request-container .status-filter-tabs:hover {
+    scrollbar-color: #8c5839 transparent;
+  }
 }
 
 .filter-tab-btn {
@@ -179,6 +198,47 @@
   overflow-x: auto;
 }
 
+/* Table scrollbar: slim, no arrow buttons, light track, brown thumb on hover */
+.item-request-container .table-responsive-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.item-request-container .table-responsive-wrapper::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.item-request-container .table-responsive-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.item-request-container .table-responsive-wrapper::-webkit-scrollbar-thumb {
+  background-color: #dfd8cc;
+  border-radius: 50px;
+}
+.item-request-container .table-responsive-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #8c5839;
+}
+
+/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
+   standard scrollbar properties are set, so reset them there */
+@supports selector(::-webkit-scrollbar) {
+  .item-request-container .table-responsive-wrapper {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
+@supports not selector(::-webkit-scrollbar) {
+  .item-request-container .table-responsive-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+  .item-request-container .table-responsive-wrapper:hover {
+    scrollbar-color: #8c5839 transparent;
+  }
+}
+
 .custom-table {
   width: 100% !important;
   min-width: 1190px;
@@ -193,14 +253,6 @@
 
 .custom-table .col-slip {
   width: 170px;
-}
-
-.custom-table .col-title {
-  width: auto;
-}
-
-.custom-table .col-items {
-  width: auto;
 }
 
 .custom-table .col-date {

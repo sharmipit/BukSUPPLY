@@ -947,19 +947,16 @@ const Dashboard = ({
           </table>
         </div>
 
-        <div className="rq-footer-bar">
+        <div className="db-footer-bar">
           <span>
             Showing {currentItems.length} of {slips.length} requests
           </span>
-          <div className="rq-pagination">
-            <button
-              type="button"
-              className="rq-btn-action rq-btn-view"
-              onClick={handleViewRequests}
-            >
-              View all requests <i className="bi bi-arrow-right"></i>
-            </button>
-          </div>
+          <button type="button" className="db-view-btn" onClick={handleViewRequests}>
+            View all requests
+            <span className="db-view-arrow">
+              <i className="bi bi-arrow-right"></i>
+            </span>
+          </button>
         </div>
       </div>
 

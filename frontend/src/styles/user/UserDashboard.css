@@ -175,6 +175,49 @@
   overflow-x: auto;
 }
 
+/* Table scrollbar (same as the admin and moderator dashboards):
+   slim, no arrow buttons, light track, brown thumb on hover */
+.user-dashboard-container .table-responsive-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.user-dashboard-container .table-responsive-wrapper::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.user-dashboard-container .table-responsive-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.user-dashboard-container .table-responsive-wrapper::-webkit-scrollbar-thumb {
+  background-color: #dfd8cc;
+  border-radius: 50px;
+}
+.user-dashboard-container
+  .table-responsive-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #8c5839;
+}
+
+/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
+   standard scrollbar properties are set, so reset them there */
+@supports selector(::-webkit-scrollbar) {
+  .user-dashboard-container .table-responsive-wrapper {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+/* Firefox: no hover-on-thumb support, so the brown shows when hovering the table */
+@supports not selector(::-webkit-scrollbar) {
+  .user-dashboard-container .table-responsive-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+  .user-dashboard-container .table-responsive-wrapper:hover {
+    scrollbar-color: #8c5839 transparent;
+  }
+}
+
 .custom-table {
   width: 100%;
   border-collapse: collapse;
