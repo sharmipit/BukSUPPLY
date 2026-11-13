@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import useInventory from '../hooks/useInventory';
 import IssuanceSlipPreview from './IssuanceSlipPreview';
 import '../styles/RequisitionDetailsModal.css';
 
@@ -28,8 +29,12 @@ function ItemList({ items, noteLabel, showUnit = false }) {
   );
 }
 
-// The Issuance Slip can be previewed once the request is approved
 const SLIP_STATUSES = ['Approved', 'Accepted'];
+
+const norm = (s) =>
+  String(s || '')
+    .trim()
+    .toLowerCase();
 
 export default function RequisitionDetailsModal({
   isOpen,
@@ -40,16 +45,40 @@ export default function RequisitionDetailsModal({
 }) {
   const [showSlip, setShowSlip] = useState(false);
   const [slipBusy, setSlipBusy] = useState(false);
+  const { items = [] } = useInventory();
 
   if (!isOpen || !requisition) return null;
 
   const stockItems = Array.isArray(requisition.itemsList) ? requisition.itemsList : null;
   const canViewSlip = SLIP_STATUSES.includes(requisition.status);
 
-  const slipReq = { ...requisition, date: requisition.date || requisition.dateFiled };
-  const slipLines = (stockItems ?? (requisition.item ? [{ name: requisition.item, qty: '-' }] : [])).map(
-    (it) => ({ name: it.name || '-', qty: it.qty ?? '-', unit: it.unit })
-  );
+  // Map requestor's name and ensure dates/status are aligned with the requests page
+  const slipReq = {
+    ...requisition,
+    date: requisition.date || requisition.dateFiled,
+    requestedBy:
+      requisition.requestedBy ||
+      (typeof requisition.requester === 'object'
+        ? [requisition.requester?.firstName, requisition.requester?.lastName]
+            .filter(Boolean)
+            .join(' ')
+        : '') ||
+      '-',
+  };
+
+  const slipLines = (
+    stockItems ?? (requisition.item ? [{ name: requisition.item, qty: '-' }] : [])
+  ).map((it) => {
+    const inv =
+      items.find((i) => i._id === String(it.inventoryItemId)) ||
+      items.find((i) => norm(i.name) === norm(it.name));
+    return {
+      code: it.code || inv?.id || inv?.code || '',
+      name: it.name || inv?.name || '-',
+      qty: it.qty ?? '-',
+      unit: inv?.unit || it.unit || '',
+    };
+  });
 
   const handleClose = () => {
     setShowSlip(false);
@@ -68,7 +97,6 @@ export default function RequisitionDetailsModal({
 
   return (
     <>
-      {/* Not rendered while the slip preview is open, so only one modal shows and nothing animates between them */}
       {!showSlip && (
         <div className="details-modal-overlay active" role="dialog" aria-modal="true">
           <div className="details-modal-card">
@@ -98,7 +126,9 @@ export default function RequisitionDetailsModal({
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Date Filed</span>
-                  <span className="detail-value">{requisition.date || requisition.dateFiled || '-'}</span>
+                  <span className="detail-value">
+                    {requisition.date || requisition.dateFiled || '-'}
+                  </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Status</span>
@@ -154,7 +184,11 @@ export default function RequisitionDetailsModal({
                 Close
               </button>
               {canViewSlip && (
-                <button type="button" className="details-btn-slip" onClick={() => setShowSlip(true)}>
+                <button
+                  type="button"
+                  className="details-btn-slip"
+                  onClick={() => setShowSlip(true)}
+                >
                   <i className="bi bi-file-earmark-text"></i> Issuance Slip
                 </button>
               )}

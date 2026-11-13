@@ -1,5 +1,6 @@
 const settings = require('./settings');
-const { buildLocalPdf, buildLocalXlsx, buildLocalIssuanceXlsx } = require('./localReportFiles');
+const { buildLocalPdf, buildLocalXlsx } = require('./localReportFiles');
+const { buildIssuanceHtml, buildIssuanceXlsxFromTemplate } = require('./issuanceSlip');
 
 // After an external service fails (limit reached, bad key, outage), skip it for this long
 // and use the self-hosted builder instead.
@@ -8,6 +9,7 @@ const pausedUntil = { pdf: 0, xlsx: 0 };
 
 // 'api'   = try Nutrient first, fall back to the built-in builder if it fails
 // 'local' = always use the built-in builder (clean file, no watermark)
+// (Applies to the reports. The issuance slip Excel always uses the RIS template.)
 const XLSX_ENGINE = process.env.XLSX_ENGINE || 'api';
 
 // Edit these to match your school's official wording
@@ -22,6 +24,15 @@ const TITLES = {
   transactions: 'Transactions Report',
   issuance: 'Issuance Slip',
 };
+
+// Page margins. The reports have a running header, so they need a tall top margin.
+// The issuance slip prints its title inside the page (issuanceSlip.js),
+// so it has no running header and a small top margin.
+const MARGINS = {
+  report: { top: '25mm', bottom: '22mm', left: '10mm', right: '10mm' },
+  issuance: { top: '10mm', bottom: '22mm', left: '10mm', right: '10mm' },
+};
+const marginFor = (type) => (type === 'issuance' ? MARGINS.issuance : MARGINS.report);
 
 const fmtDate = (v) =>
   v
@@ -109,8 +120,11 @@ const closingLines = (meta) => [
 ];
 
 // ---------- PDF: running header and footer (shown on every page) ----------
+// The issuance slip has NO running header: its title is printed inside each page.
 const headerHtml = (type) =>
-  `
+  type === 'issuance'
+    ? ''
+    : `
 <div style="width:100%;box-sizing:border-box;padding:0 10mm;font-family:'Times New Roman',Times,serif;font-size:10px;color:#000;">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #000;padding-bottom:4px;">
     <div>
@@ -121,21 +135,27 @@ const headerHtml = (type) =>
   </div>
 </div>`.trim(); // PDFShift needs the source to start with "<", so no leading newline
 
-// `pages` is the page-number markup, which differs between PDF engines
-const footerHtml = (meta, pages) =>
+// `pages` is the page-number markup, which differs between PDF engines.
+// The footer (verification code + page x of y) is printed on every page of every PDF.
+const footerHtml = (meta, pages, rule = true) =>
   `
 <div style="width:100%;box-sizing:border-box;padding:0 10mm;font-family:'Times New Roman',Times,serif;font-size:9px;color:#000;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-top:1px solid #000;padding-top:4px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;${rule ? 'border-top:1px solid #000;' : ''}padding-top:4px;">
     <div>
       Verification code: <strong>${esc(meta.code)}</strong><br>
       ${esc(VERIFY_NOTE)}
     </div>
     <div style="text-align:right;">
-      Generated ${esc(fmtStamp(meta.generatedAt))} by ${esc(meta.generatedBy)}<br>
+      Generated ${esc(fmtStamp(meta.generatedAt))}${byLine(meta)}<br>
       Page ${pages}
     </div>
   </div>
 </div>`.trim(); // same reason as headerHtml
+
+// "by <name>" is shown on the reports; the issuance slip leaves the name out
+function byLine(meta) {
+  return meta.generatedBy && !meta.hideGeneratedBy ? ` by ${esc(meta.generatedBy)}` : '';
+}
 
 const PDFSHIFT_PAGES = '{{page}} of {{total}}';
 const CHROME_PAGES = '<span class="pageNumber"></span> of <span class="totalPages"></span>';
@@ -168,142 +188,33 @@ function buildHtml(type, rows, summary, meta) {
   </body></html>`;
 }
 
-// ---------- Issuance slip (one requisition, portrait) ----------
-// slip = { id, requestedBy, department, purpose, filedAt, approvedAt, approvedBy, remarks }
-// lines = [{ name, qty, unit }]
-function buildIssuanceHtml(slip, lines) {
-  const info = [
-    ['Issuance no.', `ISS-${slip.id}`],
-    ['Requisition no.', slip.id],
-    ['Requested by', slip.requestedBy || '—'],
-    ['Department', slip.department || '—'],
-    ['Date filed', fmtDate(slip.filedAt) || '—'],
-    ['Date approved', fmtDate(slip.approvedAt) || '—'],
-    ['Purpose', slip.purpose || '—'],
-  ];
-  const body = lines.length
-    ? lines
-        .map(
-          (l, i) =>
-            `<tr><td>${i + 1}</td><td>${esc(l.name)}</td><td>${esc(l.qty)}</td><td>${esc(l.unit || '—')}</td></tr>`
-        )
-        .join('')
-    : '<tr><td colspan="4">No items.</td></tr>';
-
-  return `<!doctype html><html><head><meta charset="utf-8">
-  <style>
-    body{font-family:'Times New Roman',Times,serif;font-size:11px;color:#000;margin:0}
-    table.info{border-collapse:collapse;margin-bottom:14px}
-    table.info td{padding:2px 14px 2px 0;font-size:11px;vertical-align:top}
-    table.info td:first-child{font-weight:bold;white-space:nowrap}
-    table.data{width:100%;border-collapse:collapse}
-    table.data th{background:#e6e6e6;color:#000;text-align:left;padding:6px 8px;border:1px solid #000;font-size:10.5px}
-    table.data td{padding:5px 8px;border:1px solid #999}
-    thead{display:table-header-group}
-    tr{page-break-inside:avoid}
-    .remarks{border:1px solid #999;padding:6px 8px;margin-top:14px}
-    table.sign{width:100%;border-collapse:separate;border-spacing:24px 0;margin-top:56px;page-break-inside:avoid}
-    table.sign td{width:33%;border-top:1px solid #000;text-align:center;padding-top:4px;font-size:10.5px}
-    .end{text-align:center;margin-top:20px;font-size:10px}
-  </style></head><body>
-    <table class="info">
-      ${info.map(([k, v]) => `<tr><td>${esc(k)}:</td><td>${esc(v)}</td></tr>`).join('')}
-    </table>
-    <table class="data">
-      <thead><tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table>
-    ${slip.remarks ? `<div class="remarks"><b>Remarks:</b> ${esc(slip.remarks)}</div>` : ''}
-    <table class="sign"><tr>
-      <td>Approved by: ${esc(slip.approvedBy || '')}</td>
-      <td>Issued by</td>
-      <td>Received by (signature / date)</td>
-    </tr></table>
-    <div class="end">*** End of slip ***</div>
-  </body></html>`;
-}
-
-// ---------- Issuance slip as Excel (one model feeds both the external and local builders) ----------
-const issuanceXlsxModel = (slip, lines, meta) => ({
-  org: ORG_NAME,
-  subtitle: `${SYSTEM_NAME} – ${SYSTEM_SUBTITLE}`,
-  title: TITLES.issuance,
-  info: [
-    ['Issuance no.', `ISS-${slip.id}`],
-    ['Requisition no.', slip.id],
-    ['Requested by', slip.requestedBy || ''],
-    ['Department', slip.department || ''],
-    ['Date filed', fmtDate(slip.filedAt)],
-    ['Date approved', fmtDate(slip.approvedAt)],
-    ['Purpose', slip.purpose || ''],
-  ],
-  items: lines.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit || '' })),
-  remarks: slip.remarks || '',
-  signatures: [
-    { role: 'Approved by (signature over printed name)', name: slip.approvedBy || '' },
-    { role: 'Issued by (signature over printed name)', name: meta.generatedBy || '' },
-    { role: 'Received by (signature over printed name)', name: slip.requestedBy || '' },
-  ],
+// ---------- Issuance slip (Requisition and Issue Slip form) ----------
+// The form itself lives in issuanceSlip.js (PDF) and templates/RIS-TEMPLATE.xlsx (Excel).
+const slipContext = (meta) => ({
+  fmtDate,
+  fmtStamp,
+  verifyNote: VERIFY_NOTE,
   code: meta.code,
-  footerLines: [
-    ...closingLines(meta).slice(0, 2),
-    'Yellow cells are editable.',
-    '*** End of slip ***',
-  ],
+  generatedAt: meta.generatedAt,
+  orgName: ORG_NAME,
+  systemLine: `${SYSTEM_NAME} – ${SYSTEM_SUBTITLE}`,
 });
-
-// HTML for Nutrient (colspan stands in for merged cells; bgcolor marks editable cells)
-function buildIssuanceXlsxHtml(m) {
-  const EDIT = 'bgcolor="#FFF9DB" style="background-color:#FFF9DB"';
-  const line = (text, bold) =>
-    `<tr><td colspan="4">${bold ? '<b>' : ''}${esc(text)}${bold ? '</b>' : ''}</td></tr>`;
-  const blank = '<tr><td colspan="4"></td></tr>';
-
-  const sigPairs = [];
-  for (let i = 0; i < m.signatures.length; i += 2) sigPairs.push(m.signatures.slice(i, i + 2));
-
-  return `<!doctype html><html><head><meta charset="utf-8"></head><body>
-  <table>
-    ${line(m.org, true)}
-    ${line(m.subtitle)}
-    ${line(m.title, true)}
-    ${blank}
-    ${m.info
-      .map(
-        ([k, v]) =>
-          `<tr><td colspan="2"><b>${esc(k)}</b></td><td colspan="2" ${EDIT}>${esc(v)}</td></tr>`
-      )
-      .join('')}
-    ${blank}
-    <tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit</th></tr>
-    ${m.items
-      .map(
-        (l, i) =>
-          `<tr><td>${i + 1}</td><td ${EDIT}>${esc(l.name)}</td><td ${EDIT}>${esc(l.qty)}</td><td ${EDIT}>${esc(l.unit)}</td></tr>`
-      )
-      .join('')}
-    ${[1, 2, 3].map(() => `<tr><td></td><td ${EDIT}></td><td ${EDIT}></td><td ${EDIT}></td></tr>`).join('')}
-    ${blank}
-    ${line('Remarks', true)}
-    <tr><td colspan="4" ${EDIT}>${esc(m.remarks)}</td></tr>
-    ${blank}
-    ${sigPairs
-      .map(
-        (pair) => `
-    <tr>${pair.map(() => '<td colspan="2"><br><br></td>').join('')}</tr>
-    <tr>${pair.map((s) => `<td colspan="2" ${EDIT}><b>${esc(s.name)}</b></td>`).join('')}</tr>
-    <tr>${pair.map((s) => `<td colspan="2"><i>${esc(s.role)}</i></td>`).join('')}</tr>
-    ${blank}`
-      )
-      .join('')}
-    ${m.footerLines.map((t) => line(t)).join('')}
-  </table></body></html>`;
-}
 
 // ---- External API call. Confirm header/footer/margin options in PDFShift's docs. ----
 async function buildPdfExternal(type, html, meta, landscape = true) {
   const s = settings.get();
   if (!s.pdfshiftApiKey) throw new Error('PDF service is not configured.');
+
+  const body = {
+    source: html,
+    format: 'A4',
+    landscape,
+    margin: marginFor(type),
+    footer: { source: footerHtml(meta, PDFSHIFT_PAGES, type !== 'issuance'), spacing: '5mm' },
+  };
+  // No running header for the issuance slip
+  const header = headerHtml(type);
+  if (header) body.header = { source: header, spacing: '5mm' };
 
   const res = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
     method: 'POST',
@@ -311,13 +222,7 @@ async function buildPdfExternal(type, html, meta, landscape = true) {
       'Content-Type': 'application/json',
       Authorization: 'Basic ' + Buffer.from(`api:${s.pdfshiftApiKey}`).toString('base64'),
     },
-    body: JSON.stringify({
-      source: html,
-      landscape,
-      margin: { top: '25mm', bottom: '22mm', left: '10mm', right: '10mm' },
-      header: { source: headerHtml(type), spacing: '5mm' },
-      footer: { source: footerHtml(meta, PDFSHIFT_PAGES), spacing: '5mm' },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -353,7 +258,7 @@ function buildXlsxHtml(type, rows, summary, meta) {
   </table></body></html>`;
 }
 
-// ---- External API call (shared by reports and the issuance slip). Confirm endpoint/options in Nutrient's docs. ----
+// ---- External API call (reports). Confirm endpoint/options in Nutrient's docs. ----
 async function nutrientHtmlToXlsx(html, filename) {
   const s = settings.get();
   if (!s.nutrientApiKey) throw new Error('Excel service is not configured.');
@@ -381,9 +286,6 @@ async function nutrientHtmlToXlsx(html, filename) {
 
 const buildXlsxExternal = (type, rows, summary, meta) =>
   nutrientHtmlToXlsx(buildXlsxHtml(type, rows, summary, meta), 'report.html');
-
-const buildIssuanceXlsxExternal = (model) =>
-  nutrientHtmlToXlsx(buildIssuanceXlsxHtml(model), 'slip.html');
 
 // ---- External first, self-hosted as the fallback ----
 const tableData = (type, rows) => ({
@@ -418,9 +320,11 @@ async function renderPdf(type, html, meta, landscape = true) {
     () => buildPdfExternal(type, html, meta, landscape),
     () =>
       buildLocalPdf(html, {
-        header: headerHtml(type),
-        footer: footerHtml(meta, CHROME_PAGES),
+        header: headerHtml(type), // '' for the issuance slip
+        footer: footerHtml(meta, CHROME_PAGES, type !== 'issuance'),
         landscape,
+        format: 'A4',
+        margin: marginFor(type),
       })
   );
 }
@@ -429,7 +333,12 @@ const buildPdf = (type, rows, summary, meta) =>
   renderPdf(type, buildHtml(type, rows, summary, meta), meta);
 
 const buildIssuancePdf = (slip, lines, meta) =>
-  renderPdf('issuance', buildIssuanceHtml(slip, lines), meta, false);
+  renderPdf(
+    'issuance',
+    buildIssuanceHtml(slip, lines, slipContext(meta)),
+    { ...meta, hideGeneratedBy: true }, // keep the person's name off the slip footer
+    false
+  );
 
 async function buildXlsx(type, rows, summary, meta) {
   if (!settings.get().nutrientEnabled) {
@@ -456,23 +365,12 @@ async function buildXlsx(type, rows, summary, meta) {
   return withFallback('xlsx', () => buildXlsxExternal(type, rows, summary, meta), local);
 }
 
-// Editable issuance slip as Excel: Nutrient first, self-hosted builder as the fallback
+// Issuance slip as Excel: fills the RIS template (no external service, so no watermark)
 async function buildIssuanceXlsx(slip, lines, meta) {
   if (!settings.get().nutrientEnabled) {
     throw userError('Excel downloads are turned off by the administrator.');
   }
-
-  const model = issuanceXlsxModel(slip, lines, meta);
-  const local = () => buildLocalIssuanceXlsx(model);
-
-  if (XLSX_ENGINE === 'local') {
-    console.log(
-      '[reports] xlsx: issuance slip built by the self-hosted builder (XLSX_ENGINE=local)'
-    );
-    return local();
-  }
-
-  return withFallback('xlsx', () => buildIssuanceXlsxExternal(model), local);
+  return buildIssuanceXlsxFromTemplate(slip, lines, slipContext(meta));
 }
 
 module.exports = { buildPdf, buildXlsx, buildIssuancePdf, buildIssuanceXlsx };

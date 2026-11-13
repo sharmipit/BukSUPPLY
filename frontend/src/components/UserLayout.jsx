@@ -19,7 +19,7 @@ const userNavSections = [
     items: [
       { label: 'Dashboard', icon: 'bi-grid', to: '/user' },
       { label: 'Item Request', icon: 'bi-file-earmark-plus', to: '/user/requests' },
-      { label: 'My Requests', icon: 'bi-clock-history', to: '/user/history' },
+      { label: 'Request History', icon: 'bi-clock-history', to: '/user/history' },
       { label: 'Notifications', icon: 'bi-bell', to: '/user/notifications' },
     ],
   },

@@ -120,7 +120,16 @@ export default function UserDashboard() {
   };
 
   const handleRowClick = (req) => {
-    setSelectedDetailsReq(req);
+    // Ensure requestedBy is fully resolved so modals and previews display it properly
+    const resolvedReq = {
+      ...req,
+      requestedBy:
+        req.requestedBy ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+        user?.email ||
+        'Unknown user',
+    };
+    setSelectedDetailsReq(resolvedReq);
     setDetailsModalOpen(true);
   };
 
@@ -197,7 +206,12 @@ export default function UserDashboard() {
             </thead>
             <tbody>
               {loading
-                ? emptyRow(5, 'bi-hourglass-split', 'Loading...', 'Fetching your requisition slips.')
+                ? emptyRow(
+                    5,
+                    'bi-hourglass-split',
+                    'Loading...',
+                    'Fetching your requisition slips.'
+                  )
                 : error
                   ? emptyRow(5, 'bi-exclamation-circle', 'Could not load requisitions', error)
                   : recentRequests.length > 0
@@ -346,7 +360,7 @@ export default function UserDashboard() {
 
         <div className="table-footer-bar history-footer-bar">
           <Link to="/user/history" className="footer-link text-decoration-none">
-            Open My Requests <i className="bi bi-arrow-right"></i>
+            Open Request History <i className="bi bi-arrow-right"></i>
           </Link>
           <div className="pagination-controls-wrapper">
             <button
