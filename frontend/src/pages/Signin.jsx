@@ -8,7 +8,8 @@ import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
 import css from '../styles/signin.css?raw';
 
-const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const EMAIL_MESSAGE =
   'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
 const NO_BANNER = { message: '', type: '' };

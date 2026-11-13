@@ -7,8 +7,8 @@ import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
 import css from '../styles/signup.css?raw';
 
-const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
-
+// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 // ID formats (based on the placeholders shown in the form).
 // CONFIRM these match your backend rule, and change them here if they do not.
 const STUDENT_ID_PATTERN = /^\d{10}$/; // e.g. 2400000000
@@ -191,7 +191,11 @@ export default function Signup() {
     if (pendingGoogle) {
       const problem = idProblem(emailType(googleEmail), googleIdNumber);
       if (problem) {
-        setGoogleIdError(problem === 'This field is required' ? 'Please enter your ID number to continue.' : problem);
+        setGoogleIdError(
+          problem === 'This field is required'
+            ? 'Please enter your ID number to continue.'
+            : problem
+        );
         return;
       }
       const credential = pendingGoogle;
@@ -627,8 +631,8 @@ export default function Signup() {
             <div className="lgl-body">
               {pendingGoogle && (
                 <p className="lgl-note">
-                  Almost done! Enter your ID number and agree to the terms to finish signing up
-                  with Google.
+                  Almost done! Enter your ID number and agree to the terms to finish signing up with
+                  Google.
                 </p>
               )}
 

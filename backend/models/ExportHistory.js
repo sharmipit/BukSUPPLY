@@ -12,6 +12,9 @@ const exportHistorySchema = new mongoose.Schema(
     user: { type: String, default: 'Unknown user' },
     code: { type: String, unique: true, sparse: true },
     recordCount: { type: Number, default: 0 },
+    driveFileId: { type: String, default: '' },
+    driveLink: { type: String, default: '' },
+    driveStatus: { type: String, enum: ['', 'uploaded', 'failed'], default: '' },
   },
   { timestamps: true }
 );
