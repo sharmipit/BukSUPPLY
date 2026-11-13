@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
@@ -9,7 +9,19 @@ import usePublicConfig from '../hooks/usePublicConfig';
 import css from '../styles/signin.css?raw';
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+const EMAIL_MESSAGE =
+  'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
 const NO_BANNER = { message: '', type: '' };
+
+// Same rule as the Sign Up page. Only used when CHOOSING a new password,
+// never when logging in (older accounts may have weaker passwords).
+const passwordProblem = (pw) => {
+  if (!pw) return 'Please enter a new password.';
+  if (pw.length < 8) return 'Password must be at least 8 characters.';
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw))
+    return 'Password must include at least one letter and one number.';
+  return '';
+};
 
 // Renders nothing when there is no message (prevents flashing)
 function Banner({ banner }) {
@@ -18,7 +30,7 @@ function Banner({ banner }) {
 }
 
 // Password input with a show/hide eye button
-function PasswordInput({ id, value, onChange, placeholder, visible, onToggle }) {
+function PasswordInput({ id, value, onChange, placeholder, visible, onToggle, autoComplete }) {
   return (
     <div className="input-icon-wrapper">
       <input
@@ -28,7 +40,7 @@ function PasswordInput({ id, value, onChange, placeholder, visible, onToggle }) 
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        required
+        autoComplete={autoComplete}
       />
       <button
         type="button"
@@ -46,16 +58,24 @@ export default function Signin() {
   usePage(css, 'Sign In | BukSUPPLY');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const config = usePublicConfig(); // keys and on/off switches from System Settings
 
   // ---------- Sign in form ----------
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [banner, setBanner] = useState(NO_BANNER);
+  // A message passed from the Sign Up page (e.g. "You already have an account")
+  const [banner, setBanner] = useState(() =>
+    location.state?.notice ? { message: location.state.notice, type: 'info' } : NO_BANNER
+  );
   const [busy, setBusy] = useState(false);
   const recaptchaRef = useRef(null);
   const [captchaToken, setCaptchaToken] = useState(null);
+  const googleBusyRef = useRef(false); // stops double submits of the Google sign-in
+  const closeTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
   // Shared by email/password and Google sign-in
   const completeSignIn = ({ token, user }) => {
@@ -70,15 +90,12 @@ export default function Signin() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (busy) return;
     setBanner(NO_BANNER);
 
     const cleanEmail = email.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(cleanEmail)) {
-      setBanner({
-        message:
-          'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).',
-        type: 'error',
-      });
+      setBanner({ message: EMAIL_MESSAGE, type: 'error' });
       return;
     }
     if (!password) {
@@ -111,6 +128,8 @@ export default function Signin() {
 
   // ---------- Google sign in ----------
   const handleGoogle = async (credential) => {
+    if (googleBusyRef.current) return;
+    googleBusyRef.current = true;
     setBanner(NO_BANNER);
     try {
       const { data } = await api.post('/auth/google', { credential });
@@ -118,10 +137,15 @@ export default function Signin() {
     } catch (err) {
       // No account yet: new users must register (ID number + terms) on the sign-up page
       if (err.response?.status === 428) {
-        navigate('/signup', { replace: true });
+        navigate('/signup', {
+          replace: true,
+          state: { notice: 'No account found for that Google account yet. Please create one.' },
+        });
         return;
       }
       setBanner({ message: errMsg(err), type: 'error' });
+    } finally {
+      googleBusyRef.current = false;
     }
   };
 
@@ -140,8 +164,9 @@ export default function Signin() {
 
   const openModal = (e) => {
     e.preventDefault();
+    clearTimeout(closeTimerRef.current);
     setStep(1);
-    setResetEmail('');
+    setResetEmail(email.trim()); // reuse what was typed on the login form
     setOtp('');
     setNewPass('');
     setConfirmPass('');
@@ -162,16 +187,31 @@ export default function Signin() {
     return () => document.removeEventListener('keydown', onKey);
   }, [modalOpen]);
 
+  // Go back to step 1 (wrong email, or the code never arrived)
+  const backToStep1 = (e) => {
+    e.preventDefault();
+    setOtp('');
+    setAlert1(NO_BANNER);
+    setAlert2(NO_BANNER);
+    setStep(1);
+  };
+
   // Step 1: request the code
   const requestCode = async (e) => {
     e.preventDefault();
+    if (modalBusy) return;
     const cleanEmail = resetEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(cleanEmail)) {
+      setAlert1({ message: EMAIL_MESSAGE, type: 'error' });
+      return;
+    }
     setAlert1({ message: 'Sending code...', type: 'info' });
     setModalBusy(true);
     try {
       await api.post('/auth/forgot-password/request-code', { email: cleanEmail });
       setResetEmail(cleanEmail);
       setStep(2);
+      setAlert1(NO_BANNER);
       setAlert2({
         message: `Code sent to ${cleanEmail}! Check your inbox. It expires in 15 minutes.`,
         type: 'info',
@@ -186,10 +226,22 @@ export default function Signin() {
   // Step 2: code + new password
   const resetPassword = async (e) => {
     e.preventDefault();
+    if (modalBusy) return;
+
+    if (otp.trim().length !== 6) {
+      setAlert2({ message: 'Enter the 6-digit code sent to your email.', type: 'error' });
+      return;
+    }
+    const problem = passwordProblem(newPass);
+    if (problem) {
+      setAlert2({ message: problem, type: 'error' });
+      return;
+    }
     if (newPass !== confirmPass) {
       setAlert2({ message: 'Passwords do not match. Please try again.', type: 'error' });
       return;
     }
+
     setAlert2({ message: 'Updating password...', type: 'info' });
     setModalBusy(true);
     try {
@@ -200,7 +252,10 @@ export default function Signin() {
         confirmPassword: confirmPass,
       });
       setAlert2({ message: 'Password successfully reset! You can now log in.', type: 'success' });
-      setTimeout(() => setModalOpen(false), 1500);
+      // Fill in the login form for them
+      setEmail(resetEmail);
+      setPassword('');
+      closeTimerRef.current = setTimeout(() => setModalOpen(false), 1500);
     } catch (err) {
       setAlert2({ message: errMsg(err), type: 'error' });
     } finally {
@@ -225,7 +280,7 @@ export default function Signin() {
             </p>
           </header>
 
-          <form id="loginForm" className="login-form" onSubmit={onSubmit}>
+          <form id="loginForm" className="login-form" onSubmit={onSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="email" className="form-label">
                 <i className="bi bi-envelope-fill"></i> Institutional Email
@@ -235,12 +290,12 @@ export default function Signin() {
                 id="email"
                 className="form-input"
                 placeholder="Enter your institutional email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   setBanner(NO_BANNER);
                 }}
-                required
               />
             </div>
 
@@ -251,6 +306,7 @@ export default function Signin() {
               <PasswordInput
                 id="password"
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -361,7 +417,7 @@ export default function Signin() {
                 </p>
               </header>
 
-              <form className="login-form" onSubmit={requestCode}>
+              <form className="login-form" onSubmit={requestCode} noValidate>
                 <div className="form-group">
                   <label htmlFor="resetEmail" className="form-label">
                     <i className="bi bi-envelope-fill"></i> Institutional Email
@@ -371,9 +427,12 @@ export default function Signin() {
                     id="resetEmail"
                     className="form-input"
                     placeholder="Enter your institutional email"
+                    autoComplete="email"
                     value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    required
+                    onChange={(e) => {
+                      setResetEmail(e.target.value);
+                      setAlert1(NO_BANNER);
+                    }}
                   />
                 </div>
 
@@ -381,7 +440,7 @@ export default function Signin() {
 
                 <div className="btn-wrapper">
                   <button type="submit" className="btn-submit" disabled={modalBusy}>
-                    Send Reset Code
+                    {modalBusy ? 'Sending...' : 'Send Reset Code'}
                   </button>
                 </div>
               </form>
@@ -398,7 +457,7 @@ export default function Signin() {
                 </p>
               </header>
 
-              <form className="login-form" onSubmit={resetPassword}>
+              <form className="login-form" onSubmit={resetPassword} noValidate>
                 <div className="form-group">
                   <label htmlFor="resetCode" className="form-label">
                     <i className="bi bi-shield-lock-fill"></i> 6-Digit Reset Code
@@ -410,11 +469,12 @@ export default function Signin() {
                     placeholder="e.g. 123456"
                     maxLength={6}
                     inputMode="numeric"
-                    pattern="[0-9]{6}"
                     autoComplete="one-time-code"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    required
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/\D/g, ''));
+                      setAlert2(NO_BANNER);
+                    }}
                   />
                 </div>
 
@@ -424,9 +484,13 @@ export default function Signin() {
                   </label>
                   <PasswordInput
                     id="newPassword"
-                    placeholder="Enter new password"
+                    placeholder="At least 8 characters, with a letter and a number"
+                    autoComplete="new-password"
                     value={newPass}
-                    onChange={(e) => setNewPass(e.target.value)}
+                    onChange={(e) => {
+                      setNewPass(e.target.value);
+                      setAlert2(NO_BANNER);
+                    }}
                     visible={showNewPass}
                     onToggle={() => setShowNewPass((v) => !v)}
                   />
@@ -439,18 +503,27 @@ export default function Signin() {
                   <PasswordInput
                     id="confirmNewPassword"
                     placeholder="Confirm new password"
+                    autoComplete="new-password"
                     value={confirmPass}
-                    onChange={(e) => setConfirmPass(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPass(e.target.value);
+                      setAlert2(NO_BANNER);
+                    }}
                     visible={showConfirmPass}
                     onToggle={() => setShowConfirmPass((v) => !v)}
                   />
+                  <div className="forgot-wrapper">
+                    <a href="#" className="forgot-link" onClick={backToStep1}>
+                      Use a different email
+                    </a>
+                  </div>
                 </div>
 
                 <Banner banner={alert2} />
 
                 <div className="btn-wrapper">
                   <button type="submit" className="btn-submit" disabled={modalBusy}>
-                    Update Password
+                    {modalBusy ? 'Updating...' : 'Update Password'}
                   </button>
                 </div>
               </form>

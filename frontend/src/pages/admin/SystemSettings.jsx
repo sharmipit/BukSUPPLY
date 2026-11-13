@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../../styles/admin/Dashboard.css';
 import '../../styles/admin/SystemSettings.css';
@@ -285,7 +286,17 @@ const ToggleRow = ({ id, label, hint, checked, onChange }) => (
 );
 
 // Confirmation dialog that matches the settings cards
-const ConfirmModal = ({ title, confirmLabel, busy, onConfirm, onCancel, children }) => {
+const ConfirmModal = ({
+  title,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  busyLabel = 'Resetting...',
+  icon = 'bi-arrow-counterclockwise',
+  busy,
+  onConfirm,
+  onCancel,
+  children,
+}) => {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && !busy) onCancel();
@@ -309,7 +320,7 @@ const ConfirmModal = ({ title, confirmLabel, busy, onConfirm, onCancel, children
       >
         <div className="ss-card-head">
           <div className="db-stat-icon-circle ss-card-icon">
-            <i className="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            <i className={`bi ${icon}`} aria-hidden="true"></i>
           </div>
           <div className="ss-card-headtext">
             <h2 id="ss-modal-title" className="ss-card-title">
@@ -322,10 +333,10 @@ const ConfirmModal = ({ title, confirmLabel, busy, onConfirm, onCancel, children
 
         <div className="ss-card-foot">
           <button type="button" className="db-btn-secondary" onClick={onCancel} disabled={busy}>
-            Cancel
+            {cancelLabel}
           </button>
           <button type="button" className="db-btn-primary" onClick={onConfirm} disabled={busy}>
-            {busy ? 'Resetting...' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>
@@ -493,6 +504,8 @@ function SystemSettingsContent({ token, onLock }) {
   const [notice, setNotice] = useState(null);
   const [resetSection, setResetSection] = useState(null); // card waiting for reset confirmation
   const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA key confirmation
+  const [leaveTarget, setLeaveTarget] = useState(null); // page the user tried to open (leave confirmation)
+  const navigate = useNavigate();
   // Bumped after save/discard/reset so MaskedInput returns to its locked state
   const [version, setVersion] = useState({});
 
@@ -516,6 +529,14 @@ function SystemSettingsContent({ token, onLock }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Browser tab title (the lock screen sets its own in SettingsUnlock)
+  useEffect(() => {
+    document.title = 'System Settings | BukSUPPLY';
+    return () => {
+      document.title = 'BukSUPPLY';
+    };
+  }, []);
+
   useEffect(() => {
     if (!notice) return undefined;
     const timer = setTimeout(() => setNotice(null), 3500);
@@ -529,6 +550,40 @@ function SystemSettingsContent({ token, onLock }) {
 
   const isDirty = (section) =>
     SECTION_FIELDS[section].some((k) => String(form[k]) !== String(saved[k]));
+  const anyDirty = Object.keys(SECTION_FIELDS).some(isDirty);
+
+  // Leaving this page locks the settings again, so ask first when the user clicks
+  // a link to another page of the app (sidebar, header, etc.).
+  useEffect(() => {
+    const onClick = (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // open in new tab
+      const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (!link || (link.target && link.target !== '_self') || link.hasAttribute('download')) {
+        return;
+      }
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) {
+        return; // same page
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTarget(`${url.pathname}${url.search}${url.hash}`);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
+
+  // Refreshing or closing the tab also locks the page, so let the browser ask first.
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
 
   // Badges reflect what is saved on the server, so they don't flicker while typing
   const status = {
@@ -965,6 +1020,24 @@ function SystemSettingsContent({ token, onLock }) {
         >
           <p>This replaces the saved values for this section with the default values.</p>
           <p>Any unsaved changes in this card will also be discarded.</p>
+        </ConfirmModal>
+      )}
+
+      {/* Leave confirmation */}
+      {leaveTarget && (
+        <ConfirmModal
+          title="Leave System Settings?"
+          icon="bi-lock"
+          confirmLabel="Leave page"
+          cancelLabel="Stay on page"
+          onConfirm={() => navigate(leaveTarget)}
+          onCancel={() => setLeaveTarget(null)}
+        >
+          <p>
+            System settings lock again when you leave. You will need the Super Admin email, PIN
+            and a new verification code to open them.
+          </p>
+          {anyDirty && <p>You also have unsaved changes that will be lost.</p>}
         </ConfirmModal>
       )}
 
