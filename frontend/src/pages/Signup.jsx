@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
@@ -9,11 +9,44 @@ import css from '../styles/signup.css?raw';
 
 const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 
+// ID formats (based on the placeholders shown in the form).
+// CONFIRM these match your backend rule, and change them here if they do not.
+const STUDENT_ID_PATTERN = /^\d{10}$/; // e.g. 2400000000
+const STAFF_ID_PATTERN = /^P-\d{3,6}$/i; // e.g. P-0000
+
 // Mirrors the backend rule: returns 'Student', 'Regular Staff' or null
 const emailType = (email) => {
   const clean = email.trim().toLowerCase();
   if (!EMAIL_PATTERN.test(clean)) return null;
   return clean.endsWith('@student.buksu.edu.ph') ? 'Student' : 'Regular Staff';
+};
+
+const emailProblem = (email) => {
+  if (!email.trim()) return 'Institutional email is required';
+  if (!emailType(email))
+    return 'Please use a valid BukSU institutional email (@student.buksu.edu.ph or @buksu.edu.ph).';
+  return '';
+};
+
+// kind = 'Student' | 'Regular Staff' | null (email not valid yet)
+const idProblem = (kind, raw) => {
+  const id = raw.trim();
+  if (!id) return 'This field is required';
+  if (kind === 'Student')
+    return STUDENT_ID_PATTERN.test(id) ? '' : 'Student ID must be 10 digits, e.g. 2400000000.';
+  if (kind === 'Regular Staff')
+    return STAFF_ID_PATTERN.test(id) ? '' : 'Employee ID must look like P-0000.';
+  return STUDENT_ID_PATTERN.test(id) || STAFF_ID_PATTERN.test(id)
+    ? ''
+    : 'Enter a valid Student ID (10 digits) or Employee ID (e.g. P-0000).';
+};
+
+const passwordProblem = (pw) => {
+  if (!pw) return 'Password is required';
+  if (pw.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw))
+    return 'Password must include at least one letter and one number';
+  return '';
 };
 
 const INITIAL = {
@@ -102,13 +135,14 @@ const idTexts = (kind) => ({
 });
 
 // Defined outside Signup so inputs keep focus while typing
-function Field({ id, label, icon, full, error, children }) {
+function Field({ id, label, icon, full, error, hint, children }) {
   return (
     <div className={`input-group${full ? ' full-width' : ''}${error ? ' has-error' : ''}`}>
       <label htmlFor={id} className="form-label">
         {icon && <i className={`bi ${icon}`}></i>} {label} <span className="required">*</span>
       </label>
       {children}
+      {hint && !error && <span className="field-hint">{hint}</span>}
       <span className="error-msg">{error}</span>
     </div>
   );
@@ -117,11 +151,13 @@ function Field({ id, label, icon, full, error, children }) {
 export default function Signup() {
   usePage(css, 'Create Account | BukSUPPLY');
   const navigate = useNavigate();
+  const location = useLocation();
   const config = usePublicConfig(); // keys and on/off switches from System Settings
 
   const [values, setValues] = useState(INITIAL);
   const [errors, setErrors] = useState({});
-  const [formError, setFormError] = useState('');
+  // A message passed from the Sign In page (e.g. "no account yet for that Google account")
+  const [formError, setFormError] = useState(location.state?.notice || '');
   const [busy, setBusy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState({ password: false, confirmPassword: false });
@@ -134,6 +170,7 @@ export default function Signup() {
   const [googleEmail, setGoogleEmail] = useState(''); // email returned by the backend (for the ID label)
   const [googleIdNumber, setGoogleIdNumber] = useState('');
   const [googleIdError, setGoogleIdError] = useState('');
+  const googleBusyRef = useRef(false); // stops double submits of the Google sign-up
 
   const openLegal = (key) => (e) => {
     e.preventDefault();
@@ -152,8 +189,9 @@ export default function Signup() {
   const acceptLegal = () => {
     // Google flow: ID number + agree, then finish the sign-up
     if (pendingGoogle) {
-      if (!googleIdNumber.trim()) {
-        setGoogleIdError('Please enter your ID number to continue.');
+      const problem = idProblem(emailType(googleEmail), googleIdNumber);
+      if (problem) {
+        setGoogleIdError(problem === 'This field is required' ? 'Please enter your ID number to continue.' : problem);
         return;
       }
       const credential = pendingGoogle;
@@ -171,11 +209,11 @@ export default function Signup() {
 
   // Close the legal modal with Escape
   useEffect(() => {
-    if (!legal) return;
+    if (!legal) return undefined;
     const onKey = (e) => e.key === 'Escape' && closeLegal();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [legal]);
+  }, [legal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The ID field label changes with the email domain
   const { label: idLabel, placeholder: idPlaceholder } = idTexts(emailType(values.email));
@@ -184,22 +222,40 @@ export default function Signup() {
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
     setValues((v) => ({ ...v, [name]: type === 'checkbox' ? checked : value }));
-    setErrors((er) => ({ ...er, [name]: undefined }));
+    // Changing the email can change which ID format applies, so clear that error too
+    setErrors((er) => ({
+      ...er,
+      [name]: undefined,
+      ...(name === 'email' ? { idNumber: undefined } : {}),
+    }));
     setFormError('');
+  };
+
+  // Check a field when the user leaves it (only if something was typed)
+  const onBlur = (e) => {
+    const { name } = e.target;
+    if (!values[name]) return;
+    let message = '';
+    if (name === 'email') message = emailProblem(values.email);
+    if (name === 'idNumber') message = idProblem(emailType(values.email), values.idNumber);
+    if (name === 'password') message = passwordProblem(values.password);
+    if (message) setErrors((er) => ({ ...er, [name]: message }));
   };
 
   const validate = () => {
     const found = {};
-    ['firstName', 'lastName', 'idNumber'].forEach((k) => {
+    ['firstName', 'lastName'].forEach((k) => {
       if (!values[k].trim()) found[k] = 'This field is required';
     });
 
-    if (!values.email.trim()) found.email = 'Institutional email is required';
-    else if (!emailType(values.email))
-      found.email = 'Please use a valid BukSU institutional email address.';
+    const emailMsg = emailProblem(values.email);
+    if (emailMsg) found.email = emailMsg;
 
-    if (!values.password) found.password = 'Password is required';
-    else if (values.password.length < 8) found.password = 'Password must be at least 8 characters';
+    const idMsg = idProblem(emailType(values.email), values.idNumber);
+    if (idMsg) found.idNumber = idMsg;
+
+    const passwordMsg = passwordProblem(values.password);
+    if (passwordMsg) found.password = passwordMsg;
 
     if (!values.confirmPassword) found.confirmPassword = 'Please confirm your password';
     else if (values.password !== values.confirmPassword)
@@ -213,6 +269,7 @@ export default function Signup() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (busy) return;
     setFormError('');
 
     const found = validate();
@@ -243,8 +300,10 @@ export default function Signup() {
       setCaptchaToken(null);
       if (err.response?.status === 409) {
         // Show the duplicate under the right field (ID number vs email)
-        const msg = err.response.data.message;
-        setErrors(msg.includes('ID number') ? { idNumber: msg } : { email: msg });
+        const data = err.response.data || {};
+        const msg = data.message || 'An account with these details already exists.';
+        const isId = data.field === 'idNumber' || /id number/i.test(msg);
+        setErrors(isId ? { idNumber: msg } : { email: msg });
       } else {
         setFormError(errMsg(err));
       }
@@ -256,6 +315,8 @@ export default function Signup() {
   // Google sign-up. New users must agree to the terms and give their ID number:
   // the backend answers 428 and we open the modal to collect both.
   const handleGoogle = async (credential, agreedToTerms = false, idNumber = '') => {
+    if (googleBusyRef.current) return;
+    googleBusyRef.current = true;
     setFormError('');
     try {
       const { data } = await api.post('/auth/google', { credential, agreedToTerms, idNumber });
@@ -265,8 +326,11 @@ export default function Signup() {
         setGoogleIdNumber('');
         setShowModal(true);
       } else {
-        // Account already existed: nothing was "created", so just go to sign in
-        navigate('/signin', { replace: true });
+        // Account already existed: nothing was "created", so send them to sign in with a note
+        navigate('/signin', {
+          replace: true,
+          state: { notice: 'You already have an account. Please sign in.' },
+        });
       }
     } catch (err) {
       const data = err.response?.data;
@@ -281,12 +345,14 @@ export default function Signup() {
       // ID problem (e.g. already registered): reopen the modal with the message
       if (data?.field === 'idNumber') {
         setPendingGoogle(credential);
-        setGoogleIdError(data.message);
+        setGoogleIdError(data.message || 'This ID number cannot be used.');
         setLegal('terms');
         return;
       }
 
       setFormError(data?.message || errMsg(err));
+    } finally {
+      googleBusyRef.current = false;
     }
   };
 
@@ -294,7 +360,7 @@ export default function Signup() {
     <button
       type="button"
       className="toggle-password-btn"
-      aria-label="Toggle password visibility"
+      aria-label={visible[name] ? 'Hide password' : 'Show password'}
       onClick={() => setVisible((v) => ({ ...v, [name]: !v[name] }))}
     >
       <i className={`bi ${visible[name] ? 'bi-eye-slash' : 'bi-eye'}`}></i>
@@ -325,6 +391,8 @@ export default function Signup() {
                   name="firstName"
                   className="form-input"
                   placeholder="e.g. Juan"
+                  autoComplete="given-name"
+                  maxLength={60}
                   value={values.firstName}
                   onChange={onChange}
                 />
@@ -337,6 +405,8 @@ export default function Signup() {
                   name="lastName"
                   className="form-input"
                   placeholder="e.g. Dela Cruz"
+                  autoComplete="family-name"
+                  maxLength={60}
                   value={values.lastName}
                   onChange={onChange}
                 />
@@ -349,8 +419,10 @@ export default function Signup() {
                   name="email"
                   className="form-input"
                   placeholder="Enter your institutional email"
+                  autoComplete="email"
                   value={values.email}
                   onChange={onChange}
+                  onBlur={onBlur}
                 />
               </Field>
 
@@ -361,12 +433,20 @@ export default function Signup() {
                   name="idNumber"
                   className="form-input"
                   placeholder={idPlaceholder}
+                  autoComplete="off"
                   value={values.idNumber}
                   onChange={onChange}
+                  onBlur={onBlur}
                 />
               </Field>
 
-              <Field id="password" label="Password" icon="bi-lock" error={errors.password}>
+              <Field
+                id="password"
+                label="Password"
+                icon="bi-lock"
+                error={errors.password}
+                hint="At least 8 characters, with a letter and a number."
+              >
                 <div className="input-icon-wrapper">
                   <input
                     type={visible.password ? 'text' : 'password'}
@@ -374,8 +454,10 @@ export default function Signup() {
                     name="password"
                     className="form-input with-suffix"
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     value={values.password}
                     onChange={onChange}
+                    onBlur={onBlur}
                   />
                   {eyeToggle('password')}
                 </div>
@@ -394,6 +476,7 @@ export default function Signup() {
                     name="confirmPassword"
                     className="form-input with-suffix"
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     value={values.confirmPassword}
                     onChange={onChange}
                   />
@@ -497,61 +580,69 @@ export default function Signup() {
         </div>
       </div>
 
-      {/* TERMS / PRIVACY MODAL (only mounted while open) */}
+      {/* TERMS / PRIVACY MODAL (only mounted while open). Layout matches the Profile page. */}
       {legal && (
-        <div
-          className="modal-overlay active"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="legalTitle"
-          onClick={closeLegal}
-        >
-          <div className="modal-card legal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="legal-header">
-              <h2 className="modal-title" id="legalTitle">
-                {LEGAL[legal].title}
-              </h2>
-              <button type="button" className="legal-close" aria-label="Close" onClick={closeLegal}>
+        <div className="modal-overlay active" onClick={closeLegal}>
+          <div
+            className="lgl-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="legalTitle"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lgl-header">
+              <div>
+                <h3 className="lgl-title" id="legalTitle">
+                  {LEGAL[legal].title}
+                </h3>
+                <p className="lgl-subtitle">
+                  BukSU Supply &amp; Property Management Office guidelines.
+                </p>
+              </div>
+              <button type="button" className="lgl-close" aria-label="Close" onClick={closeLegal}>
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
 
-            <div className="legal-tabs">
-              <button
-                type="button"
-                className={legal === 'terms' ? 'active' : ''}
-                onClick={() => setLegal('terms')}
-              >
-                Terms &amp; Conditions
-              </button>
-              <button
-                type="button"
-                className={legal === 'privacy' ? 'active' : ''}
-                onClick={() => setLegal('privacy')}
-              >
-                Privacy Policy
-              </button>
+            {/* Original line separator with text links, kept as is */}
+            <div className="lgl-tabs-wrap">
+              <div className="legal-tabs">
+                <button
+                  type="button"
+                  className={legal === 'terms' ? 'active' : ''}
+                  onClick={() => setLegal('terms')}
+                >
+                  Terms &amp; Conditions
+                </button>
+                <button
+                  type="button"
+                  className={legal === 'privacy' ? 'active' : ''}
+                  onClick={() => setLegal('privacy')}
+                >
+                  Privacy Policy
+                </button>
+              </div>
             </div>
 
-            {pendingGoogle && (
-              <p className="legal-note">
-                Almost done! Enter your ID number and agree to the terms to finish signing up with
-                Google.
-              </p>
-            )}
+            <div className="lgl-body">
+              {pendingGoogle && (
+                <p className="lgl-note">
+                  Almost done! Enter your ID number and agree to the terms to finish signing up
+                  with Google.
+                </p>
+              )}
 
-            <div className="legal-body">
               {LEGAL[legal].sections.map(([heading, text]) => (
-                <section key={heading}>
-                  <h3>{heading}</h3>
+                <div className="lgl-section" key={heading}>
+                  <h4>{heading}</h4>
                   <p>{text}</p>
-                </section>
+                </div>
               ))}
             </div>
 
             {/* ID number (Google sign-up only) */}
             {pendingGoogle && (
-              <div className={`legal-id-field input-group${googleIdError ? ' has-error' : ''}`}>
+              <div className={`lgl-id-field input-group${googleIdError ? ' has-error' : ''}`}>
                 <label htmlFor="googleIdNumber" className="form-label">
                   {googleId.label} <span className="required">*</span>
                 </label>
@@ -560,6 +651,7 @@ export default function Signup() {
                   id="googleIdNumber"
                   className="form-input"
                   placeholder={googleId.placeholder}
+                  autoComplete="off"
                   value={googleIdNumber}
                   onChange={(e) => {
                     setGoogleIdNumber(e.target.value);
@@ -570,8 +662,11 @@ export default function Signup() {
               </div>
             )}
 
-            <div className="legal-actions">
-              <button type="button" className="btn-submit modal-btn" onClick={acceptLegal}>
+            <div className="lgl-footer">
+              <button type="button" className="lgl-btn-secondary" onClick={closeLegal}>
+                {pendingGoogle ? 'Cancel' : 'Close'}
+              </button>
+              <button type="button" className="lgl-btn-primary" onClick={acceptLegal}>
                 {pendingGoogle ? 'I Agree & Continue' : 'I Agree'}
               </button>
             </div>
