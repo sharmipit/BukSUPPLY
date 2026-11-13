@@ -186,23 +186,25 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
         .json({ message: 'Only approved or claimed requests have an issuance slip.' });
     }
 
-    // Units live on the inventory item
-    const inv = await InventoryItem.find({}, 'name unit').lean();
+    // Unit and stock number live on the inventory item
+    const inv = await InventoryItem.find({}, 'name unit code').lean();
     const key = (s) =>
       String(s || '')
         .trim()
         .toLowerCase();
-    const unitFor = (l) =>
-      (
-        inv.find((i) => String(i._id) === String(l.inventoryItemId)) ||
-        inv.find((i) => key(i.name) === key(l.name))
-      )?.unit || '';
+    const invFor = (l) =>
+      inv.find((i) => String(i._id) === String(l.inventoryItemId)) ||
+      inv.find((i) => key(i.name) === key(l.name));
 
-    const lines = [...(slip.itemsList || []), ...(slip.purchaseItems || [])].map((l) => ({
-      name: l.name,
-      qty: l.qty,
-      unit: unitFor(l),
-    }));
+    const lines = [...(slip.itemsList || []), ...(slip.purchaseItems || [])].map((l) => {
+      const item = invFor(l);
+      return {
+        code: item?.code || '',
+        name: l.name,
+        qty: l.qty,
+        unit: item?.unit || l.unit || '',
+      };
+    });
 
     const slipData = {
       id: slip.slipNumber,

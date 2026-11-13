@@ -553,6 +553,7 @@ const Dashboard = ({
 
   const slipLines = slipReq
     ? [...slipCheck.lines, ...slipCheck.purchaseLines].map((l) => ({
+        code: l.inv?.id || l.inv?.code || '',
         name: l.name || l.inv?.name,
         qty: l.qty,
         unit: l.inv?.unit || l.unit || '',

@@ -23,8 +23,7 @@ export default function ItemRequest() {
     document.title = 'Item Request | BukSUPPLY';
   }, []);
 
-  // Kept so the page behaves exactly as before
-  useAuth();
+  const { user } = useAuth();
 
   // Real data from the API
   const { requisitions, loading, error, create, update, cancel } = useRequisitions();
@@ -117,7 +116,16 @@ export default function ItemRequest() {
   };
 
   const handleRowClick = (req) => {
-    setSelectedDetailsReq(req);
+    // Ensure requestedBy is fully resolved so modals and previews display it properly
+    const resolvedReq = {
+      ...req,
+      requestedBy:
+        req.requestedBy ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+        user?.email ||
+        'Unknown user',
+    };
+    setSelectedDetailsReq(resolvedReq);
     setDetailsModalOpen(true);
   };
 
@@ -269,7 +277,8 @@ export default function ItemRequest() {
                                 )}
                                 {isAccepted && (
                                   <span className="locked-badge-pill">
-                                    <i className="bi bi-check-circle-fill text-success"></i> Completed
+                                    <i className="bi bi-check-circle-fill text-success"></i>{' '}
+                                    Completed
                                   </span>
                                 )}
                                 {canRequestAgain && (

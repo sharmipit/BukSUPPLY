@@ -3,15 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/Requests.css';
 import '../styles/IssuanceSlip.css';
 
-// Keep these the same as ORG_NAME / SYSTEM_NAME / SYSTEM_SUBTITLE in services/reportFiles.js
-const ORG_NAME = 'Bukidnon State University';
-const SYSTEM_NAME = 'BukSUPPLY';
-const SYSTEM_SUBTITLE = 'Supply Inventory and Requisition System';
+const ENTITY_NAME = 'BUKIDNON STATE UNIVERSITY'; // same as issuanceSlip.js on the server
 
 const fmtDate = (v) =>
   v
     ? new Date(v).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
-    : '—';
+    : '';
+
+const fmtWeekday = (v) => (v ? new Date(v).toLocaleDateString('en-PH', { weekday: 'long' }) : '');
 
 const fmtStamp = (d) =>
   new Date(d).toLocaleString('en-PH', {
@@ -21,6 +20,25 @@ const fmtStamp = (d) =>
     hour: 'numeric',
     minute: '2-digit',
   });
+
+// Approximate rows per page (the real PDF depends on how long descriptions wrap)
+const SINGLE = 21;
+const FIRST = 30;
+const MIDDLE = 35;
+const LAST = 26;
+const MIN_LAST = 3;
+const MIN_ROWS = 12; // blank ruled rows added to short slips
+
+function paginate(lines) {
+  if (lines.length <= SINGLE) return [lines];
+  const rest = [...lines];
+  const pages = [rest.splice(0, Math.min(FIRST, rest.length - MIN_LAST))];
+  while (rest.length > LAST) {
+    pages.push(rest.splice(0, Math.min(MIDDLE, rest.length - MIN_LAST)));
+  }
+  pages.push(rest);
+  return pages;
+}
 
 export default function IssuanceSlipPreview({
   req,
@@ -48,15 +66,10 @@ export default function IssuanceSlipPreview({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const infoRows = [
-    ['Issuance no.', `ISS-${req.id}`],
-    ['Requisition no.', req.id],
-    ['Requested by', req.requestedBy || '—'],
-    ['Department', req.department || '—'],
-    ['Date filed', fmtDate(req.date)],
-    ['Date approved', req.reviewedAt ? fmtDate(req.reviewedAt) : '—'],
-    ['Purpose', req.purpose || '—'],
-  ];
+  const pages = paginate(lines);
+  const filed = fmtDate(req.date);
+  const weekday = fmtWeekday(req.date);
+  const filedFull = weekday ? `${filed} (${weekday})` : filed;
 
   return (
     <div className="rq-modal-backdrop rq-modal-backdrop-top" onClick={onClose}>
@@ -69,8 +82,8 @@ export default function IssuanceSlipPreview({
       >
         <div className="rq-modal-header">
           <div>
-            <h3>Issuance slip</h3>
-            <div className="rq-sub">ISS-{req.id}</div>
+            <h3>Requisition and Issue Slip</h3>
+            <div className="rq-sub">{req.id}</div>
           </div>
           <div className="rq-modal-header-right">
             <button className="rq-modal-close" onClick={onClose} aria-label="Close">
@@ -81,93 +94,199 @@ export default function IssuanceSlipPreview({
 
         <div className="rq-modal-body">
           <p className="rq-muted-text">
-            {canDownload
-              ? 'This is how the PDF file will look.'
-              : 'This is a preview of the issuance slip.'}
+            {canDownload ? 'This is how the PDF file will look' : 'This is a preview of the slip'}
+            {pages.length > 1 && ` (${pages.length} pages, page breaks are approximate)`}.
             {canDownload &&
               onDownloadExcel &&
               ' The Excel version has the same content and can be edited.'}
           </p>
 
           <div className="isl-paper-wrap">
-            <article className="isl-paper">
-              <header className="isl-paper-header">
-                <div>
-                  <div className="isl-paper-org">{ORG_NAME}</div>
-                  <div>
-                    {SYSTEM_NAME} – {SYSTEM_SUBTITLE}
+            {pages.map((rows, p) => {
+              const isFirst = p === 0;
+              const isLast = p === pages.length - 1;
+              const padCount = pages.length === 1 ? Math.max(0, MIN_ROWS - rows.length) : 0;
+
+              return (
+                <article className="isl-paper ris" key={p}>
+                  <div className="ris-pagehead">
+                    <h4>REQUISITION AND ISSUE SLIP</h4>
+                    {!isFirst && <span className="ris-cont">RIS No. {req.id} – continued</span>}
                   </div>
-                </div>
-                <div className="isl-paper-title">Issuance Slip</div>
-              </header>
 
-              <div className="isl-paper-body">
-                <table className="isl-paper-info">
-                  <tbody>
-                    {infoRows.map(([k, v]) => (
-                      <tr key={k}>
-                        <td>{k}:</td>
-                        <td>{v}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <table className="isl-paper-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Item</th>
-                      <th>Quantity</th>
-                      <th>Unit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.length > 0 ? (
-                      lines.map((l, i) => (
-                        <tr key={i}>
-                          <td>{i + 1}</td>
-                          <td>{l.name}</td>
-                          <td>{l.qty}</td>
-                          <td>{l.unit || '—'}</td>
+                  {isFirst && (
+                    <table className="ris-fields">
+                      <tbody>
+                        <tr>
+                          <td className="lbl">Entity Name:</td>
+                          <td colSpan="2" className="val">
+                            {ENTITY_NAME}
+                          </td>
+                          <td className="lbl">Fund Cluster:</td>
+                          <td></td>
                         </tr>
-                      ))
-                    ) : (
+                        <tr>
+                          <td className="lbl">Office / Division:</td>
+                          <td colSpan="2" className="val">
+                            {req.department || ''}
+                          </td>
+                          <td className="lbl">Responsibility Center Code:</td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td className="lbl">P.R. No.:</td>
+                          <td></td>
+                          <td className="lbl">Date:</td>
+                          <td className="lbl">RIS No.:</td>
+                          <td className="val">{req.id}</td>
+                        </tr>
+                        <tr>
+                          <td className="lbl">P.O. No.:</td>
+                          <td></td>
+                          <td className="lbl">Date:</td>
+                          <td className="lbl">Supplier:</td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td className="lbl">I.A.R. No.:</td>
+                          <td></td>
+                          <td className="lbl">Date:</td>
+                          <td className="lbl">Date of request:</td>
+                          <td className="val">{filedFull}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  <table className="ris-items">
+                    <thead>
                       <tr>
-                        <td colSpan="4">No items.</td>
+                        <th colSpan="4">Requisition</th>
+                        <th colSpan="2">Stock Available?</th>
+                        <th colSpan="4">Issue</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                      <tr>
+                        <th>Stock No.</th>
+                        <th>Unit</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Yes</th>
+                        <th>No</th>
+                        <th>Quantity</th>
+                        <th>Main</th>
+                        <th>Unit Cost</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((l, i) => (
+                        <tr key={i}>
+                          <td className="c">{l.code || l.id || ''}</td>{' '}
+                          <td className="c">{l.unit || ''}</td>
+                          <td className="desc">{l.name}</td>
+                          <td className="c">{l.qty}</td>
+                          <td></td>
+                          <td></td>
+                          <td></td>
+                          <td></td>
+                          <td></td>
+                          <td></td>
+                        </tr>
+                      ))}
+                      {Array.from({ length: padCount }).map((_, i) => (
+                        <tr key={`blank-${i}`}>
+                          {Array.from({ length: 10 }).map((__, j) => (
+                            <td key={j}></td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
-                {req.remarks && (
-                  <p className="isl-paper-remarks">
-                    <strong>Remarks:</strong> {req.remarks}
-                  </p>
-                )}
+                  {isLast && (
+                    <>
+                      <table className="ris-box">
+                        <tbody>
+                          <tr>
+                            <td className="purpose">
+                              <b>Purpose:</b> {req.purpose || ''}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                <div className="isl-paper-sign">
-                  <div>Approved by: {req.reviewedBy || ''}</div>
-                  <div>Issued by</div>
-                  <div>Received by (signature / date)</div>
-                </div>
+                      <table className="ris-sign">
+                        <tbody>
+                          <tr>
+                            <td></td>
+                            <td className="head">Requested by:</td>
+                            <td className="head">Approved by:</td>
+                            <td className="head">Issued by:</td>
+                            <td className="head">Received by:</td>
+                          </tr>
+                          <tr className="tall">
+                            <td>Signature:</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                          <tr>
+                            <td>Printed Name:</td>
+                            <td className="val c">{req.requestedBy || ''}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                          <tr>
+                            <td>Designation:</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                          <tr>
+                            <td>Date:</td>
+                            <td>{filed}</td>
+                            <td>
+                              <b>DATE:</b>
+                            </td>
+                            <td>
+                              <b>DATE:</b>
+                            </td>
+                            <td>
+                              <b>DATE:</b>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </>
+                  )}
 
-                <p className="isl-paper-end">*** End of slip ***</p>
-              </div>
+                  <div className="ris-end">
+                    {!isLast
+                      ? `*** Continued on next page (page ${p + 1} of ${pages.length}) ***`
+                      : pages.length > 1
+                        ? `*** End of slip (page ${p + 1} of ${pages.length}) ***`
+                        : '*** End of slip ***'}
+                  </div>
 
-              <footer className="isl-paper-footer">
-                <div>
-                  Verification code: <strong>Assigned when downloaded</strong>
-                  <br />
-                  To verify this report, enter the code under System Reports &gt; Verify a report.
-                </div>
-                <div className="isl-paper-footer-right">
-                  Generated {fmtStamp(openedAt)} by {generatedBy}
-                  <br />
-                  Page 1 of 1
-                </div>
-              </footer>
-            </article>
+                  <footer className="isl-paper-footer">
+                    <div>
+                      Verification code: <strong>Assigned when downloaded</strong>
+                      <br />
+                      To verify this report, enter the code under System Reports &gt; Verify a
+                      report.
+                    </div>
+                    <div className="isl-paper-footer-right">
+                      Generated {fmtStamp(openedAt)}
+                      <br />
+                      Page {p + 1} of {pages.length}
+                    </div>
+                  </footer>
+                </article>
+              );
+            })}
           </div>
         </div>
 

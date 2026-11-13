@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import useRequisitions from '../../hooks/useRequisitions';
 import RequisitionDetailsModal from '../../components/RequisitionDetailsModal';
 import FilterDropdown from '../../components/FilterDropdown';
@@ -17,8 +18,10 @@ const STATUS_OPTIONS = [
 
 export default function RequestHistory() {
   useEffect(() => {
-    document.title = 'My Requests | BukSUPPLY';
+    document.title = 'Request History | BukSUPPLY';
   }, []);
+
+  const { user } = useAuth();
 
   // Real data from the API
   const { requisitions, loading, error } = useRequisitions();
@@ -47,13 +50,29 @@ export default function RequestHistory() {
     return matchesSearch && matchesStatus;
   });
 
+  // If the current page disappears after filtering, step back
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredHistory.length / itemsPerPage));
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [filteredHistory.length, currentPage]);
+
   // Pagination calculation
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentHistoryItems = filteredHistory.slice(indexOfFirst, indexOfLast);
 
   const handleRowClick = (record) => {
-    setSelectedDetailsReq(record);
+    // Ensure requestedBy and date are properly resolved so the modal & issuance slip preview show everything
+    const resolvedRecord = {
+      ...record,
+      date: record.date || record.dateFiled,
+      requestedBy:
+        record.requestedBy ||
+        [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ') ||
+        user?.email ||
+        'Unknown user',
+    };
+    setSelectedDetailsReq(resolvedRecord);
     setDetailsModalOpen(true);
   };
 
@@ -77,7 +96,7 @@ export default function RequestHistory() {
       {/* Top Banner Header */}
       <div className="hub-header-card">
         <div>
-          <h1 className="hub-title">My Requests</h1>
+          <h1 className="hub-title">Request History</h1>
           <p className="hub-subtitle">
             A record of your finished requisition slips: requests you received, requests that were
             denied, and requests you cancelled. Ongoing requests are in the Requisitions Hub.
@@ -153,7 +172,9 @@ export default function RequestHistory() {
                               {record.item}
                             </div>
                           </td>
-                          <td className="align-middle nowrap-cell">{record.dateFiled}</td>
+                          <td className="align-middle nowrap-cell">
+                            {record.date || record.dateFiled}
+                          </td>
                           <td className="align-middle nowrap-cell">
                             <span className={`badge-status ${record.status.toLowerCase()}`}>
                               {record.status}

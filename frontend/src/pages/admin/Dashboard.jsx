@@ -690,6 +690,7 @@ const Dashboard = ({
   // Lines shown on the issuance slip
   const slipLines = slipReq
     ? [...slipCheck.lines, ...slipCheck.purchaseLines].map((l) => ({
+        code: l.inv?.id || l.inv?.code || '',
         name: l.name || l.inv?.name,
         qty: l.qty,
         unit: l.inv?.unit || l.unit || '',

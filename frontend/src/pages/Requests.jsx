@@ -578,6 +578,7 @@ export default function Requests() {
   // Lines shown on the issuance slip
   const slipLines = slipReq
     ? [...slipCheck.lines, ...slipCheck.purchaseLines].map((l) => ({
+        code: l.inv?.id || l.inv?.code || '',
         name: l.name || l.inv?.name,
         qty: l.qty,
         unit: l.inv?.unit || l.unit || '',
@@ -711,13 +712,11 @@ export default function Requests() {
                               {req.status}
                             </span>
                           </td>
-                          <td
-                            className="text-end align-middle"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="rq-action-buttons">
+                          <td className="text-end align-middle">
+                            <div className="rq-action-buttons" onClick={(e) => e.stopPropagation()}>
                               {isOpen(req) ? (
                                 <button
+                                  type="button"
                                   className="rq-btn-action rq-btn-review"
                                   onClick={() => openDetails(req.id)}
                                 >
@@ -725,6 +724,7 @@ export default function Requests() {
                                 </button>
                               ) : (
                                 <button
+                                  type="button"
                                   className="rq-btn-action rq-btn-view"
                                   onClick={() => openDetails(req.id)}
                                 >
