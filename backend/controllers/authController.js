@@ -6,7 +6,8 @@ const { sendOtpEmail } = require('../utils/sendEmail');
 const settings = require('../services/settings');
 const { logActivity } = require('../services/activityLog');
 
-const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
+const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
 const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
 const OTP_MAX_ATTEMPTS = 5;

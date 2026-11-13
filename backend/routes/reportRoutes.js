@@ -10,6 +10,7 @@ const {
   buildIssuancePdf,
   buildIssuanceXlsx,
 } = require('../services/reportFiles');
+const { deliverToDrive } = require('../services/googleDrive'); // NEW
 
 const router = express.Router();
 
@@ -21,6 +22,19 @@ const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const TYPES = ['stocks', 'requests', 'transactions'];
 const FORMATS = ['pdf', 'xlsx'];
 const FILTER_KEYS = ['category', 'status', 'type', 'from', 'to'];
+
+// NEW: names used in the Drive email
+const TITLE_OF = {
+  stocks: 'Stock Report',
+  requests: 'Requests Report',
+  transactions: 'Transactions Report',
+};
+
+// NEW: one place for the file MIME types
+const MIME = {
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
 
 // Verification code printed in the report footer, e.g. BSR-2026-1A2B3C4D
 const makeCode = () =>
@@ -232,7 +246,8 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
       return res.status(502).json({ message: 'Could not generate the file. Please try again.' });
     }
 
-    await ExportHistory.create({
+    // CHANGED: keep the record so the Drive step can update it
+    const history = await ExportHistory.create({
       report: 'issuance',
       format,
       filters: { slip: slipData.id },
@@ -242,17 +257,22 @@ router.get('/issuance/:slip/export', async (req, res, next) => {
     });
 
     const safeId = String(slipData.id).replace(/[^\w.-]/g, '_');
-    res.setHeader(
-      'Content-Type',
-      format === 'xlsx'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'application/pdf'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="issuance-slip-${safeId}.${format}"`
-    );
+    const filename = `issuance-slip-${safeId}.${format}`;
+
+    res.setHeader('Content-Type', MIME[format]);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(file);
+
+    // NEW: runs after the response. A Drive or email problem can never break the download.
+    deliverToDrive({
+      buffer: file,
+      filename,
+      mimeType: MIME[format],
+      user: req.user,
+      label: 'Issuance Slip',
+      historyId: history._id,
+      code: meta.code,
+    });
   } catch (e) {
     next(e);
   }
@@ -310,7 +330,8 @@ router.get('/:type/export', async (req, res, next) => {
     }
 
     // Logged by the server. The code in the file footer matches this record.
-    await ExportHistory.create({
+    // CHANGED: keep the record so the Drive step can update it
+    const history = await ExportHistory.create({
       report: type,
       format,
       filters,
@@ -320,17 +341,22 @@ router.get('/:type/export', async (req, res, next) => {
     });
 
     const stamp = new Date().toISOString().slice(0, 10);
-    res.setHeader(
-      'Content-Type',
-      format === 'pdf'
-        ? 'application/pdf'
-        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${type}-report-${stamp}.${format}"`
-    );
+    const filename = `${type}-report-${stamp}.${format}`;
+
+    res.setHeader('Content-Type', MIME[format]);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(file);
+
+    // NEW: runs after the response. A Drive or email problem can never break the download.
+    deliverToDrive({
+      buffer: file,
+      filename,
+      mimeType: MIME[format],
+      user: req.user,
+      label: TITLE_OF[type],
+      historyId: history._id,
+      code: meta.code,
+    });
   } catch (e) {
     next(e);
   }

@@ -77,4 +77,29 @@ const sendOtpEmail = async (to, otp) => {
   await sendEmail({ to, subject, html, text });
 };
 
-module.exports = { sendEmail, sendOtpEmail };
+const escHtml = (s) =>
+  String(s ?? '').replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  );
+
+/**
+ * Sends the Google Drive link for an exported report or issuance slip.
+ */
+const sendDriveLinkEmail = async (to, { name, label, filename, link, code }) => {
+  const subject = `Your BukSUPPLY ${label} is ready`;
+  const text = `Hi ${name || ''}, your ${label} (${filename}) was saved to Google Drive: ${link}\nVerification code: ${code}\nOnly your account can open this link.`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #2b6cb0; margin-top: 0;">Your ${escHtml(label)} is ready</h2>
+      <p style="color: #4a5568;">Hi ${escHtml(name || 'there')}, the file you downloaded was also saved to Google Drive.</p>
+      <p style="color: #4a5568;"><strong>${escHtml(filename)}</strong></p>
+      <p style="text-align: center; margin: 24px 0;">
+        <a href="${escHtml(link)}" style="background: #2b6cb0; color: #fff; padding: 12px 20px; border-radius: 6px; text-decoration: none;">Open in Google Drive</a>
+      </p>
+      <p style="color: #718096; font-size: 14px;">Verification code: ${escHtml(code)}<br>Only your Google account can open this link.</p>
+    </div>`;
+  await sendEmail({ to, subject, html, text });
+};
+
+module.exports = { sendEmail, sendOtpEmail, sendDriveLinkEmail };
