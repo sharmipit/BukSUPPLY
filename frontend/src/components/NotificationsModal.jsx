@@ -1,20 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api, { errMsg } from '../api/client';
 import '../styles/NotificationsModal.css';
 
-// How many of the latest notifications the popup shows. The rest are on the full page.
 const MAX_SHOWN = 8;
 
-/**
- * Bell button + notifications popup for the top bar.
- * `base` is the role's base path ('/user', '/staff' or '/admin'),
- * used for the "View all notifications" link.
- */
 export default function NotificationsModal({ base }) {
-  const navigate = useNavigate();
-
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -36,7 +28,7 @@ export default function NotificationsModal({ base }) {
           setError('');
         })
         .catch((err) => {
-          if (first) setError(errMsg(err)); // background refresh failures stay silent
+          if (first) setError(errMsg(err));
         })
         .finally(() => {
           if (first) setLoading(false);
@@ -44,7 +36,6 @@ export default function NotificationsModal({ base }) {
     []
   );
 
-  // Loads on mount, then quietly re-checks every 30 seconds so the badge stays current
   useEffect(() => {
     load(true);
     const timer = setInterval(() => load(false), 30000);
@@ -58,12 +49,11 @@ export default function NotificationsModal({ base }) {
         top: r.bottom + 10,
         right: Math.max(12, document.documentElement.clientWidth - r.right),
       });
-      load(false); // refresh when opening
+      load(false);
     }
     setOpen((o) => !o);
   };
 
-  // Close on outside click, Escape, resize, or page scroll
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
@@ -74,24 +64,31 @@ export default function NotificationsModal({ base }) {
     };
     const onKey = (e) => e.key === 'Escape' && close();
     const onScroll = (e) => {
-      // Scrolling the list inside the popup should not close it
+
       if (panelRef.current && panelRef.current.contains(e.target)) return;
       close();
     };
 
+    const onLinkClick = (e) => {
+      const inPanel = panelRef.current && panelRef.current.contains(e.target);
+      const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (inPanel && link) setTimeout(close, 0);
+    };
+
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKey);
+    document.addEventListener('click', onLinkClick, true);
     window.addEventListener('resize', close);
     window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onLinkClick, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
 
-  // The screen updates immediately; the server call saves it in the background
   const handleMarkAsRead = (id) => {
     setNotifications((list) => list.map((n) => (n.id === id ? { ...n, read: true } : n)));
     api.patch(`/notifications/${id}/read`).catch(() => {});
@@ -100,11 +97,6 @@ export default function NotificationsModal({ base }) {
   const handleMarkAllAsRead = () => {
     setNotifications((list) => list.map((n) => ({ ...n, read: true })));
     api.patch('/notifications/read-all').catch(() => {});
-  };
-
-  const handleViewAll = () => {
-    setOpen(false);
-    navigate(`${base}/notifications`);
   };
 
   const renderBody = () => {
@@ -204,9 +196,9 @@ export default function NotificationsModal({ base }) {
 
             <div className="np-list">{renderBody()}</div>
 
-            <button type="button" className="np-footer" onClick={handleViewAll}>
+            <Link to={`${base}/notifications`} className="np-footer">
               View all notifications <i className="bi bi-arrow-right"></i>
-            </button>
+            </Link>
           </div>,
           document.body
         )}

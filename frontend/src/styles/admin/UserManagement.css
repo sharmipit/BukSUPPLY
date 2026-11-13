@@ -1,7 +1,5 @@
 /* ==========================================================================
    BukSUPPLY - User Management (Admin) Styles
-   Matches the Inventory and Requests pages. Every class is prefixed with
-   "um-" and scoped under .um-page so nothing leaks into other pages.
    ========================================================================== */
 
 .um-page {
@@ -16,7 +14,6 @@
   font-family: 'Poppins', -apple-system, 'Segoe UI', sans-serif;
 }
 
-/* Uniform font: everything inside the page inherits Poppins (icons excluded) */
 .um-page *:not(.bi) {
   font-family: inherit;
 }
@@ -145,13 +142,6 @@
   background-color: rgba(0, 0, 0, 0.06);
 }
 
-/* ==========================================================================
-   Slim horizontal scrollbars (table and filter tabs)
-   No arrow buttons, a light thumb, and brown only on hover.
-   scrollbar-width / scrollbar-color are used only where ::-webkit-scrollbar
-   is not supported (Firefox), because in Chrome and Edge they override the
-   ::-webkit-scrollbar rules below.
-   ========================================================================== */
 .um-table-wrapper::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -295,7 +285,6 @@
   overflow: hidden;
 }
 
-/* On small screens the table scrolls sideways inside this wrapper */
 .um-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -432,24 +421,17 @@
   cursor: not-allowed;
 }
 
-.um-btn-neutral {
+/* Buttons: Previous / Next, View, Reactivate */
+.um-btn-neutral,
+.um-btn-reactivate {
   background-color: #f3f4f6;
   color: #374151;
   border-color: #d1d5db;
 }
-.um-btn-neutral:hover:not(:disabled) {
+.um-btn-neutral:hover:not(:disabled),
+.um-btn-reactivate:hover:not(:disabled) {
   background-color: #e5e7eb;
   color: #1f2937;
-}
-
-.um-btn-reactivate {
-  background-color: #faf7f2;
-  color: #8c5839;
-  border-color: #8c5839;
-}
-.um-btn-reactivate:hover:not(:disabled) {
-  background-color: #8c5839;
-  color: #ffffff;
 }
 
 /* Footer / pagination */
@@ -524,10 +506,6 @@
 
 /* ==========================================================================
    Modals (create moderator, confirm reactivate)
-   Same look as the Inventory modals: 640px wide, header / body / footer.
-   Height fits the content (up to 90% of the screen); the body scrolls if
-   the content is long. For a fixed height like Inventory's Add / Edit
-   modal, add "height: 620px;" to .um-modal.
    ========================================================================== */
 .um-modal-backdrop {
   position: fixed;
@@ -594,7 +572,6 @@
   background-color: #f3f4f6;
 }
 
-/* The form wraps the body and footer so the footer stays at the bottom */
 .um-modal-form {
   display: flex;
   flex-direction: column;
@@ -824,6 +801,24 @@
 
   .um-status-tabs {
     width: 100%;
+  }
+
+  .um-tab-btn {
+    flex: 1 0 auto;
+    text-align: center;
+  }
+
+  /* Footer */
+  .um-footer-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+
+  .um-pagination {
+    justify-content: center;
   }
 }
 

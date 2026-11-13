@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
 import menuCss from '../styles/menu.css?raw';
@@ -136,7 +136,6 @@ function ProfileMenu({ trigger, base, direction = 'down', onLogout, name, roleLa
   const [pos, setPos] = useState({});
   const wrapRef = useRef(null);
   const menuRef = useRef(null);
-  const navigate = useNavigate();
 
   const toggle = () => {
     if (!open && wrapRef.current) {
@@ -163,14 +162,24 @@ function ProfileMenu({ trigger, base, direction = 'down', onLogout, name, roleLa
       if (!inTrigger && !inMenu) close();
     };
     const onKey = (e) => e.key === 'Escape' && close();
+    // Clicking a link inside the menu closes it. This runs on the document (capture)
+    // so it still works when a page-level "leave this page?" guard stops the click,
+    // otherwise the menu would stay open on top of that confirmation.
+    const onLinkClick = (e) => {
+      const inMenu = menuRef.current && menuRef.current.contains(e.target);
+      const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (inMenu && link) setTimeout(close, 0);
+    };
 
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKey);
+    document.addEventListener('click', onLinkClick, true);
     window.addEventListener('resize', close);
     window.addEventListener('scroll', close, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onLinkClick, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('scroll', close, true);
     };
@@ -189,18 +198,15 @@ function ProfileMenu({ trigger, base, direction = 'down', onLogout, name, roleLa
             </span>
             <span className="profile-menu-role">{roleLabel}</span>
 
-            <button
-              type="button"
+            {/* A real link (not a button + navigate) so page-level leave guards can catch it */}
+            <Link
+              to={`${base}/profile`}
               role="menuitem"
               className="profile-menu-item profile"
-              onClick={() => {
-                setOpen(false);
-                navigate(`${base}/profile`);
-              }}
             >
               <i className="bi bi-person"></i>
               <span>My Profile</span>
-            </button>
+            </Link>
 
             <button
               type="button"

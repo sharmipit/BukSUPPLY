@@ -261,4 +261,13 @@
   .notif-actions {
     align-self: flex-end;
   }
+
+  .notifications-container .status-filter-tabs {
+    width: 100%;
+  }
+
+  .notifications-container .filter-tab-btn {
+    flex: 1 0 auto;
+    text-align: center;
+  }
 }
