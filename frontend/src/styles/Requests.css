@@ -506,6 +506,21 @@
   padding: 0 4px;
 }
 
+/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+@media (max-width: 900px) {
+  .rq-footer-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+
+  .rq-footer-bar .rq-pagination {
+    justify-content: center;
+  }
+}
+
 /* Empty state */
 .rq-table td.rq-empty-cell {
   height: auto;

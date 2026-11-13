@@ -661,6 +661,21 @@
   white-space: nowrap;
 }
 
+/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+@media (max-width: 900px) {
+  .inv-footer-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+
+  .inv-footer-bar .inv-pagination {
+    justify-content: center;
+  }
+}
+
 /* Empty state */
 .inv-table td.inv-empty-cell {
   height: auto;

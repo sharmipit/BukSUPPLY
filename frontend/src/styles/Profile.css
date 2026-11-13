@@ -158,7 +158,6 @@
   cursor: default;
 }
 
-/* Uniform single brown border with soft shadow glow matching target reference */
 .pf-input:not([readonly]):not(:disabled):focus {
   outline: none !important;
   border-color: #8c5839;
@@ -253,6 +252,10 @@
   transition: filter 0.2s ease, transform 0.1s ease;
 }
 
+.profile-menu-item {
+  text-decoration: none;
+}
+
 .profile-btn:hover {
   filter: brightness(0.93);
 }
@@ -269,7 +272,7 @@
   background: #dc2626;
 }
 
-/* ---------- Upgraded Legal Links ---------- */
+/* ---------- Legal Links ---------- */
 .profile-legal-links {
   display: flex;
   justify-content: center;
