@@ -44,6 +44,16 @@ const INITIAL = {
   nutrientEnabled: true,
   nutrientApiKey: '',
   nutrientApiKeySet: false,
+
+  driveEnabled: true,
+  driveClientId: '',
+  driveClientIdSet: false,
+  driveClientIdMasked: '',
+  driveClientSecret: '',
+  driveClientSecretSet: false,
+  driveRefreshToken: '',
+  driveRefreshTokenSet: false,
+  driveFolderName: '',
 };
 
 // Fields that belong to each card. Each card saves on its own.
@@ -53,6 +63,13 @@ const SECTION_FIELDS = {
   smtp: ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpFrom'],
   pdfshift: ['pdfshiftEnabled', 'pdfshiftApiKey'],
   nutrient: ['nutrientEnabled', 'nutrientApiKey'],
+  drive: [
+    'driveEnabled',
+    'driveClientId',
+    'driveClientSecret',
+    'driveRefreshToken',
+    'driveFolderName',
+  ],
 };
 
 const SECTION_TITLE = {
@@ -61,6 +78,7 @@ const SECTION_TITLE = {
   smtp: 'Email (SMTP)',
   pdfshift: 'PDF reports',
   nutrient: 'Excel reports',
+  drive: 'Google Drive',
 };
 
 // Includes the server's "xxxSet" / "xxxMasked" helper keys
@@ -72,6 +90,7 @@ const RE = {
   recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
   host: /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i,
   from: /^(?:[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+  driveRefreshToken: /^1\/\/[A-Za-z0-9._-]{20,}$/,
 };
 const t = (v) => (v || '').toString().trim();
 const badSecret = (v, min) => v.length < min || /\s/.test(v);
@@ -135,6 +154,26 @@ const VALIDATE = {
       return 'Nutrient API keys start with "pdf_live_". Copy it again from your Nutrient dashboard.';
     if (f.nutrientEnabled && !(key || f.nutrientApiKeySet))
       return 'Add the Nutrient API key, or turn Excel downloads off.';
+    return '';
+  },
+  drive: (f) => {
+    const id = t(f.driveClientId);
+    const secret = t(f.driveClientSecret);
+    const refresh = t(f.driveRefreshToken);
+    if (id && !RE.googleClientId.test(id))
+      return 'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.';
+    if (secret && badSecret(secret, 20))
+      return 'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.';
+    if (refresh && !RE.driveRefreshToken.test(refresh))
+      return 'That does not look like a Google refresh token. It usually starts with 1//.';
+    if (t(f.driveFolderName).length > 100)
+      return 'The folder name must be 100 characters or fewer.';
+    if (f.driveEnabled && !(id || f.driveClientIdSet))
+      return 'Add the Client ID, or turn Google Drive off.';
+    if (f.driveEnabled && !(secret || f.driveClientSecretSet))
+      return 'Add the client secret, or turn Google Drive off.';
+    if (f.driveEnabled && !(refresh || f.driveRefreshTokenSet))
+      return 'Add the refresh token, or turn Google Drive off.';
     return '';
   },
 };
@@ -599,6 +638,10 @@ function SystemSettingsContent({ token, onLock }) {
         : 'setup',
     pdfshift: getStatus(saved.pdfshiftEnabled, saved.pdfshiftApiKeySet),
     nutrient: getStatus(saved.nutrientEnabled, saved.nutrientApiKeySet),
+    drive: getStatus(
+      saved.driveEnabled,
+      saved.driveClientIdSet && saved.driveClientSecretSet && saved.driveRefreshTokenSet
+    ),
   };
 
   // Used after both Save and Reset: take the server's answer for this card only,
@@ -997,6 +1040,82 @@ function SystemSettingsContent({ token, onLock }) {
         </div>
       </SettingsCard>
 
+      {/* Google Drive */}
+      <SettingsCard
+        icon="bi-cloud-arrow-up"
+        title="Google Drive"
+        sub="Saves a copy of each downloaded report or slip and emails the owner a private link."
+        {...cardProps('drive')}
+      >
+        <ToggleRow
+          id="ss-drive-on"
+          label="Turn on Google Drive copies"
+          hint="When off, downloads still work but no copy is uploaded or emailed."
+          checked={form.driveEnabled}
+          onChange={set('driveEnabled')}
+        />
+
+        <div className="ss-divider"></div>
+
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-drive-id"
+            label="Client ID"
+            hint={
+              form.driveClientIdSet
+                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
+                : 'Public. From the OAuth credential used to authorize Drive.'
+            }
+          >
+            <MaskedInput
+              key={`drive-${version.drive || 0}`}
+              id="ss-drive-id"
+              value={form.driveClientId}
+              isSet={form.driveClientIdSet}
+              masked={form.driveClientIdMasked}
+              onChange={set('driveClientId')}
+              placeholder="123456789-abc.apps.googleusercontent.com"
+            />
+          </Field>
+          <Field id="ss-drive-secret" label="Client secret" hint="Private. Used by the server.">
+            <SecretInput
+              id="ss-drive-secret"
+              value={form.driveClientSecret}
+              isSet={form.driveClientSecretSet}
+              onChange={set('driveClientSecret')}
+              placeholder="GOCSPX-..."
+            />
+          </Field>
+          <Field
+            id="ss-drive-refresh"
+            label="Refresh token"
+            hint="Private. New credentials are checked with Google when you save."
+          >
+            <SecretInput
+              id="ss-drive-refresh"
+              value={form.driveRefreshToken}
+              isSet={form.driveRefreshTokenSet}
+              onChange={set('driveRefreshToken')}
+              placeholder="1//0g..."
+            />
+          </Field>
+          <Field
+            id="ss-drive-folder"
+            label="Folder name"
+            hint="Public. Created in the connected Drive if it doesn't exist. Empty = BukSUPPLY Exports."
+          >
+            <input
+              id="ss-drive-folder"
+              type="text"
+              className="ss-input"
+              value={form.driveFolderName}
+              onChange={onText('driveFolderName')}
+              placeholder="BukSUPPLY Exports"
+            />
+          </Field>
+        </div>
+      </SettingsCard>
+
       {/* reCAPTCHA key confirmation */}
       {captchaOpen && (
         <RecaptchaModal
@@ -1034,8 +1153,8 @@ function SystemSettingsContent({ token, onLock }) {
           onCancel={() => setLeaveTarget(null)}
         >
           <p>
-            System settings lock again when you leave. You will need the Super Admin email, PIN
-            and a new verification code to open them.
+            System settings lock again when you leave. You will need the Super Admin email, PIN and
+            a new verification code to open them.
           </p>
           {anyDirty && <p>You also have unsaved changes that will be lost.</p>}
         </ConfirmModal>

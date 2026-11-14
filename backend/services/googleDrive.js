@@ -6,23 +6,20 @@ const { sendDriveLinkEmail } = require('../utils/sendEmail');
 
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
-const FOLDER_NAME = process.env.GOOGLE_DRIVE_FOLDER_NAME || 'BukSUPPLY Exports';
+const DEFAULT_FOLDER = 'BukSUPPLY Exports';
 
-let folderId = null; // cached after the first lookup
+// Cached folder. The key changes when the account or folder name changes in System Settings.
+let folder = { key: '', id: null };
 
-const isConfigured = () =>
-  Boolean(
-    process.env.GOOGLE_DRIVE_CLIENT_ID &&
-    process.env.GOOGLE_DRIVE_CLIENT_SECRET &&
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN
-  );
+const isConfigured = () => {
+  const s = settings.get();
+  return Boolean(s.driveEnabled && s.driveClientId && s.driveClientSecret && s.driveRefreshToken);
+};
 
 async function accessToken() {
-  const client = new OAuth2Client(
-    process.env.GOOGLE_DRIVE_CLIENT_ID,
-    process.env.GOOGLE_DRIVE_CLIENT_SECRET
-  );
-  client.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
+  const s = settings.get();
+  const client = new OAuth2Client(s.driveClientId, s.driveClientSecret);
+  client.setCredentials({ refresh_token: s.driveRefreshToken });
   const { token } = await client.getAccessToken();
   if (!token) throw new Error('Could not get a Google Drive access token.');
   return token;
@@ -46,21 +43,27 @@ const json = { 'Content-Type': 'application/json' };
 
 // drive.file only sees files this app created, so the app makes (and finds) its own folder.
 async function ensureFolder(token) {
-  if (folderId) return folderId;
-  const name = FOLDER_NAME.replace(/'/g, "\\'");
-  const q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const s = settings.get();
+  const folderName = s.driveFolderName || DEFAULT_FOLDER;
+  const key = `${s.driveClientId}|${folderName}`;
+  if (folder.id && folder.key === key) return folder.id;
+
+  const escaped = folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const q = `name='${escaped}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const found = await call(token, `${API}/files?q=${encodeURIComponent(q)}&fields=files(id)`);
+  let id;
   if (found.files && found.files[0]) {
-    folderId = found.files[0].id;
+    id = found.files[0].id;
   } else {
     const created = await call(token, `${API}/files?fields=id`, {
       method: 'POST',
       headers: json,
-      body: JSON.stringify({ name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+      body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' }),
     });
-    folderId = created.id;
+    id = created.id;
   }
-  return folderId;
+  folder = { key, id };
+  return id;
 }
 
 async function uploadFile(token, { name, mimeType, buffer }) {
@@ -105,7 +108,7 @@ async function shareWithUser(token, fileId, email) {
  */
 async function deliverToDrive({ buffer, filename, mimeType, user, label, historyId, code }) {
   if (!isConfigured()) {
-    console.log('[drive] skipped: GOOGLE_DRIVE_REFRESH_TOKEN is not set.');
+    console.log('[drive] skipped: Google Drive is off or not set up in System Settings.');
     return;
   }
   if (!user || !user.email) return;
@@ -119,7 +122,7 @@ async function deliverToDrive({ buffer, filename, mimeType, user, label, history
       file = await uploadFile(token, { name, mimeType, buffer });
     } catch (e) {
       if (e.status !== 404) throw e;
-      folderId = null; // the folder was deleted: recreate it and retry once
+      folder.id = null; // the folder was deleted: recreate it and retry once
       file = await uploadFile(token, { name, mimeType, buffer });
     }
 
