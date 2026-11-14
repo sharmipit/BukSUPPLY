@@ -17,10 +17,12 @@ const SECRETS = [
   'smtpPassword',
   'pdfshiftApiKey',
   'nutrientApiKey',
+  'driveClientSecret',
+  'driveRefreshToken',
 ];
 
 // Public values that are shown masked ("12345**************") and never sent in full
-const MASKED = ['googleClientId', 'recaptchaSiteKey'];
+const MASKED = ['googleClientId', 'recaptchaSiteKey', 'driveClientId'];
 
 // Empty value on save = keep the saved one
 const KEEP_IF_EMPTY = [...SECRETS, ...MASKED];
@@ -31,6 +33,13 @@ const SECTIONS = {
   smtp: ['smtpHost', 'smtpPort', 'smtpUser', 'smtpPassword', 'smtpFrom'],
   pdfshift: ['pdfshiftEnabled', 'pdfshiftApiKey'],
   nutrient: ['nutrientEnabled', 'nutrientApiKey'],
+  drive: [
+    'driveEnabled',
+    'driveClientId',
+    'driveClientSecret',
+    'driveRefreshToken',
+    'driveFolderName',
+  ],
 };
 
 const DEFAULTS = {
@@ -50,6 +59,11 @@ const DEFAULTS = {
   pdfshiftApiKey: '',
   nutrientEnabled: true,
   nutrientApiKey: '',
+  driveEnabled: true,
+  driveClientId: '',
+  driveClientSecret: '',
+  driveRefreshToken: '',
+  driveFolderName: '',
 };
 
 // Which .env variable backs each setting
@@ -64,6 +78,10 @@ const ENV_KEYS = {
   smtpFrom: 'EMAIL_FROM',
   pdfshiftApiKey: 'PDFSHIFT_API_KEY',
   nutrientApiKey: 'NUTRIENT_API_KEY',
+  driveClientId: 'GOOGLE_DRIVE_CLIENT_ID',
+  driveClientSecret: 'GOOGLE_DRIVE_CLIENT_SECRET',
+  driveRefreshToken: 'GOOGLE_DRIVE_REFRESH_TOKEN',
+  driveFolderName: 'GOOGLE_DRIVE_FOLDER_NAME',
 };
 
 // ---- encryption helpers ----
@@ -171,6 +189,7 @@ const RE = {
   recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
   host: /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i,
   from: /^(?:[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+  driveRefreshToken: /^1\/\/[A-Za-z0-9._-]{20,}$/,
 };
 
 const fail = (msg) => {
@@ -248,6 +267,31 @@ const VALIDATORS = {
     }
     if (next.nutrientEnabled && !next.nutrientApiKey) {
       fail('Add the Nutrient API key, or turn Excel downloads off.');
+    }
+  },
+
+  drive(next, typed) {
+    if (typed.driveClientId && !RE.googleClientId.test(typed.driveClientId)) {
+      fail(
+        'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.'
+      );
+    }
+    if (typed.driveClientSecret && badSecret(typed.driveClientSecret, 20)) {
+      fail(
+        'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.'
+      );
+    }
+    if (typed.driveRefreshToken && !RE.driveRefreshToken.test(typed.driveRefreshToken)) {
+      fail('That does not look like a Google refresh token. It usually starts with 1//.');
+    }
+    if (typed.driveFolderName && typed.driveFolderName.length > 100) {
+      fail('The folder name must be 100 characters or fewer.');
+    }
+    if (
+      next.driveEnabled &&
+      (!next.driveClientId || !next.driveClientSecret || !next.driveRefreshToken)
+    ) {
+      fail('Add the Client ID, client secret and refresh token, or turn Google Drive off.');
     }
   },
 };
@@ -410,6 +454,45 @@ const LIVE = {
       fail(`Nutrient could not check this key (error ${res.status}). Try again.`);
     }
     // 200, 400 or 422 all mean the key itself was accepted
+  },
+
+  // Exchanging the refresh token proves the ID, secret and token all belong together.
+  async drive(next, typed) {
+    if (!['driveClientId', 'driveClientSecret', 'driveRefreshToken'].some((k) => k in typed)) {
+      return;
+    }
+    if (!next.driveClientId || !next.driveClientSecret || !next.driveRefreshToken) return;
+
+    const res = await call('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: next.driveClientId,
+        client_secret: next.driveClientSecret,
+        refresh_token: next.driveRefreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    debug('[drive check]', res.status, data.error, data.error_description);
+
+    if (res.ok) {
+      if (!/auth\/drive(\.file)?(\s|$)/.test(String(data.scope || ''))) {
+        fail(
+          'This refresh token was not granted Google Drive access. Authorize it again with the drive.file scope.'
+        );
+      }
+      return;
+    }
+    if (data.error === 'invalid_client') {
+      fail('Google rejected this Client ID and secret pair. Copy both from the same credential.');
+    }
+    if (data.error === 'invalid_grant') {
+      fail(
+        'Google rejected this refresh token. It may be expired, revoked, or created with a different Client ID.'
+      );
+    }
+    fail(`Google could not check these credentials (${data.error || res.status}). Try again.`);
   },
 };
 

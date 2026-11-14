@@ -15,6 +15,7 @@ const SECTION_TITLE = {
   smtp: 'Email (SMTP)',
   pdfshift: 'PDF reports',
   nutrient: 'Excel reports',
+  drive: 'Google Drive',
 };
 
 const log = (req, action, description, reference = '') =>
@@ -51,7 +52,7 @@ router.get('/', (req, res) => {
   res.json(settings.publicView());
 });
 
-// One section at a time: google | recaptcha | smtp | pdfshift | nutrient
+// One section at a time: google | recaptcha | smtp | pdfshift | nutrient | drive
 router.put('/:section', async (req, res) => {
   try {
     const result = await settings.update(req.params.section, req.body);
