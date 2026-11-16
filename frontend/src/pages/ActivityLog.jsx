@@ -387,7 +387,7 @@ export default function ActivityLog() {
     <div className="al-container">
       {/* Header */}
       <div className="al-header-card">
-        <div>
+        <div className="al-header-text">
           <h1 className="al-title">Activity Log</h1>
           <p className="al-subtitle">
             {isStaff

@@ -778,7 +778,7 @@ export default function Requests() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="rq-modal-header">
-              <div>
+              <div className="rq-modal-title">
                 <h3>{detailsReq.title}</h3>
                 <div className="rq-sub">{detailsReq.id}</div>
               </div>
@@ -843,7 +843,7 @@ export default function Requests() {
               </div>
 
               {['Approved', 'Accepted'].includes(detailsReq.status) && detailsReq.remarks && (
-                <div className="rq-next-step">
+                <div className="rq-note rq-note-neutral">
                   <strong>Remarks</strong>
                   <p>{detailsReq.remarks}</p>
                 </div>
@@ -857,7 +857,7 @@ export default function Requests() {
               )}
 
               {detailsReq.status === 'Cancelled' && (
-                <div className="rq-deny-box">
+                <div className="rq-note rq-note-neutral">
                   <strong>Cancelled by the requester</strong>
                   <p>This request was cancelled before it was processed. No action is needed.</p>
                 </div>
@@ -919,14 +919,14 @@ export default function Requests() {
                   </table>
                 </div>
               ) : (
-                <p className="rq-muted-text">No stock items on this request.</p>
+                <div className="rq-empty-line">No stock items on this request.</div>
               )}
 
               {hasPurchaseItems(detailsReq) && (
                 <>
                   <h4 className="rq-section-title">Items to purchase</h4>
                   {detailsReq.status === 'Processing' && (
-                    <p className="rq-muted-text">
+                    <p className="rq-section-hint">
                       Once these are bought, add each one to the inventory. Then you can approve.
                     </p>
                   )}
@@ -945,8 +945,7 @@ export default function Requests() {
                           <div className="rq-buy-status">
                             {p.enough ? (
                               <span className="rq-buy-ok">
-                                <i className="bi bi-check-circle-fill"></i> In inventory (
-                                {p.inv.quantity} {p.inv.unit} on hand)
+                                In inventory ({p.inv.quantity} {p.inv.unit} on hand)
                               </span>
                             ) : (
                               <>
