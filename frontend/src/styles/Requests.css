@@ -237,7 +237,7 @@
   overflow-x: auto;
 }
 
-/* Table scrollbars: slim, no arrow buttons, light track, brown thumb on hover */
+/* Table scrollbars */
 .rq-table-wrapper::-webkit-scrollbar,
 .rq-lines-wrap::-webkit-scrollbar {
   width: 8px;
@@ -263,8 +263,6 @@
   background-color: #8c5839;
 }
 
-/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
-   standard scrollbar properties are set, so reset them there */
 @supports selector(::-webkit-scrollbar) {
   .rq-table-wrapper,
   .rq-lines-wrap {
@@ -273,7 +271,6 @@
   }
 }
 
-/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
 @supports not selector(::-webkit-scrollbar) {
   .rq-table-wrapper,
   .rq-lines-wrap {
@@ -288,7 +285,7 @@
 
 .rq-table {
   width: 100% !important;
-  min-width: 1120px;
+  min-width: 1150px;
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -299,19 +296,19 @@
 }
 
 .rq-table .col-slip {
-  width: 160px;
+  width: 150px;
 }
 .rq-table .col-requester {
-  width: 170px;
+  width: 230px;
 }
 .rq-table .col-title {
   width: auto;
 }
 .rq-table .col-items {
-  width: 200px;
+  width: 190px;
 }
 .rq-table .col-status {
-  width: 160px;
+  width: 150px;
 }
 .rq-table .col-actions {
   width: 168px;
@@ -506,7 +503,7 @@
   padding: 0 4px;
 }
 
-/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+/* Footer on narrow screens */
 @media (max-width: 900px) {
   .rq-footer-bar {
     flex-direction: column;
@@ -610,11 +607,22 @@
   border-bottom: 1px solid var(--card-border, #dfd8cc);
 }
 
+.rq-modal-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .rq-modal-header h3 {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--text-dark, #2c1a14);
+  overflow-wrap: anywhere;
+}
+
+.rq-modal-title .rq-sub {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 
 .rq-modal-header-right {
@@ -794,11 +802,19 @@
   cursor: not-allowed;
 }
 
+/* ==========================================================================
+   Stepper (request progress trail)
+   ========================================================================== */
 .rq-stepper-card {
   background-color: #f5efe6;
   border: 1px solid var(--card-border, #dfd8cc);
   border-radius: 16px;
   padding: 16px 20px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: stepper;
 }
 
 .rq-steps {
@@ -809,6 +825,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  min-width: 0;
 }
 .rq-steps li {
   display: flex;
@@ -818,6 +835,7 @@
   color: #8c7a70;
   font-weight: 500;
   white-space: nowrap;
+  flex-shrink: 0; 
 }
 .rq-step-dot {
   display: inline-flex;
@@ -849,13 +867,34 @@
   color: #fff;
 }
 .rq-step-line {
-  flex: 1;
+  flex: 1 1 12px;
+  min-width: 12px; 
   height: 2px;
   background-color: #dfd8cc;
   margin: 0 8px;
 }
 .rq-step-line.done {
   background-color: #065f46;
+}
+
+@container stepper (max-width: 520px) {
+  .rq-steps li:not(.current) .rq-step-label {
+    display: none;
+  }
+  .rq-step-line {
+    margin: 0 4px;
+  }
+}
+
+@container stepper (max-width: 260px) {
+  .rq-step-dot {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+  }
+  .rq-steps li.current .rq-step-label {
+    font-size: 0.8rem;
+  }
 }
 
 /* Form bits & Meta grid */
@@ -889,20 +928,52 @@
   color: var(--text-dark, #2c1a14);
 }
 
-.rq-next-step {
+/* Message boxes */
+.rq-next-step,
+.rq-deny-box,
+.rq-note {
   padding: 14px 18px;
   border-radius: 14px;
-  background-color: #f0f7ff;
-  border: 1px solid #bfdbfe;
-  color: #1e3a8a;
-  font-size: 0.88rem;
+  border: 1px solid;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
-.rq-next-step strong {
+
+.rq-next-step strong,
+.rq-deny-box strong,
+.rq-note strong {
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
-.rq-next-step p {
+
+.rq-next-step p,
+.rq-deny-box p,
+.rq-note p {
   margin: 0;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+/* Next step */
+.rq-next-step {
+  background-color: #f0f7ff;
+  border-color: #bfdbfe;
+  color: #1e3a8a;
+}
+
+/* Remarks, cancelled */
+.rq-note-neutral {
+  background-color: #faf7f2;
+  border-color: #dfd8cc;
+  color: #594d46;
+}
+.rq-note-neutral strong {
+  color: #2c1a14;
 }
 
 .rq-meta-grid {
@@ -915,8 +986,14 @@
   border-radius: 16px;
 }
 
+.rq-meta-grid > div {
+  min-width: 0;
+}
+
 .rq-meta-wide {
   grid-column: 1 / -1;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
 }
 
 .rq-meta-label {
@@ -930,16 +1007,38 @@
 .rq-meta-value {
   display: block;
   font-weight: 600;
+  line-height: 1.45;
   color: var(--text-dark, #2c1a14);
+  overflow-wrap: anywhere;
 }
 
+/* Purpose */
 .rq-meta-value.rq-normal {
   font-weight: 400;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .rq-meta-sub {
   display: block;
   font-size: 0.8rem;
+  color: var(--text-body, #594d46);
+}
+
+.rq-section-hint {
+  margin: -6px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-body, #594d46);
+}
+
+.rq-empty-line {
+  padding: 16px;
+  border: 1px dashed var(--card-border, #dfd8cc);
+  border-radius: 12px;
+  background-color: var(--bg-color, #faf7f2);
+  text-align: center;
+  font-size: 0.88rem;
   color: var(--text-body, #594d46);
 }
 
@@ -950,16 +1049,11 @@
   color: var(--text-dark, #2c1a14);
 }
 
+/* Denial and errors: red */
 .rq-deny-box {
-  padding: 14px 18px;
-  border-radius: 14px;
   background-color: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
-  font-size: 0.9rem;
-}
-.rq-deny-box p {
-  margin: 4px 0 0;
+  border-color: #fecaca;
+  color: #7f1d1d;
 }
 
 .rq-lines-wrap {
@@ -972,8 +1066,20 @@
 
 .rq-lines {
   width: 100%;
+  min-width: 660px;
   border-collapse: collapse;
   font-size: 0.9rem;
+}
+
+.rq-lines td:first-child,
+.rq-lines th:first-child {
+  width: 36%;
+}
+
+.rq-lines td .rq-strong,
+.rq-lines td .rq-sub {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .rq-lines th {
@@ -999,10 +1105,14 @@
 }
 
 .rq-line-reason {
-  margin-top: 4px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background-color: #fffbeb;
   font-size: 0.8rem;
-  font-style: italic;
+  line-height: 1.45;
   color: #92400e;
+  overflow-wrap: anywhere;
 }
 
 /* Items to purchase */
@@ -1039,6 +1149,11 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.rq-purchase-name strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .rq-purchase-qty {
@@ -1080,13 +1195,14 @@
 }
 
 .rq-blockers {
-  margin: 8px 0 0;
-  padding-left: 18px;
+  margin: 10px 0 0;
+  padding: 10px 0 0 18px;
+  border-top: 1px solid rgba(30, 58, 138, 0.15);
   font-size: 0.85rem;
-  color: #b91c1c;
+  color: #991b1b;
 }
 .rq-blockers li + li {
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .rq-buy-status {
@@ -1102,10 +1218,20 @@
   padding: 8px 16px;
 }
 
+/* Receive / Add to inventory */
+.rq-buy-status .rq-btn-review {
+  background-color: #faf7f2;
+  color: #8c5839;
+  border-color: #8c5839;
+}
+.rq-buy-status .rq-btn-review:hover:not(:disabled) {
+  background-color: #8c5839;
+  color: #ffffff;
+  border-color: #8c5839;
+}
+
 .rq-buy-ok {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
   color: #15803d;
   font-size: 0.85rem;
   font-weight: 600;
