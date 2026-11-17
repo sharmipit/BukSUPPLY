@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import useInventory from '../hooks/useInventory';
+import api, { errMsg } from '../api/client'; // FEEDBACK
 import IssuanceSlipPreview from './IssuanceSlipPreview';
 import '../styles/RequisitionDetailsModal.css';
 
@@ -42,15 +43,18 @@ export default function RequisitionDetailsModal({
   requisition,
   generatedBy,
   onDownloadSlip,
+  allowFeedback = false, // FEEDBACK: true only on the requester's own pages
 }) {
   const [showSlip, setShowSlip] = useState(false);
   const [slipBusy, setSlipBusy] = useState(false);
+  const [feedbackBusy, setFeedbackBusy] = useState(false); // FEEDBACK
   const { items = [] } = useInventory();
 
   if (!isOpen || !requisition) return null;
 
   const stockItems = Array.isArray(requisition.itemsList) ? requisition.itemsList : null;
   const canViewSlip = SLIP_STATUSES.includes(requisition.status);
+  const canSendFeedback = allowFeedback && requisition.status === 'Accepted'; // FEEDBACK
 
   // Map requestor's name and ensure dates/status are aligned with the requests page
   const slipReq = {
@@ -92,6 +96,24 @@ export default function RequisitionDetailsModal({
       await onDownloadSlip(requisition);
     } finally {
       setSlipBusy(false);
+    }
+  };
+
+  // FEEDBACK: opens the Google Form with the slip number prefilled
+  const handleFeedback = async () => {
+    if (feedbackBusy) return;
+    setFeedbackBusy(true);
+    // Open the tab first, or the popup blocker stops it after the await
+    const tab = window.open('', '_blank');
+    try {
+      const { data } = await api.get(`/feedback/link/${requisition.id}`);
+      if (tab) tab.location.href = data.url;
+      else window.location.href = data.url;
+    } catch (err) {
+      if (tab) tab.close();
+      alert(errMsg(err));
+    } finally {
+      setFeedbackBusy(false);
     }
   };
 
@@ -190,6 +212,17 @@ export default function RequisitionDetailsModal({
                   onClick={() => setShowSlip(true)}
                 >
                   <i className="bi bi-file-earmark-text"></i> Issuance Slip
+                </button>
+              )}
+              {/* FEEDBACK: only for the requester, only once the items are received */}
+              {canSendFeedback && (
+                <button
+                  type="button"
+                  className="details-btn-feedback"
+                  onClick={handleFeedback}
+                  disabled={feedbackBusy}
+                >
+                  {feedbackBusy ? 'Opening...' : 'Send Feedback'}
                 </button>
               )}
             </div>

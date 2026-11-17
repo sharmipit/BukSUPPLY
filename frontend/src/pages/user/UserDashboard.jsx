@@ -405,6 +405,7 @@ export default function UserDashboard() {
         isOpen={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
         requisition={selectedDetailsReq}
+        allowFeedback
       />
     </div>
   );
