@@ -8,7 +8,6 @@ import { errMsg } from '../../api/client';
 import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
-import FeedbackSummary from '../../components/FeedbackSummary';
 
 import '../../styles/admin/Dashboard.css';
 import '../../styles/Requests.css';
@@ -1345,8 +1344,6 @@ const Dashboard = ({
           </div>
         </div>
       </div>
-
-      <FeedbackSummary />
 
       {/* Floating bottom-right toast */}
       {notice && (
