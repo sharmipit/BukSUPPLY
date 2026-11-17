@@ -355,6 +355,7 @@ export default function ItemRequest() {
         isOpen={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
         requisition={selectedDetailsReq}
+        allowFeedback
       />
     </div>
   );

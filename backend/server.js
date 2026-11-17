@@ -54,6 +54,7 @@ app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/activity', require('./routes/activityLogRoutes')); // NEW: Activity log routes
+app.use('/api/feedback', require('./routes/feedbackRoutes')); // NEW: Feedback routes
 
 // NEW: public values the login page needs (no secrets)
 app.get('/api/public-config', (req, res) => {
