@@ -111,8 +111,15 @@
 .np-list {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* lets the list shrink and scroll when the screen is short */
   max-height: 380px;
   overflow-y: auto;
+}
+
+.np-header,
+.np-footer {
+  flex-shrink: 0;
 }
 
 .np-list::-webkit-scrollbar {

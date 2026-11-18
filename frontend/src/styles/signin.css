@@ -15,6 +15,43 @@
   --btn-dark: #2C1A14;
   --btn-hover: #1A0E0A;
   --font-family: 'Poppins', sans-serif;
+
+  /* "Density" values. Everything below uses these, so the whole card
+     shrinks together on short screens (see the max-height rules). */
+  --page-pad-y: 28px;
+  --card-pad-y: 40px;
+  --card-pad-x: clamp(24px, 6vw, 52px);
+  --section-gap: 26px;
+  --field-gap: 18px;
+  --input-pad-y: 13px;
+  --btn-h: 50px;      /* Log In and Google buttons share this size */
+  --btn-w: 320px;
+  --title-size: clamp(1.6rem, 4.5vw, 2.1rem);
+}
+
+/* Short screens (most laptops): tighten a little so the card still fits */
+@media (max-height: 760px) {
+  :root {
+    --page-pad-y: 16px;
+    --card-pad-y: 30px;
+    --section-gap: 20px;
+    --field-gap: 15px;
+    --input-pad-y: 11px;
+    --btn-h: 46px;
+    --title-size: clamp(1.5rem, 4vw, 1.85rem);
+  }
+}
+
+@media (max-height: 620px) {
+  :root {
+    --page-pad-y: 12px;
+    --card-pad-y: 22px;
+    --section-gap: 14px;
+    --field-gap: 11px;
+    --input-pad-y: 9px;
+    --btn-h: 42px;
+    --title-size: 1.45rem;
+  }
 }
 
 * {
@@ -28,16 +65,17 @@ body {
   background-color: var(--bg-color);
   color: var(--text-dark);
   min-height: 100vh;
+  min-height: 100dvh; /* mobile browsers: ignores the collapsing address bar */
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--page-pad-y) clamp(12px, 4vw, 20px);
 }
 
 /* Page Outer Wrapper */
 .login-wrapper {
   width: 100%;
-  max-width: 620px;
+  max-width: 540px;
   display: flex;
   justify-content: center;
 }
@@ -48,7 +86,7 @@ body {
   border: 1px solid var(--card-border);
   border-radius: 28px;
   width: 100%;
-  padding: 40px 50px;
+  padding: var(--card-pad-y) var(--card-pad-x);
   box-shadow: 0px 10px 30px rgba(44, 26, 20, 0.04);
   position: relative;
 }
@@ -59,10 +97,10 @@ body {
   align-items: center;
   gap: 8px;
   color: var(--text-dark);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
   text-decoration: none;
-  margin-bottom: 25px;
+  margin-bottom: calc(var(--section-gap) * 0.7);
   transition: opacity 0.2s ease;
 }
 
@@ -73,12 +111,13 @@ body {
 /* Header Text */
 .login-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: var(--section-gap);
 }
 
 .login-title {
-  font-size: 2.2rem;
+  font-size: var(--title-size);
   font-weight: 700;
+  line-height: 1.25;
   color: var(--text-dark);
   margin-bottom: 6px;
 }
@@ -89,8 +128,9 @@ body {
 
 .login-subtitle {
   color: var(--text-body);
-  font-size: 0.92rem;
+  font-size: clamp(0.82rem, 2.4vw, 0.9rem);
   font-weight: 400;
+  line-height: 1.45;
 }
 
 .login-subtitle strong {
@@ -101,7 +141,7 @@ body {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--field-gap);
 }
 
 .form-group {
@@ -110,10 +150,10 @@ body {
 }
 
 .form-label {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
   color: var(--text-dark);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -128,10 +168,12 @@ body {
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 50px;
-  padding: 14px 22px;
+  padding: var(--input-pad-y) 20px;
   font-size: 0.92rem;
   color: var(--text-dark);
   outline: none;
+  width: 100%;
+  min-width: 0;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
@@ -140,15 +182,15 @@ body {
   background-color: #FFFFFF;
 }
 
+.form-input::placeholder {
+  color: #A3968C;
+}
+
 /* Password input with eye toggle */
 .input-icon-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.input-icon-wrapper .form-input {
-  width: 100%;
 }
 
 .form-input.with-suffix {
@@ -176,11 +218,11 @@ body {
 /* Forgot Password Link */
 .forgot-wrapper {
   text-align: right;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .forgot-link {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: var(--text-body);
   text-decoration: none;
   font-weight: 500;
@@ -191,20 +233,14 @@ body {
   text-decoration: underline;
 }
 
-/* reCAPTCHA */
-.recaptcha-group {
-  display: flex;
-  justify-content: center;
-  margin: 0;   /* .login-form already has gap: 20px */
-}
-
 /* Alert Message Banner */
 .alert-banner {
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 10px;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
+  line-height: 1.4;
   text-align: center;
-  margin-top: 5px;
+  overflow-wrap: anywhere;
 }
 
 .alert-banner.info {
@@ -221,7 +257,7 @@ body {
 .btn-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .btn-submit {
@@ -229,10 +265,11 @@ body {
   color: #FFFFFF;
   border: none;
   border-radius: 50px;
-  padding: 14px 50px;
-  font-size: 1rem;
+  height: var(--btn-h);
+  padding: 0 40px;
+  font-size: 0.98rem;
   font-weight: 600;
-  width: 65%;
+  width: min(100%, var(--btn-w));
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
@@ -245,9 +282,14 @@ body {
   transform: scale(0.98);
 }
 
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* SSO / Google Section */
 .social-section {
-  margin-top: 25px;
+  margin-top: var(--section-gap);
   text-align: center;
 }
 
@@ -255,7 +297,7 @@ body {
   display: flex;
   align-items: center;
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: calc(var(--section-gap) * 0.7);
 }
 
 .divider::before,
@@ -268,20 +310,28 @@ body {
 .divider span {
   padding: 0 15px;
   color: var(--text-body);
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 500;
 }
 
-/* Google SSO Wrapper & Brown Button */
+/* --------------------------------------------------------------------------
+   Google button
+   The visible brown button and the real (invisible) Google button sit on top of
+   each other. GoogleAuthButton.jsx sizes the invisible one to match this wrapper
+   exactly, so the WHOLE brown button is clickable.
+   The wrapper is the same size as the main submit button (--btn-w x --btn-h).
+   The JSX scales Google's 40px-tall button up to this height.
+   -------------------------------------------------------------------------- */
 .google-sso-wrapper {
   position: relative;
-  width: 100%;
-  display: flex;
-  justify-content: center;
+  width: min(100%, var(--btn-w));
+  height: var(--btn-h);
+  margin: 0 auto;
 }
 
 .sso-google-btn {
   width: 100%;
+  height: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -289,8 +339,8 @@ body {
   background-color: var(--card-bg);
   border: 1.5px solid var(--text-light-brown);
   border-radius: 50px;
-  padding: 13px 24px;
-  font-size: 0.95rem;
+  padding: 0 24px;
+  font-size: 0.93rem;
   font-weight: 600;
   color: var(--text-dark);
   cursor: pointer;
@@ -298,52 +348,44 @@ body {
 }
 
 .sso-google-btn i {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   color: var(--text-light-brown);
   transition: color 0.2s ease;
 }
 
 .google-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   opacity: 0.0001;
   z-index: 10;
   overflow: hidden;
+  border-radius: 50px;
   cursor: pointer;
 }
 
 .google-overlay iframe {
-  width: 100% !important;
-  height: 100% !important;
-  transform: scale(2);
-  transform-origin: top left;
   cursor: pointer !important;
 }
 
-.google-sso-wrapper:hover .sso-google-btn,
-.sso-google-btn:hover {
+.google-sso-wrapper:hover .sso-google-btn {
   background-color: #F5EFE6;
   border-color: var(--text-dark);
   transform: translateY(-1px);
 }
 
-.google-sso-wrapper:hover .sso-google-btn i,
-.sso-google-btn:hover i {
+.google-sso-wrapper:hover .sso-google-btn i {
   color: var(--text-dark);
 }
 
-.sso-google-btn:active {
+.google-sso-wrapper:active .sso-google-btn {
   transform: translateY(0);
 }
 
 /* Footer Link */
 .login-footer {
   text-align: center;
-  margin-top: 30px;
-  font-size: 0.9rem;
+  margin-top: var(--section-gap);
+  font-size: 0.88rem;
   color: var(--text-dark);
 }
 
@@ -358,25 +400,19 @@ body {
   color: var(--text-light-brown);
 }
 
-/* Responsive Styles for Mobile Screens */
+/* Small phones */
 @media (max-width: 480px) {
   .login-card {
-    padding: 30px 20px;
     border-radius: 20px;
   }
 
-  .login-title {
-    font-size: 1.8rem;
+  /* 16px inputs stop iPhones from zooming in when a field is tapped */
+  .form-input {
+    font-size: 1rem;
   }
 
-  .btn-submit {
-    width: 100%;
-  }
-
-  .recaptcha-group {
-    transform: scale(0.88);
-    transform-origin: center;
-    margin: -4px 0;   /* offsets the empty space left by scaling */
+  :root {
+    --btn-w: 100%;
   }
 }
 
@@ -387,17 +423,14 @@ body {
 /* Dark Backdrop Overlay */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background-color: rgba(34, 18, 11, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
   opacity: 1;
   transition: opacity 0.25s ease, visibility 0.25s ease;
 }
@@ -408,14 +441,17 @@ body {
   pointer-events: none;
 }
 
-/* Modal Window Card */
+/* Modal Window Card (scrolls inside itself when the screen is too short) */
 .modal-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 28px;
   width: 100%;
-  max-width: 520px;
-  padding: 35px 40px;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: clamp(22px, 4vh, 32px) clamp(20px, 5vw, 38px);
   box-shadow: 0px 15px 35px rgba(44, 26, 20, 0.15);
   position: relative;
   transform: translateY(0);
@@ -429,11 +465,11 @@ body {
 /* Close Icon Button */
 .modal-close-btn {
   position: absolute;
-  top: 20px;
-  right: 22px;
+  top: 14px;
+  right: 16px;
   background: transparent;
   border: none;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--text-dark);
   cursor: pointer;
   width: 36px;
@@ -453,12 +489,14 @@ body {
 /* Modal Title Styles */
 .modal-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
+  padding: 0 24px; /* keeps long titles away from the close button */
 }
 
 .modal-title {
-  font-size: 1.8rem;
+  font-size: clamp(1.4rem, 4.5vw, 1.7rem);
   font-weight: 700;
+  line-height: 1.25;
   color: var(--text-dark);
   margin-bottom: 6px;
 }
@@ -469,8 +507,8 @@ body {
 
 .modal-subtitle {
   color: var(--text-body);
-  font-size: 0.88rem;
-  line-height: 1.4;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 /* Step Visibility Control */
@@ -480,3 +518,75 @@ body {
 
 .alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
 .alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }
+
+/* ==========================================================================
+   reCAPTCHA pop-up
+   ========================================================================== */
+.captcha-card {
+  max-width: 440px;
+  text-align: center;
+  padding: clamp(28px, 5vh, 40px) clamp(22px, 5vw, 38px);
+}
+
+/* Round icon badge, same look as the Log out pop-up */
+.captcha-icon {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background-color: #F5EFE6;
+  color: var(--text-light-brown);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.captcha-card .modal-title {
+  font-size: clamp(1.35rem, 4.5vw, 1.55rem);
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+
+.captcha-card .modal-subtitle,
+.captcha-card .modal-description {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.captcha-body {
+  display: flex;
+  justify-content: center;
+  min-height: 78px; /* the checkbox is 78px tall, so nothing jumps while it loads */
+  margin: 24px 0;
+}
+
+/* Outlined pill, same as the Cancel button of the Log out pop-up (no underline) */
+.captcha-cancel {
+  display: block;
+  width: 100%;
+  height: var(--btn-h);
+  background-color: var(--card-bg);
+  border: 1px solid var(--text-light-brown);
+  border-radius: 50px;
+  color: var(--text-dark);
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.captcha-cancel:hover {
+  background-color: #F5EFE6;
+  border-color: var(--text-dark);
+}
+
+/* The reCAPTCHA checkbox is a fixed 304px wide: shrink it on very narrow phones */
+@media (max-width: 370px) {
+  .captcha-body > div {
+    transform: scale(0.85);
+    transform-origin: center;
+  }
+}

@@ -405,14 +405,17 @@ exports.requestOtp = async (req, res) => {
       return res.status(400).json({ message: 'Email is required.' });
     }
 
-    // Same response whether or not the account exists (no email enumeration)
-    const genericResponse = {
-      message: 'If that email is registered, a verification code has been sent.',
-    };
-
+    // The user is told when the email is not registered, so they can fix a typo.
+    // (otpRequestLimiter in authRoutes.js caps how often this can be tried.)
     const user = await User.findOne({ email: normalizeEmail(email) });
-    if (!user || user.accountStatus === 'Deactivated' || user.authProvider === 'google') {
-      return res.status(200).json(genericResponse);
+    if (!user) {
+      return res.status(404).json({ message: 'No account is registered with that email address.' });
+    }
+    if (user.accountStatus === 'Deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated.' });
+    }
+    if (user.authProvider === 'google') {
+      return res.status(400).json({ message: GOOGLE_ONLY_MESSAGE });
     }
 
     const otp = generateOtp();
@@ -425,7 +428,7 @@ exports.requestOtp = async (req, res) => {
 
     await sendOtpEmail(user.email, otp); // send the plain code, store only the hash
 
-    return res.status(200).json(genericResponse);
+    return res.status(200).json({ message: 'Verification code sent. Please check your email.' });
   } catch (err) {
     console.error('requestOtp error:', err);
     return res.status(500).json(SERVER_ERROR);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import usePage from "../hooks/usePage";
 import css from "../styles/index.css?raw";
@@ -59,6 +59,45 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeId, setActiveId] = useState("overview");
 
+  const navRef = useRef(null);
+  const toggleRef = useRef(null);
+
+  // Phone menu: close on outside tap, Escape, or when the screen grows to desktop size
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onPointerDown = (e) => {
+      const inMenu = navRef.current && navRef.current.contains(e.target);
+      const inToggle = toggleRef.current && toggleRef.current.contains(e.target);
+      if (!inMenu && !inToggle) setMenuOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+
+    // Keep this breakpoint in sync with the 768px media query in index.css
+    const mql = window.matchMedia("(min-width: 769px)");
+    const onChange = (e) => e.matches && setMenuOpen(false);
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    mql.addEventListener("change", onChange);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+      mql.removeEventListener("change", onChange);
+    };
+  }, [menuOpen]);
+
+  // The "overview" link and the logo go to the very top of the page.
+  // (A plain #overview anchor stops at the hero's top edge, which sits just
+  // under the sticky navbar, so the page ends up slightly scrolled.)
+  const goTo = (e, id) => {
+    setMenuOpen(false);
+    if (id === "overview") {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   // Scrollspy (highlights the nav link of the section on screen) + scroll reveal
   useEffect(() => {
     const sectionObserver = new IntersectionObserver(
@@ -95,11 +134,15 @@ export default function Home() {
   }, []);
 
   return (
-    <>
+    <div className="landing-page">
       {/* STICKY HEADER / NAVIGATION */}
       <header className="navbar">
         <div className="container nav-container">
-          <a href="#overview" className="logo">
+          <a
+            href="#overview"
+            className="logo"
+            onClick={(e) => goTo(e, "overview")}
+          >
             <img
               src="/img/buksupply-brown.png"
               alt="BukSUPPLY"
@@ -107,13 +150,20 @@ export default function Home() {
             />
           </a>
 
-          <nav className={`nav-menu${menuOpen ? " active" : ""}`} id="navMenu">
+          <nav
+            className={`nav-menu${menuOpen ? " active" : ""}`}
+            id="navMenu"
+            ref={navRef}
+            aria-label="Main navigation"
+          >
+            <span className="nav-menu-title">Navigation</span>
             {NAV.map((n) => (
               <a
                 key={n.id}
                 href={`#${n.id}`}
                 className={`nav-link${activeId === n.id ? " active" : ""}`}
-                onClick={() => setMenuOpen(false)}
+                aria-current={activeId === n.id ? "true" : undefined}
+                onClick={(e) => goTo(e, n.id)}
               >
                 {n.label}
               </a>
@@ -125,12 +175,16 @@ export default function Home() {
               Sign In <i className="bi bi-arrow-right"></i>
             </Link>
             <button
+              ref={toggleRef}
+              type="button"
               className="mobile-toggle"
               id="mobileToggle"
               aria-label="Toggle Navigation"
+              aria-expanded={menuOpen}
+              aria-controls="navMenu"
               onClick={() => setMenuOpen((open) => !open)}
             >
-              ☰
+              <i className={`bi ${menuOpen ? "bi-x-lg" : "bi-list"}`}></i>
             </button>
           </div>
         </div>
@@ -150,10 +204,10 @@ export default function Home() {
 
           <div className="container hero-container">
             <h1 className="hero-title">
-              The smarter way to <br />
+              The smarter way to <br className="br-desktop" />
               <span className="text-accent">requisition &amp; track </span>
-              university
-              <br />
+              university{" "}
+              <br className="br-desktop" />
               supplies
             </h1>
             <p className="hero-subtitle">
@@ -244,6 +298,6 @@ export default function Home() {
           <p className="copyright">© 2026 BukSUPPLY. All rights reserved.</p>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

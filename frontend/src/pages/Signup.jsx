@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 import css from '../styles/signup.css?raw';
 
 // TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
@@ -161,8 +161,7 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState({ password: false, confirmPassword: false });
-  const recaptchaRef = useRef(null);
-  const [captchaToken, setCaptchaToken] = useState(null);
+  const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA pop-up
 
   // Terms / Privacy modal
   const [legal, setLegal] = useState(null); // null | 'terms' | 'privacy'
@@ -219,6 +218,14 @@ export default function Signup() {
     return () => window.removeEventListener('keydown', onKey);
   }, [legal]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Close the reCAPTCHA pop-up with Escape
+  useEffect(() => {
+    if (!captchaOpen) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setCaptchaOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [captchaOpen]);
+
   // The ID field label changes with the email domain
   const { label: idLabel, placeholder: idPlaceholder } = idTexts(emailType(values.email));
   const googleId = idTexts(emailType(googleEmail));
@@ -271,21 +278,8 @@ export default function Signup() {
     return found;
   };
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setFormError('');
-
-    const found = validate();
-    setErrors(found);
-    if (Object.keys(found).length) return;
-
-    // reCAPTCHA check (only when it is turned on in System Settings)
-    if (config.recaptchaEnabled && !captchaToken) {
-      setFormError('Please confirm you are not a robot.');
-      return;
-    }
-
+  // Sends the sign-up request. captchaToken is null when reCAPTCHA is turned off.
+  const signUp = async (captchaToken) => {
     setBusy(true);
     try {
       await api.post('/auth/signup', {
@@ -300,8 +294,6 @@ export default function Signup() {
       });
       setShowModal(true);
     } catch (err) {
-      recaptchaRef.current?.reset(); // token is single-use
-      setCaptchaToken(null);
       if (err.response?.status === 409) {
         // Show the duplicate under the right field (ID number vs email)
         const data = err.response.data || {};
@@ -314,6 +306,31 @@ export default function Signup() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Step 1: check the form. Step 2: reCAPTCHA pop-up (if on). Step 3: send.
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setFormError('');
+
+    const found = validate();
+    setErrors(found);
+    if (Object.keys(found).length) return;
+
+    // reCAPTCHA is only asked once the form itself is valid
+    if (config.recaptchaEnabled) {
+      setCaptchaOpen(true);
+      return;
+    }
+    signUp(null);
+  };
+
+  // The token is single-use, so we send it right away and close the pop-up
+  const onCaptchaSolved = (token) => {
+    if (!token) return;
+    setCaptchaOpen(false);
+    signUp(token);
   };
 
   // Google sign-up. New users must agree to the terms and give their ID number:
@@ -416,7 +433,8 @@ export default function Signup() {
                 />
               </Field>
 
-              <Field id="email" label="Institutional Email" full error={errors.email}>
+              {/* Email and ID sit side by side on wide screens (saves a whole row of height) */}
+              <Field id="email" label="Institutional Email" error={errors.email}>
                 <input
                   type="email"
                   id="email"
@@ -430,7 +448,7 @@ export default function Signup() {
                 />
               </Field>
 
-              <Field id="idNumber" label={idLabel} full error={errors.idNumber}>
+              <Field id="idNumber" label={idLabel} error={errors.idNumber}>
                 <input
                   type="text"
                   id="idNumber"
@@ -514,22 +532,6 @@ export default function Signup() {
               <span className="error-msg">{errors.termsAgreement}</span>
             </div>
 
-            {/* reCAPTCHA (hidden when turned off in System Settings) */}
-            {config.recaptchaEnabled && (
-              <div className="recaptcha-group">
-                <ReCAPTCHA
-                  key={config.recaptchaSiteKey}
-                  ref={recaptchaRef}
-                  sitekey={config.recaptchaSiteKey}
-                  onChange={(token) => {
-                    setCaptchaToken(token);
-                    setFormError('');
-                  }}
-                  onExpired={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
-
             <p className="form-error" id="formError">
               {formError}
             </p>
@@ -553,23 +555,12 @@ export default function Signup() {
                 <span>or Sign Up with</span>
               </div>
 
-              <div className="google-sso-wrapper">
-                <button type="button" className="sso-google-btn">
-                  <i className="bi bi-google"></i> Continue with Google
-                </button>
-                <div className="google-overlay">
-                  <GoogleOAuthProvider clientId={config.googleClientId}>
-                    <GoogleLogin
-                      theme="outline"
-                      size="large"
-                      width="320"
-                      text="signup_with"
-                      onSuccess={(res) => handleGoogle(res.credential)}
-                      onError={() => setFormError('Google sign-up failed. Please try again.')}
-                    />
-                  </GoogleOAuthProvider>
-                </div>
-              </div>
+              <GoogleAuthButton
+                clientId={config.googleClientId}
+                text="signup_with"
+                onCredential={handleGoogle}
+                onError={() => setFormError('Google sign-up failed. Please try again.')}
+              />
             </div>
           )}
 
@@ -583,6 +574,45 @@ export default function Signup() {
           </div>
         </div>
       </div>
+
+      {/* reCAPTCHA POP-UP (only mounted while open, and only when reCAPTCHA is on) */}
+      {captchaOpen && config.recaptchaEnabled && (
+        <div
+          className="modal-overlay active"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCaptchaOpen(false);
+          }}
+        >
+          <div
+            className="modal-card captcha-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="captchaTitle"
+          >
+            <div className="captcha-icon">
+              <i className="bi bi-shield-check"></i>
+            </div>
+            <h2 className="modal-title" id="captchaTitle">
+              Verify to continue
+            </h2>
+            <p className="modal-description">
+              Tick the box below to confirm you are not a robot.
+            </p>
+
+            <div className="captcha-body">
+              <ReCAPTCHA
+                key={config.recaptchaSiteKey}
+                sitekey={config.recaptchaSiteKey}
+                onChange={onCaptchaSolved}
+              />
+            </div>
+
+            <button type="button" className="captcha-cancel" onClick={() => setCaptchaOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* TERMS / PRIVACY MODAL (only mounted while open). Layout matches the Profile page. */}
       {legal && (

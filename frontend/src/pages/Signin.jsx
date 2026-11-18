@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import ReCAPTCHA from 'react-google-recaptcha';
 import api, { errMsg } from '../api/client';
 import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 import css from '../styles/signin.css?raw';
 
 // TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
@@ -71,8 +71,7 @@ export default function Signin() {
     location.state?.notice ? { message: location.state.notice, type: 'info' } : NO_BANNER
   );
   const [busy, setBusy] = useState(false);
-  const recaptchaRef = useRef(null);
-  const [captchaToken, setCaptchaToken] = useState(null);
+  const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA pop-up
   const googleBusyRef = useRef(false); // stops double submits of the Google sign-in
   const closeTimerRef = useRef(null);
 
@@ -89,7 +88,25 @@ export default function Signin() {
     navigate(homeFor(user.role), { replace: true });
   };
 
-  const onSubmit = async (e) => {
+  // Sends the sign-in request. captchaToken is null when reCAPTCHA is turned off.
+  const signIn = async (captchaToken) => {
+    setBusy(true);
+    try {
+      const { data } = await api.post('/auth/signin', {
+        email: email.trim().toLowerCase(),
+        password,
+        recaptchaToken: captchaToken,
+      });
+      completeSignIn(data);
+    } catch (err) {
+      setBanner({ message: errMsg(err), type: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Step 1: check the form. Step 2: reCAPTCHA pop-up (if on). Step 3: send.
+  const onSubmit = (e) => {
     e.preventDefault();
     if (busy) return;
     setBanner(NO_BANNER);
@@ -104,28 +121,29 @@ export default function Signin() {
       return;
     }
 
-    // reCAPTCHA check (only when it is turned on in System Settings)
-    if (config.recaptchaEnabled && !captchaToken) {
-      setBanner({ message: 'Please confirm you are not a robot.', type: 'error' });
+    // reCAPTCHA is only asked once the form itself is valid
+    if (config.recaptchaEnabled) {
+      setCaptchaOpen(true);
       return;
     }
-
-    setBusy(true);
-    try {
-      const { data } = await api.post('/auth/signin', {
-        email: cleanEmail,
-        password,
-        recaptchaToken: captchaToken,
-      });
-      completeSignIn(data);
-    } catch (err) {
-      recaptchaRef.current?.reset(); // token is single-use
-      setCaptchaToken(null);
-      setBanner({ message: errMsg(err), type: 'error' });
-    } finally {
-      setBusy(false);
-    }
+    signIn(null);
   };
+
+  // The token is single-use, so we send it right away and close the pop-up
+  const onCaptchaSolved = (token) => {
+    if (!token) return;
+    setCaptchaOpen(false);
+    signIn(token);
+  };
+
+  useEffect(() => {
+    if (!captchaOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setCaptchaOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [captchaOpen]);
 
   // ---------- Google sign in ----------
   const handleGoogle = async (credential) => {
@@ -323,22 +341,6 @@ export default function Signin() {
               </div>
             </div>
 
-            {/* reCAPTCHA (hidden when turned off in System Settings) */}
-            {config.recaptchaEnabled && (
-              <div className="recaptcha-group">
-                <ReCAPTCHA
-                  key={config.recaptchaSiteKey}
-                  ref={recaptchaRef}
-                  sitekey={config.recaptchaSiteKey}
-                  onChange={(token) => {
-                    setCaptchaToken(token);
-                    setBanner(NO_BANNER);
-                  }}
-                  onExpired={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
-
             <Banner banner={banner} />
 
             <div className="btn-wrapper">
@@ -355,25 +357,12 @@ export default function Signin() {
                 <span>or Log In with</span>
               </div>
 
-              <div className="google-sso-wrapper">
-                <button type="button" className="sso-google-btn">
-                  <i className="bi bi-google"></i> Continue with Google
-                </button>
-                <div className="google-overlay">
-                  <GoogleOAuthProvider clientId={config.googleClientId}>
-                    <GoogleLogin
-                      theme="outline"
-                      size="large"
-                      width="320"
-                      text="continue_with"
-                      onSuccess={(res) => handleGoogle(res.credential)}
-                      onError={() =>
-                        setBanner({ message: 'Google sign-in failed.', type: 'error' })
-                      }
-                    />
-                  </GoogleOAuthProvider>
-                </div>
-              </div>
+              <GoogleAuthButton
+                clientId={config.googleClientId}
+                text="continue_with"
+                onCredential={handleGoogle}
+                onError={() => setBanner({ message: 'Google sign-in failed.', type: 'error' })}
+              />
             </div>
           )}
 
@@ -387,6 +376,45 @@ export default function Signin() {
           </div>
         </div>
       </main>
+
+      {/* reCAPTCHA POP-UP (only mounted while open, and only when reCAPTCHA is on) */}
+      {captchaOpen && config.recaptchaEnabled && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCaptchaOpen(false);
+          }}
+        >
+          <div
+            className="modal-card captcha-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="captchaTitle"
+          >
+            <div className="captcha-icon">
+              <i className="bi bi-shield-check"></i>
+            </div>
+            <h2 className="modal-title" id="captchaTitle">
+              Verify to continue
+            </h2>
+            <p className="modal-subtitle">
+              Tick the box below to confirm you are not a robot.
+            </p>
+
+            <div className="captcha-body">
+              <ReCAPTCHA
+                key={config.recaptchaSiteKey}
+                sitekey={config.recaptchaSiteKey}
+                onChange={onCaptchaSolved}
+              />
+            </div>
+
+            <button type="button" className="captcha-cancel" onClick={() => setCaptchaOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* FORGOT / RESET PASSWORD MODAL (only mounted while open) */}
       {modalOpen && (
