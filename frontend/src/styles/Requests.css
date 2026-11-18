@@ -1104,14 +1104,49 @@
   border-bottom: none;
 }
 
+/* Reason for going over the usual limit */
+.rq-lines tbody tr.rq-has-reason td {
+  border-bottom: none;
+  padding-bottom: 6px;
+}
+
+.rq-lines tbody tr.rq-reason-row td,
+.rq-lines tbody tr.rq-reason-row td:first-child {
+  width: auto;
+  padding: 0 16px 14px;
+}
+
+.rq-reason-inner {
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+}
+
+.rq-reason-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-body, #594d46);
+  margin-bottom: 2px;
+}
+
+.rq-reason-text {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-dark, #2c1a14);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Older markup that still uses this class gets the same plain look (no yellow box) */
 .rq-line-reason {
-  margin-top: 6px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background-color: #fffbeb;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: #92400e;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--card-border, #dfd8cc);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-body, #594d46);
   overflow-wrap: anywhere;
 }
 

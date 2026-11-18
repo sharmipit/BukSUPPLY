@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useInventory from '../../hooks/useInventory';
 import useAllRequisitions from '../../hooks/useAllRequisitions';
-import { errMsg } from '../../api/client';
+import api, { errMsg } from '../../api/client';
 import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
@@ -72,15 +72,252 @@ const ROUTES = {
   reports: '/admin/reports-logs', // change to the path registered for ReportsLogs.jsx
 };
 
+// Starting units. Any unit typed into the form is added automatically.
+const DEFAULT_UNITS = [
+  'bottle',
+  'box',
+  'bundle',
+  'cartridge',
+  'dozen',
+  'gallon',
+  'kg',
+  'liter',
+  'meter',
+  'pack',
+  'pair',
+  'pcs',
+  'ream',
+  'roll',
+  'set',
+  'sheet',
+];
+const NEW_UNIT = '__new__';
+
+// Nothing is pre-filled: the person has to choose or type every value.
 const EMPTY_FORM = {
   name: '',
   supplier: '',
-  category: DEFAULT_CATEGORIES[0],
-  unit: 'pcs',
-  quantity: 0,
-  reorderLevel: 10,
-  maxNormal: 10,
+  category: '',
+  unit: '',
+  quantity: '',
+  reorderLevel: '',
+  maxNormal: '',
 };
+
+// ---------- Field rules ----------
+// Same rules as the Inventory page and the top of routes/inventory.js (the server has the final say).
+const LIMITS = {
+  name: 80,
+  supplier: 120,
+  category: 40,
+  unit: 15,
+  reference: 40,
+  remark: 200,
+  maxQty: 100000, // largest quantity / reorder level / limit allowed
+};
+
+// Characters that are NOT allowed. They are removed as the person types or pastes.
+// Units are letters, numbers, spaces and hyphens only (for example "pcs", "box of 10", "A4-pack").
+const STRIP = {
+  name: /[^\p{L}\p{N} .,'’"()\-/&#+%:]/gu,
+  category: /[^\p{L}\p{N} .,'’()\-/&]/gu,
+  unit: /[^\p{L}\p{N} -]/gu,
+  reference: /[^A-Za-z0-9 ._\-/#]/g,
+  remark: /[<>{}`\\\u0000-\u001F\u007F]/g,
+};
+const isClean = (value, strip) => value.replace(strip, '') === value;
+
+// Shown only at the moment a disallowed character is typed or pasted
+const BLOCK_MSG = {
+  name: 'Only letters, numbers and basic punctuation are allowed here.',
+  category: 'Only letters, numbers and . , \' ( ) - / & are allowed here.',
+  unit: 'Only letters, numbers, spaces and hyphens are allowed in a unit.',
+  reference: 'Only letters, numbers and - _ / . # are allowed here.',
+  remark: 'Symbols such as < > { } ` \\ are not allowed here.',
+};
+
+// Trim and collapse repeated spaces
+const squash = (v) =>
+  String(v ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// While typing: drop disallowed characters, leading spaces and double spaces, and cap the length
+const cleanTyping = (v, strip, max) =>
+  String(v ?? '')
+    .replace(strip, '')
+    .replace(/^\s+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .slice(0, max);
+
+const fmtQty = (n) => Number(n).toLocaleString('en-PH');
+
+const textProblem = (value, { label, max, strip, required = false, min = 1, needsLetter = false }) => {
+  if (!value) return required ? `${label} is required.` : '';
+  if (value.length < min) return `${label} must be at least ${min} characters.`;
+  if (value.length > max) return `${label} must be ${max} characters or fewer.`;
+  if (!isClean(value, strip)) return `${label} has characters that are not allowed.`;
+  if (needsLetter && !/[\p{L}\p{N}]/u.test(value)) {
+    return `${label} must contain at least one letter or number.`;
+  }
+  return '';
+};
+
+// Whole numbers only. Nothing is silently corrected: a bad value shows a message instead.
+const numberProblem = (raw, { label, min, max }) => {
+  const s = String(raw ?? '');
+  if (s === '') return `${label} is required.`;
+  if (!/^\d+$/.test(s)) return `${label} must be a whole number.`;
+  const n = Number(s);
+  if (n < min) return `${label} must be at least ${min}.`;
+  if (n > max) return `${label} cannot be more than ${fmtQty(max)}.`;
+  return '';
+};
+
+// Returns { fieldName: 'message' } for every field that is not valid yet
+const validateForm = (form, { isNewCategory, customCategory, isNewUnit, customUnit }) => {
+  const e = {};
+
+  const name = squash(form.name);
+  const nameMsg = textProblem(name, {
+    label: 'Item name', max: LIMITS.name, strip: STRIP.name, required: true, min: 2, needsLetter: true,
+  });
+  if (nameMsg) e.name = nameMsg;
+
+  const supplierMsg = textProblem(squash(form.supplier), {
+    label: 'Supplier name', max: LIMITS.supplier, strip: STRIP.name,
+  });
+  if (supplierMsg) e.supplier = supplierMsg;
+
+  if (!form.category) {
+    e.category = 'Choose a category.';
+  } else if (isNewCategory) {
+    const msg = textProblem(squash(customCategory), {
+      label: 'Category name', max: LIMITS.category, strip: STRIP.category, required: true, min: 2, needsLetter: true,
+    });
+    if (msg) e.newCategory = msg;
+  }
+
+  if (!form.unit) {
+    e.unit = 'Choose a unit.';
+  } else if (isNewUnit) {
+    const msg = textProblem(squash(customUnit), {
+      label: 'Unit name', max: LIMITS.unit, strip: STRIP.unit, required: true, min: 1, needsLetter: true,
+    });
+    if (msg) e.newUnit = msg;
+  }
+
+  const q = numberProblem(form.quantity, { label: 'Quantity', min: 0, max: LIMITS.maxQty });
+  if (q) e.quantity = q;
+  const r = numberProblem(form.reorderLevel, { label: 'Reorder level', min: 0, max: LIMITS.maxQty });
+  if (r) e.reorderLevel = r;
+  const m = numberProblem(form.maxNormal, { label: 'Normal limit', min: 1, max: LIMITS.maxQty });
+  if (m) e.maxNormal = m;
+
+  return e;
+};
+
+// Text box that only accepts digits (no minus sign, decimal point or "e"), so negatives,
+// decimals and scientific notation cannot even be typed or pasted.
+// baseClass lets the Add / Edit form use its own input look (db-input).
+function NumberInput({ value, onChange, invalid, baseClass = 'form-control custom-input', ...rest }) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      maxLength={6}
+      className={`${baseClass}${invalid ? ' inv-input-invalid' : ''}`}
+      value={value}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (/^\d*$/.test(v)) onChange(v.replace(/^0+(?=\d)/, '')); // also drops leading zeros
+      }}
+      {...rest}
+    />
+  );
+}
+
+// Dropdown with the same look and chevron animation as the Inventory page form.
+// The list opens inside the form so the modal does not clip it.
+function FormSelect({
+  id,
+  value,
+  options,
+  placeholder,
+  onChange,
+  invalid,
+  triggerClass = 'form-control custom-input',
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    menuRef.current?.scrollIntoView({ block: 'nearest' });
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={`inv-dd${open ? ' open' : ''}`} ref={rootRef}>
+      <button
+        type="button"
+        id={id}
+        className={`${triggerClass} inv-dd-trigger${open ? ' open' : ''}${
+          invalid ? ' inv-input-invalid' : ''
+        }`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={`inv-dd-text${selected ? '' : ' placeholder'}`}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <i className="bi bi-chevron-down inv-dd-chevron" aria-hidden="true"></i>
+      </button>
+
+      {open && (
+        <ul className="inv-dd-menu" role="listbox" ref={menuRef}>
+          {options.map((o) => (
+            <li key={o.value} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={o.value === value}
+                className={`inv-dd-item${o.value === value ? ' active' : ''}${
+                  o.action ? ' action' : ''
+                }`}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+              >
+                <span className="inv-dd-item-text">{o.label}</span>
+                <i
+                  className={`bi bi-check2 inv-dd-check${o.value === value ? ' show' : ''}`}
+                  aria-hidden="true"
+                ></i>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Helpers (shared with the Requests and Inventory pages)              */
@@ -421,6 +658,32 @@ const Dashboard = ({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [inventory]);
 
+  // Unit list = defaults + every unit currently used by an item (same spelling counted once)
+  const units = useMemo(() => {
+    const seen = new Map();
+    [...DEFAULT_UNITS, ...inventory.map((i) => i.unit)].forEach((u) => {
+      const s = squash(u);
+      if (s && !seen.has(s.toLowerCase())) seen.set(s.toLowerCase(), s);
+    });
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [inventory]);
+
+  const categoryOptions = useMemo(
+    () => [
+      ...categories.map((c) => ({ value: c, label: c })),
+      { value: NEW_CATEGORY, label: '+ Add new category…', action: true },
+    ],
+    [categories]
+  );
+
+  const unitOptions = useMemo(
+    () => [
+      ...units.map((u) => ({ value: u, label: u })),
+      { value: NEW_UNIT, label: '+ Add new unit…', action: true },
+    ],
+    [units]
+  );
+
   // Toast notice
   const [notice, setNotice] = useState(null);
   useEffect(() => {
@@ -448,6 +711,7 @@ const Dashboard = ({
   const [recvCategory, setRecvCategory] = useState('Office Supplies');
   const [recvCustomCategory, setRecvCustomCategory] = useState('');
   const [recvUnit, setRecvUnit] = useState('pcs');
+  const [recvCustomUnit, setRecvCustomUnit] = useState('');
   const [recvRef, setRecvRef] = useState('');
   const [recvError, setRecvError] = useState('');
   const [recvBusy, setRecvBusy] = useState(false);
@@ -522,33 +786,89 @@ const Dashboard = ({
     setRemarks('');
   };
 
-  const categoryOptions = categories;
-
   const openReceive = (reqId, line) => {
     setRecvError('');
     setRecvCategory('Office Supplies');
     setRecvCustomCategory('');
     setRecvUnit('pcs');
+    setRecvCustomUnit('');
     setRecvRef('');
+    setBlocked({});
     setRecvQty(String(line.inv ? Math.max(1, line.qty - line.inv.quantity) : line.qty));
     setReceive({ reqId, line });
   };
 
   const handleReceive = async () => {
     if (!receive || recvBusy) return;
-    const qty = Math.floor(Number(recvQty));
-    if (!(qty >= 1)) return setRecvError('Enter a quantity of 1 or more.');
-    const recvIsNew = recvCategory === NEW_CATEGORY;
-    if (!receive.line.inv && recvIsNew && !recvCustomCategory.trim()) {
-      return setRecvError('Type the name of the new category.');
+
+    // Same rules as the Inventory page: whole numbers only, clean text, no oversized stock
+    const qtyMsg = numberProblem(recvQty, {
+      label: 'Quantity received',
+      min: 1,
+      max: LIMITS.maxQty,
+    });
+    if (qtyMsg) return setRecvError(qtyMsg);
+    const qty = Number(recvQty);
+
+    const onHand = receive.line.inv?.quantity ?? 0;
+    if (onHand + qty > LIMITS.maxQty) {
+      return setRecvError(
+        `Stock cannot go over ${fmtQty(LIMITS.maxQty)}. You can receive at most ${fmtQty(
+          Math.max(0, LIMITS.maxQty - onHand)
+        )} more.`
+      );
     }
 
-    // Resolve the category. Reuse an existing spelling if it matches ignoring case.
+    const recvIsNew = recvCategory === NEW_CATEGORY;
+    const recvUnitIsNew = recvUnit === NEW_UNIT;
+
+    if (!receive.line.inv) {
+      if (!recvCategory) return setRecvError('Choose a category.');
+      if (recvIsNew) {
+        const msg = textProblem(squash(recvCustomCategory), {
+          label: 'Category name',
+          max: LIMITS.category,
+          strip: STRIP.category,
+          required: true,
+          min: 2,
+          needsLetter: true,
+        });
+        if (msg) return setRecvError(msg);
+      }
+      if (!recvUnit) return setRecvError('Choose a unit.');
+      if (recvUnitIsNew) {
+        const msg = textProblem(squash(recvCustomUnit), {
+          label: 'Unit name',
+          max: LIMITS.unit,
+          strip: STRIP.unit,
+          required: true,
+          min: 1,
+          needsLetter: true,
+        });
+        if (msg) return setRecvError(msg);
+      }
+    }
+
+    const refMsg = textProblem(squash(recvRef), {
+      label: 'Reference',
+      max: LIMITS.reference,
+      strip: STRIP.reference,
+    });
+    if (refMsg) return setRecvError(refMsg);
+
+    // Resolve the category and unit. Reuse an existing spelling if it matches ignoring case.
     let recvResolved = recvCategory;
     if (recvIsNew) {
-      const typed = recvCustomCategory.trim();
+      const typed = squash(recvCustomCategory);
       recvResolved = categories.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
     }
+    let recvUnitResolved = recvUnit;
+    if (recvUnitIsNew) {
+      const typed = squash(recvCustomUnit);
+      recvUnitResolved = units.find((u) => u.toLowerCase() === typed.toLowerCase()) || typed;
+    }
+
+    const ref = squash(recvRef).toUpperCase();
 
     setRecvBusy(true);
     setRecvError('');
@@ -556,9 +876,9 @@ const Dashboard = ({
       let code = receive.line.inv?.id;
       if (!code) {
         const created = await createInventoryItem({
-          name: receive.line.name,
+          name: squash(receive.line.name),
           category: recvResolved,
-          unit: recvUnit.trim() || 'pcs',
+          unit: recvUnitResolved,
           quantity: 0,
           reorderLevel: 10,
           maxNormal: 10,
@@ -568,10 +888,8 @@ const Dashboard = ({
       await adjustInventory(code, {
         mode: 'add',
         amount: qty,
-        reference: recvRef.trim() || receive.reqId,
-        remark: recvRef.trim()
-          ? `Purchased for ${receive.reqId}`
-          : 'Purchased for this requisition',
+        reference: ref || receive.reqId,
+        remark: ref ? `Purchased for ${receive.reqId}` : 'Purchased for this requisition',
       });
       setReceive(null);
     } catch (err) {
@@ -721,8 +1039,12 @@ const Dashboard = ({
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [customCategory, setCustomCategory] = useState('');
+  const [customUnit, setCustomUnit] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [showAll, setShowAll] = useState(false); // true after pressing Save: show every problem
+  // Messages that appear only when a disallowed character was just typed or pasted
+  const [blocked, setBlocked] = useState({});
 
   // Adjust modal
   const [adjustTarget, setAdjustTarget] = useState(null);
@@ -737,16 +1059,35 @@ const Dashboard = ({
   const [historyId, setHistoryId] = useState(null);
   const historyItem = inventory.find((i) => i.id === historyId) || null;
 
-  // Archive modal
+  // Archive modal. It opens on top of the details modal, so Cancel goes back to the details.
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [archiving, setArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState('');
+  // Open requests (Pending / Processing / Approved) that still include the item being archived
+  const [archiveCheck, setArchiveCheck] = useState({ loading: false, list: [] });
+  const archiveTargetRef = useRef(null);
+
+  // ---------- Disallowed-character messages ----------
+  // Sets a message only while the last keystroke / paste contained a disallowed character.
+  const flagBlocked = (field, raw, kind) => {
+    const msg =
+      String(raw ?? '').replace(STRIP[kind], '') !== String(raw ?? '') ? BLOCK_MSG[kind] : '';
+    setBlocked((b) => ((b[field] || '') === msg ? b : { ...b, [field]: msg }));
+  };
+
+  // ---------- Add / edit ----------
+  const resetFormState = () => {
+    setCustomCategory('');
+    setCustomUnit('');
+    setFormError('');
+    setShowAll(false);
+    setBlocked({});
+  };
 
   const openAddModal = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setCustomCategory('');
-    setFormError('');
+    resetFormState();
     setFormModalOpen(true);
   };
 
@@ -756,39 +1097,80 @@ const Dashboard = ({
       name: item.name,
       supplier: item.supplier || '',
       category: item.category,
-      unit: item.unit,
-      quantity: item.quantity,
-      reorderLevel: item.reorderLevel,
-      maxNormal: item.maxNormal,
+      // Use the spelling from the unit list so "Pcs" and "pcs" are not two different units
+      unit: units.find((u) => u.toLowerCase() === squash(item.unit).toLowerCase()) || item.unit,
+      quantity: String(item.quantity),
+      reorderLevel: String(item.reorderLevel),
+      maxNormal: String(item.maxNormal),
     });
-    setCustomCategory('');
-    setFormError('');
+    resetFormState();
     setFormModalOpen(true);
   };
 
-  const handleFormChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const handleFormChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setFormError('');
+  };
+  // kind = which rule set applies (a key of STRIP)
+  const handleText = (field, value, kind, max) => {
+    flagBlocked(field, value, kind);
+    handleFormChange(field, cleanTyping(value, STRIP[kind], max));
+  };
 
   const isNewCategory = form.category === NEW_CATEGORY;
-  const canSave = form.name.trim() && (!isNewCategory || customCategory.trim());
+  const isNewUnit = form.unit === NEW_UNIT;
+
+  const formErrors = useMemo(
+    () => validateForm(form, { isNewCategory, customCategory, isNewUnit, customUnit }),
+    [form, isNewCategory, customCategory, isNewUnit, customUnit]
+  );
+
+  // A problem is shown only after the person typed something into that field,
+  // or after they pressed Save. Nothing appears just because a field is empty.
+  const errFor = (field) => {
+    const msg = formErrors[field];
+    if (!msg) return '';
+    const typed =
+      field === 'newCategory' ? customCategory : field === 'newUnit' ? customUnit : form[field];
+    return showAll || String(typed ?? '') !== '' ? msg : '';
+  };
+  const fieldMsg = (field) => {
+    const text = errFor(field) || blocked[field];
+    return text ? <span className="db-field-error">{text}</span> : null;
+  };
+  const inputClass = (field) => `db-input${errFor(field) ? ' inv-input-invalid' : ''}`;
 
   const handleSaveItem = async () => {
-    if (!canSave || saving) return;
+    if (saving) return;
+
+    setShowAll(true);
+    if (Object.keys(formErrors).length) {
+      setFormError('Please fix the highlighted fields.');
+      return;
+    }
 
     // Resolve the category. Reuse an existing spelling if it matches ignoring case.
     let category = form.category;
     if (isNewCategory) {
-      const typed = customCategory.trim();
+      const typed = squash(customCategory);
       category = categories.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
     }
 
+    // Same for the unit, so "Box" and "box" never become two units
+    let unit = form.unit;
+    if (isNewUnit) {
+      const typed = squash(customUnit);
+      unit = units.find((u) => u.toLowerCase() === typed.toLowerCase()) || typed;
+    }
+
     const cleaned = {
-      name: form.name.trim(),
-      supplier: form.supplier.trim(),
+      name: squash(form.name),
+      supplier: squash(form.supplier),
       category,
-      unit: form.unit.trim() || 'pcs',
-      quantity: Math.max(0, Number(form.quantity) || 0),
-      reorderLevel: Math.max(0, Number(form.reorderLevel) || 0),
-      maxNormal: Math.max(1, Number(form.maxNormal) || 1),
+      unit,
+      quantity: Number(form.quantity),
+      reorderLevel: Number(form.reorderLevel),
+      maxNormal: Number(form.maxNormal),
     };
 
     setSaving(true);
@@ -812,6 +1194,7 @@ const Dashboard = ({
     }
   };
 
+  // ---------- Adjust stock ----------
   const openAdjustModal = (item) => {
     setAdjustTarget(item);
     setAdjustAmount('');
@@ -819,10 +1202,13 @@ const Dashboard = ({
     setAdjustReference('');
     setAdjustRemark('');
     setAdjustError('');
+    setBlocked({});
   };
 
-  const adjustQty = Math.abs(Number(adjustAmount) || 0);
+  const adjustQty = Number(adjustAmount) || 0; // the box only accepts digits
   const overWithdraw = adjustTarget && adjustMode === 'remove' && adjustQty > adjustTarget.quantity;
+  const overMax =
+    adjustTarget && adjustMode === 'add' && adjustTarget.quantity + adjustQty > LIMITS.maxQty;
   const adjustPreview = adjustTarget
     ? adjustMode === 'add'
       ? adjustTarget.quantity + adjustQty
@@ -830,7 +1216,7 @@ const Dashboard = ({
     : 0;
 
   const handleConfirmAdjust = async () => {
-    if (!adjustTarget || adjustQty === 0 || overWithdraw || adjusting) return;
+    if (!adjustTarget || adjustQty === 0 || overWithdraw || overMax || adjusting) return;
     setAdjusting(true);
     setAdjustError('');
     try {
@@ -844,7 +1230,7 @@ const Dashboard = ({
         type: 'success',
         text: `${adjustTarget.name}: stock ${
           adjustMode === 'add' ? 'received' : 'withdrawn'
-        } (${adjustTarget.quantity} → ${adjustPreview} ${adjustTarget.unit}).`,
+        } (${fmtQty(adjustTarget.quantity)} → ${fmtQty(adjustPreview)} ${adjustTarget.unit}).`,
       });
       setAdjustTarget(null);
     } catch (err) {
@@ -854,20 +1240,40 @@ const Dashboard = ({
     }
   };
 
+  // ---------- Archive. Nothing is deleted from the database. ----------
+  const archiveBlocked = archiveCheck.list.length > 0;
+  archiveTargetRef.current = archiveTarget ? archiveTarget.id : null;
+
+  // The details modal stays open underneath, so pressing Cancel returns to it.
   const openArchiveModal = (item) => {
     setArchiveError('');
     setArchiveTarget(item);
+    setArchiveCheck({ loading: true, list: [] });
+
+    // Ask the server which open requests still include this item.
+    // If this check fails, the server still refuses the archive when the button is pressed.
+    api
+      .get(`/inventory/${encodeURIComponent(item.id)}/open-requests`)
+      .then(({ data }) => {
+        if (archiveTargetRef.current === item.id) {
+          setArchiveCheck({ loading: false, list: data.openRequests || [] });
+        }
+      })
+      .catch(() => {
+        if (archiveTargetRef.current === item.id) setArchiveCheck({ loading: false, list: [] });
+      });
   };
 
   const closeArchiveModal = () => {
     if (archiving) return;
     setArchiveError('');
     setArchiveTarget(null);
+    setArchiveCheck({ loading: false, list: [] });
   };
 
   // Archive hides the item, it is never deleted. Restore it from Inventory > Archived.
   const handleConfirmArchive = async () => {
-    if (!archiveTarget || archiving) return;
+    if (!archiveTarget || archiving || archiveBlocked || archiveCheck.loading) return;
     setArchiving(true);
     setArchiveError('');
     try {
@@ -877,7 +1283,11 @@ const Dashboard = ({
         text: `${archiveTarget.name} (${archiveTarget.id}) was archived.`,
       });
       setArchiveTarget(null);
+      setHistoryId(null); // the item is archived now, so its details close too
     } catch (err) {
+      // The server found open requests we did not know about yet (for example a new one just came in)
+      const blockers = err.response?.data?.openRequests;
+      if (blockers?.length) setArchiveCheck({ loading: false, list: blockers });
       setArchiveError(errMsg(err));
     } finally {
       setArchiving(false);
@@ -1478,16 +1888,13 @@ const Dashboard = ({
                     <tbody>
                       {detailsCheck.lines.map((l, idx) => {
                         const unit = l.inv?.unit || l.unit || '';
+                        const overLimit = l.qty > l.maxNormal;
                         return (
-                          <tr key={`${l.inventoryItemId}-${idx}`}>
+                          <React.Fragment key={`${l.inventoryItemId}-${idx}`}>
+                          <tr className={overLimit ? 'rq-has-reason' : undefined}>
                             <td>
                               <div className="rq-strong">{l.name || l.inv?.name}</div>
                               <div className="rq-sub">{l.inv?.id || ''}</div>
-                              {l.qty > l.maxNormal && (
-                                <div className="rq-line-reason">
-                                  Over usual limit. Reason: {l.reason || 'none given'}
-                                </div>
-                              )}
                             </td>
                             <td>
                               {l.qty} {unit}
@@ -1512,6 +1919,21 @@ const Dashboard = ({
                               )}
                             </td>
                           </tr>
+                          {overLimit && (
+                            <tr className="rq-reason-row">
+                              <td colSpan={5}>
+                                <div className="rq-reason-inner">
+                                  <span className="rq-reason-label">
+                                    Reason for going over the usual limit
+                                  </span>
+                                  <span className="rq-reason-text">
+                                    {l.reason || 'No reason given'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -1839,19 +2261,20 @@ const Dashboard = ({
               </p>
               <p className="rq-muted-text">
                 {receive.line.inv
-                  ? `${receive.line.inv.quantity} ${receive.line.inv.unit} in the inventory, ${receive.line.qty} needed.`
+                  ? `${fmtQty(receive.line.inv.quantity)} ${receive.line.inv.unit} in the inventory, ${fmtQty(receive.line.qty)} needed.`
                   : "This item isn't in the inventory yet. Record what was bought so it can be handed out."}
               </p>
 
               <div className="rq-field">
                 <label htmlFor="db-recv-qty">Quantity received</label>
-                <input
+                <NumberInput
                   id="db-recv-qty"
-                  type="number"
-                  min="1"
-                  className="form-control custom-input"
                   value={recvQty}
-                  onChange={(e) => setRecvQty(e.target.value)}
+                  onChange={(v) => {
+                    setRecvQty(v);
+                    setRecvError('');
+                  }}
+                  placeholder="e.g. 50"
                   autoFocus
                 />
               </div>
@@ -1861,11 +2284,20 @@ const Dashboard = ({
                 <input
                   id="db-recv-ref"
                   type="text"
+                  autoComplete="off"
                   className="form-control custom-input"
                   value={recvRef}
-                  onChange={(e) => setRecvRef(e.target.value)}
+                  maxLength={LIMITS.reference}
+                  onChange={(e) => {
+                    flagBlocked('recvRef', e.target.value, 'reference');
+                    setRecvRef(
+                      cleanTyping(e.target.value, STRIP.reference, LIMITS.reference).toUpperCase()
+                    );
+                    setRecvError('');
+                  }}
                   placeholder="e.g. DR-2026-114"
                 />
+                {blocked.recvRef && <span className="inv-field-error">{blocked.recvRef}</span>}
                 <span className="rq-hint">
                   From the supplier's receipt. Leave empty to use the slip number.
                 </span>
@@ -1875,41 +2307,72 @@ const Dashboard = ({
                 <>
                   <div className="rq-field">
                     <label htmlFor="db-recv-cat">Category</label>
-                    <select
+                    <FormSelect
                       id="db-recv-cat"
-                      className="form-control custom-input rq-select"
                       value={recvCategory}
-                      onChange={(e) => setRecvCategory(e.target.value)}
-                    >
-                      {categoryOptions.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                      <option value={NEW_CATEGORY}>+ Add new category…</option>
-                    </select>
+                      options={categoryOptions}
+                      placeholder="Select a category"
+                      onChange={(value) => {
+                        setRecvCategory(value);
+                        setRecvError('');
+                      }}
+                    />
                     {recvCategory === NEW_CATEGORY && (
                       <input
                         type="text"
-                        className="form-control custom-input rq-new-category"
+                        autoComplete="off"
+                        className="form-control custom-input inv-new-category"
                         placeholder="e.g. Electrical Supplies"
                         value={recvCustomCategory}
-                        onChange={(e) => setRecvCustomCategory(e.target.value)}
+                        maxLength={LIMITS.category}
+                        onChange={(e) => {
+                          flagBlocked('recvNewCategory', e.target.value, 'category');
+                          setRecvCustomCategory(
+                            cleanTyping(e.target.value, STRIP.category, LIMITS.category)
+                          );
+                          setRecvError('');
+                        }}
                         aria-label="New category name"
                         autoFocus
                       />
                     )}
+                    {recvCategory === NEW_CATEGORY && blocked.recvNewCategory && (
+                      <span className="inv-field-error">{blocked.recvNewCategory}</span>
+                    )}
                   </div>
+
                   <div className="rq-field">
                     <label htmlFor="db-recv-unit">Unit</label>
-                    <input
+                    <FormSelect
                       id="db-recv-unit"
-                      type="text"
-                      className="form-control custom-input"
                       value={recvUnit}
-                      onChange={(e) => setRecvUnit(e.target.value)}
-                      placeholder="pcs, ream, box"
+                      options={unitOptions}
+                      placeholder="Select a unit"
+                      onChange={(value) => {
+                        setRecvUnit(value);
+                        setRecvError('');
+                      }}
                     />
+                    {recvUnit === NEW_UNIT && (
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        className="form-control custom-input inv-new-category"
+                        placeholder="e.g. tube"
+                        value={recvCustomUnit}
+                        maxLength={LIMITS.unit}
+                        onChange={(e) => {
+                          flagBlocked('recvNewUnit', e.target.value, 'unit');
+                          setRecvCustomUnit(cleanTyping(e.target.value, STRIP.unit, LIMITS.unit));
+                          setRecvError('');
+                        }}
+                        aria-label="New unit name"
+                        autoFocus
+                      />
+                    )}
+                    {recvUnit === NEW_UNIT && blocked.recvNewUnit && (
+                      <span className="inv-field-error">{blocked.recvNewUnit}</span>
+                    )}
                   </div>
                 </>
               )}
@@ -1944,9 +2407,7 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* Inventory: add / edit modal                                   */}
-      {/* ============================================================ */}
+      {/* Inventory: add / edit modal */}
       {formModalOpen && (
         <div className="db-modal-backdrop" onClick={() => setFormModalOpen(false)}>
           <div
@@ -1973,11 +2434,14 @@ const Dashboard = ({
                 <input
                   id="db-name"
                   type="text"
-                  className="db-input"
+                  autoComplete="off"
+                  className={inputClass('name')}
                   value={form.name}
-                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  maxLength={LIMITS.name}
+                  onChange={(e) => handleText('name', e.target.value, 'name', LIMITS.name)}
                   placeholder="e.g. A4 bond paper"
                 />
+                {fieldMsg('name')}
               </div>
 
               <div className="db-field">
@@ -1985,95 +2449,128 @@ const Dashboard = ({
                 <input
                   id="db-supplier"
                   type="text"
-                  className="db-input"
+                  autoComplete="off"
+                  className={inputClass('supplier')}
                   value={form.supplier}
-                  onChange={(e) => handleFormChange('supplier', e.target.value)}
+                  maxLength={LIMITS.supplier}
+                  onChange={(e) =>
+                    handleText('supplier', e.target.value, 'name', LIMITS.supplier)
+                  }
                   placeholder="e.g. Cagayan Office Depot"
-                  maxLength={120}
                 />
-                <span className="db-field-hint">Who usually delivers or sells this item.</span>
+                {fieldMsg('supplier')}
               </div>
 
               <div className="db-field-row">
                 <div className="db-field">
                   <label htmlFor="db-category">Category</label>
-                  <select
+                  <FormSelect
                     id="db-category"
-                    className="db-input db-select"
+                    triggerClass="db-input"
                     value={form.category}
-                    onChange={(e) => handleFormChange('category', e.target.value)}
-                  >
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                    <option value={NEW_CATEGORY}>+ Add new category…</option>
-                  </select>
+                    options={categoryOptions}
+                    placeholder="Select a category"
+                    invalid={!!errFor('category')}
+                    onChange={(value) => handleFormChange('category', value)}
+                  />
 
                   {isNewCategory && (
                     <input
                       type="text"
-                      className="db-input db-new-category"
+                      autoComplete="off"
+                      className={`${inputClass('newCategory')} db-new-category`}
                       placeholder="e.g. Electrical Supplies"
                       value={customCategory}
-                      onChange={(e) => setCustomCategory(e.target.value)}
+                      maxLength={LIMITS.category}
+                      onChange={(e) => {
+                        flagBlocked('newCategory', e.target.value, 'category');
+                        setCustomCategory(
+                          cleanTyping(e.target.value, STRIP.category, LIMITS.category)
+                        );
+                        setFormError('');
+                      }}
                       aria-label="New category name"
                       autoFocus
                     />
                   )}
+
+                  {fieldMsg('category')}
+                  {isNewCategory && fieldMsg('newCategory')}
                 </div>
+
                 <div className="db-field">
                   <label htmlFor="db-unit">Unit</label>
-                  <input
+                  <FormSelect
                     id="db-unit"
-                    type="text"
-                    className="db-input"
+                    triggerClass="db-input"
                     value={form.unit}
-                    onChange={(e) => handleFormChange('unit', e.target.value)}
-                    placeholder="pcs, ream, box"
+                    options={unitOptions}
+                    placeholder="Select a unit"
+                    invalid={!!errFor('unit')}
+                    onChange={(value) => handleFormChange('unit', value)}
                   />
+
+                  {isNewUnit && (
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      className={`${inputClass('newUnit')} db-new-category`}
+                      placeholder="e.g. tube"
+                      value={customUnit}
+                      maxLength={LIMITS.unit}
+                      onChange={(e) => {
+                        flagBlocked('newUnit', e.target.value, 'unit');
+                        setCustomUnit(cleanTyping(e.target.value, STRIP.unit, LIMITS.unit));
+                        setFormError('');
+                      }}
+                      aria-label="New unit name"
+                      autoFocus
+                    />
+                  )}
+
+                  {fieldMsg('unit')}
+                  {isNewUnit && fieldMsg('newUnit')}
                 </div>
               </div>
 
               <div className="db-field-row">
                 <div className="db-field">
                   <label htmlFor="db-qty">Quantity on hand</label>
-                  <input
+                  <NumberInput
                     id="db-qty"
-                    type="number"
-                    min="0"
-                    className="db-input"
+                    baseClass="db-input"
                     value={form.quantity}
-                    onChange={(e) => handleFormChange('quantity', e.target.value)}
+                    invalid={!!errFor('quantity')}
+                    onChange={(v) => handleFormChange('quantity', v)}
+                    placeholder="e.g. 50"
                   />
+                  {fieldMsg('quantity')}
                 </div>
                 <div className="db-field">
                   <label htmlFor="db-reorder">Reorder level</label>
-                  <input
+                  <NumberInput
                     id="db-reorder"
-                    type="number"
-                    min="0"
-                    className="db-input"
+                    baseClass="db-input"
                     value={form.reorderLevel}
-                    onChange={(e) => handleFormChange('reorderLevel', e.target.value)}
+                    invalid={!!errFor('reorderLevel')}
+                    onChange={(v) => handleFormChange('reorderLevel', v)}
+                    placeholder="e.g. 10"
                   />
+                  {fieldMsg('reorderLevel')}
                 </div>
               </div>
 
               <div className="db-field">
                 <label htmlFor="db-max">Normal limit per request</label>
-                <input
+                <NumberInput
                   id="db-max"
-                  type="number"
-                  min="1"
-                  className="db-input"
+                  baseClass="db-input"
                   value={form.maxNormal}
-                  onChange={(e) => handleFormChange('maxNormal', e.target.value)}
+                  invalid={!!errFor('maxNormal')}
+                  onChange={(v) => handleFormChange('maxNormal', v)}
+                  placeholder="e.g. 10"
                 />
-                <span className="db-field-hint">
-                  Users can still request more, but they must explain why.
-                </span>
+                {fieldMsg('maxNormal')}
               </div>
 
               <p className="db-audit-note">
@@ -2101,7 +2598,7 @@ const Dashboard = ({
                 type="button"
                 className="db-btn-primary"
                 onClick={handleSaveItem}
-                disabled={!canSave || saving}
+                disabled={saving}
               >
                 {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add item'}
               </button>
@@ -2133,8 +2630,8 @@ const Dashboard = ({
 
             <div className="inv-modal-body">
               <p className="inv-adjust-item">
-                <strong>{adjustTarget.name}</strong> · {adjustTarget.quantity} {adjustTarget.unit}{' '}
-                on hand
+                <strong>{adjustTarget.name}</strong> · {fmtQty(adjustTarget.quantity)}{' '}
+                {adjustTarget.unit} on hand
               </p>
 
               <div className="inv-segmented">
@@ -2143,33 +2640,39 @@ const Dashboard = ({
                   className={adjustMode === 'add' ? 'active' : ''}
                   onClick={() => setAdjustMode('add')}
                 >
-                  <i className="bi bi-box-arrow-in-down"></i> Receive stock
+                  <i className="bi bi-box-arrow-in-down"></i>
+                  <span>Receive stock</span>
                 </button>
                 <button
                   type="button"
                   className={adjustMode === 'remove' ? 'active' : ''}
                   onClick={() => setAdjustMode('remove')}
                 >
-                  <i className="bi bi-box-arrow-up"></i> Withdraw stock
+                  <i className="bi bi-box-arrow-up"></i>
+                  <span>Withdraw stock</span>
                 </button>
               </div>
 
               <div className="inv-field">
                 <label htmlFor="db-adjust-amount">Quantity ({adjustTarget.unit})</label>
-                <input
+                <NumberInput
                   id="db-adjust-amount"
-                  type="number"
-                  min="1"
-                  className="form-control custom-input"
                   value={adjustAmount}
-                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  invalid={!!(overWithdraw || overMax)}
+                  onChange={setAdjustAmount}
                   placeholder="0"
                   autoFocus
                 />
+                {overMax && (
+                  <span className="inv-field-error">
+                    Stock cannot go over {fmtQty(LIMITS.maxQty)}. You can receive at most{' '}
+                    {fmtQty(Math.max(0, LIMITS.maxQty - adjustTarget.quantity))} more.
+                  </span>
+                )}
                 {overWithdraw && (
                   <span className="inv-field-error">
-                    Only {adjustTarget.quantity} {adjustTarget.unit} on hand. Enter a smaller
-                    quantity.
+                    Only {fmtQty(adjustTarget.quantity)} {adjustTarget.unit} on hand. Enter a
+                    smaller quantity.
                   </span>
                 )}
               </div>
@@ -2184,9 +2687,17 @@ const Dashboard = ({
                   type="text"
                   className="form-control custom-input"
                   value={adjustReference}
-                  onChange={(e) => setAdjustReference(e.target.value)}
+                  maxLength={LIMITS.reference}
+                  autoComplete="off"
+                  onChange={(e) => {
+                    flagBlocked('reference', e.target.value, 'reference');
+                    setAdjustReference(
+                      cleanTyping(e.target.value, STRIP.reference, LIMITS.reference).toUpperCase()
+                    );
+                  }}
                   placeholder={adjustMode === 'add' ? 'e.g. DR-2026-114' : 'e.g. REQ-2026-075'}
                 />
+                {blocked.reference && <span className="inv-field-error">{blocked.reference}</span>}
               </div>
 
               <div className="inv-field">
@@ -2196,15 +2707,26 @@ const Dashboard = ({
                   className="form-control custom-input inv-textarea"
                   rows="2"
                   value={adjustRemark}
-                  onChange={(e) => setAdjustRemark(e.target.value)}
+                  maxLength={LIMITS.remark}
+                  onChange={(e) => {
+                    flagBlocked('remark', e.target.value, 'remark');
+                    setAdjustRemark(cleanTyping(e.target.value, STRIP.remark, LIMITS.remark));
+                  }}
                   placeholder="Anything worth noting about this change"
                 />
+                {blocked.remark && <span className="inv-field-error">{blocked.remark}</span>}
+                {/* The counter only appears when the person is close to the limit */}
+                {adjustRemark.length >= LIMITS.remark * 0.8 && (
+                  <span className="inv-field-hint inv-counter">
+                    {adjustRemark.length}/{LIMITS.remark} characters
+                  </span>
+                )}
               </div>
 
               <p className="inv-adjust-preview">
                 New stock level:{' '}
                 <strong>
-                  {adjustPreview} {adjustTarget.unit}
+                  {fmtQty(adjustPreview)} {adjustTarget.unit}
                 </strong>{' '}
                 · recorded by <strong>{actorName}</strong>
               </p>
@@ -2229,7 +2751,7 @@ const Dashboard = ({
                 type="button"
                 className="inv-btn-primary"
                 onClick={handleConfirmAdjust}
-                disabled={adjustQty === 0 || overWithdraw || adjusting}
+                disabled={adjustQty === 0 || overWithdraw || overMax || adjusting}
               >
                 {adjusting
                   ? 'Saving...'
@@ -2355,13 +2877,14 @@ const Dashboard = ({
                           (m.before !== m.after
                             ? `${m.before} → ${m.after}`
                             : 'No quantity change')}
+                        {(m.type === 'Archived' || m.type === 'Restored') &&
+                          `${m.after} ${historyItem.unit} on hand`}
                       </span>
                       <span className="inv-move-date">{fmtDateTime(m.date)}</span>
                     </div>
                     <div className="inv-move-meta">
                       by {m.by}
-                      {m.type !== 'Created' &&
-                        m.type !== 'Edited' &&
+                      {(m.type === 'Received' || m.type === 'Withdrawn') &&
                         ` · ${m.before} → ${m.after} ${historyItem.unit}`}
                       {m.reference && ` · Ref: ${m.reference}`}
                     </div>
@@ -2379,13 +2902,11 @@ const Dashboard = ({
               >
                 Close
               </button>
+              {/* The details stay open behind the archive confirmation, so Cancel comes back here */}
               <button
                 type="button"
                 className="inv-btn-quiet"
-                onClick={() => {
-                  setHistoryId(null);
-                  openArchiveModal(historyItem);
-                }}
+                onClick={() => openArchiveModal(historyItem)}
               >
                 <i className="bi bi-archive"></i>
                 Archive
@@ -2415,7 +2936,7 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Inventory: archive confirmation */}
+      {/* Inventory: archive confirmation (sits on top of the details modal) */}
       {archiveTarget && (
         <div className="inv-modal-backdrop inv-modal-backdrop-top" onClick={closeArchiveModal}>
           <div
@@ -2443,16 +2964,43 @@ const Dashboard = ({
                 <strong>{archiveTarget.name}</strong> · {archiveTarget.id}
               </p>
 
-              <div className="inv-note-box">
-                <strong>The item will be hidden, not deleted</strong>
-                <p>
-                  It will no longer appear in requests or in the stock counts, but its details and
-                  stock history are kept. You can restore it anytime from the Archived filter on the
-                  Inventory page.
-                  {archiveTarget.quantity > 0 &&
-                    ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
-                </p>
-              </div>
+              {archiveBlocked ? (
+                <div className="inv-warn-box">
+                  <strong>This item can&apos;t be archived yet</strong>
+                  <p>
+                    It is on {archiveCheck.list.length} open request
+                    {archiveCheck.list.length > 1 ? 's' : ''}. Archive it after{' '}
+                    {archiveCheck.list.length > 1 ? 'they are' : 'it is'} completed, denied, or
+                    cancelled.
+                  </p>
+                  <ul className="inv-blocker-list">
+                    {archiveCheck.list.map((r) => (
+                      <li key={r.slip}>
+                        <span className="inv-blocker-slip">{r.slip}</span>
+                        <span className={`inv-blocker-status ${String(r.status).toLowerCase()}`}>
+                          {r.status}
+                        </span>
+                        {r.title && (
+                          <span className="inv-blocker-title" title={r.title}>
+                            {r.title}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="inv-note-box">
+                  <strong>The item will be hidden, not deleted</strong>
+                  <p>
+                    It will no longer appear in requests or in the stock counts, but its details
+                    and stock history are kept. You can restore it anytime from the Archived filter
+                    on the Inventory page.
+                    {archiveTarget.quantity > 0 &&
+                      ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
+                  </p>
+                </div>
+              )}
 
               {archiveError && (
                 <div className="inv-error-box">
@@ -2469,15 +3017,19 @@ const Dashboard = ({
                 onClick={closeArchiveModal}
                 disabled={archiving}
               >
-                Cancel
+                {archiveBlocked ? 'Close' : 'Cancel'}
               </button>
               <button
                 type="button"
                 className="inv-btn-primary"
                 onClick={handleConfirmArchive}
-                disabled={archiving}
+                disabled={archiving || archiveBlocked || archiveCheck.loading}
               >
-                {archiving ? 'Archiving...' : 'Archive item'}
+                {archiving
+                  ? 'Archiving...'
+                  : archiveCheck.loading
+                    ? 'Checking requests...'
+                    : 'Archive item'}
               </button>
             </div>
           </div>
