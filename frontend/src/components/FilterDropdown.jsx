@@ -6,11 +6,13 @@ import '../styles/FilterDropdown.css';
 
   options: [{ value, label, tone? }]
     - tone (optional) adds a small coloured dot: pending, processing,
-      purchasing, accepted, denied. Options without a tone get a neutral dot,
+      approved, cancelled, accepted, denied. Options without a tone get a neutral dot,
       but only when at least one option has a tone.
-  value:    the currently selected option value
-  onChange: (value) => void
-  allValue: the value that means "no filter" (the trigger highlights otherwise)
+  value:     the currently selected option value
+  onChange:  (value) => void
+  allValue:  the value that means "no filter" (the trigger highlights otherwise)
+  icon:      Bootstrap icon class shown before the label. Pass null for no icon.
+  className: optional extra class on the wrapper (e.g. "fd--compact")
 */
 export default function FilterDropdown({
   options,
@@ -19,6 +21,7 @@ export default function FilterDropdown({
   icon = 'bi-funnel',
   ariaLabel = 'Filter',
   allValue = 'All',
+  className = '',
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -87,7 +90,7 @@ export default function FilterDropdown({
   };
 
   return (
-    <div className="fd" ref={rootRef}>
+    <div className={`fd ${className}`.trim()} ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
@@ -98,7 +101,7 @@ export default function FilterDropdown({
         aria-expanded={open}
         aria-label={`${ariaLabel}: ${selected.label}`}
       >
-        <i className={`bi ${icon} fd-icon`}></i>
+        {icon && <i className={`bi ${icon} fd-icon`}></i>}
         <span className="fd-text">{selected.label}</span>
         <i className="bi bi-chevron-down fd-chevron"></i>
       </button>

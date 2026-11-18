@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useInventory from '../hooks/useInventory';
 import RequestStockModal, { validateStockLines } from './RequestStockModal';
 import '../styles/EditRequisitionModal.css';
 
+const DEPARTMENT_MAX_LENGTH = 100;
+const TITLE_MAX_LENGTH = 100;
 const PURPOSE_MAX_LENGTH = 250;
+
+// Department and title: letters (any language, so names like "Peñafrancia" work),
+// numbers, spaces and . , - ' ( ) / & only. Titles may also use # and :
+const DEPARTMENT_DISALLOWED = /[^\p{L}\p{N} .,\-'’()/&]/gu;
+const TITLE_DISALLOWED = /[^\p{L}\p{N} .,\-'’()/&#:]/gu;
+
+// Removes disallowed characters (also when pasted), leading spaces and repeated spaces
+const cleanText = (value, disallowed) =>
+  value.replace(disallowed, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' ');
 
 export default function EditRequisitionModal({
   isOpen,
@@ -28,6 +39,11 @@ export default function EditRequisitionModal({
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Synchronous lock: state updates are async, so two quick clicks could both pass a
+  // `saving` check. A ref changes immediately, so only the first click gets through.
+  const submitLock = useRef(false);
 
   // Load the slip into the form each time it opens
   useEffect(() => {
@@ -45,9 +61,15 @@ export default function EditRequisitionModal({
       setPickerOpen(false);
       setErrorMessage('');
       setShowErrorToast(false);
-      setSaving(false);
     }
   }, [requisitionData, isOpen]);
+
+  // Unlock the form only when the modal opens or closes, never because the data refreshed
+  useEffect(() => {
+    submitLock.current = false;
+    setSaving(false);
+    setSaved(false);
+  }, [isOpen]);
 
   // Reload stock each time the form opens so the numbers are current
   useEffect(() => {
@@ -72,7 +94,16 @@ export default function EditRequisitionModal({
   // Waits for the server before showing success
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (saving) return; // ignore double clicks
+    if (submitLock.current) return; // one submission only
+
+    const cleanDepartment = department.trim();
+    const cleanTitle = title.trim();
+    const cleanPurpose = purpose.trim();
+
+    if (!cleanDepartment || !cleanTitle || !cleanPurpose) {
+      showError('Department, title and purpose cannot be empty.');
+      return;
+    }
 
     if (stockLines.length === 0) {
       showError('Add at least one item from stock.');
@@ -95,9 +126,9 @@ export default function EditRequisitionModal({
 
     const payload = {
       ...requisitionData,
-      department,
-      title,
-      purpose,
+      department: cleanDepartment,
+      title: cleanTitle,
+      purpose: cleanPurpose,
       itemsList: stockLines,
       item: stockLines.map((i) => `${i.name} (${i.qty})`).join(', '),
       date: requisitionData?.date || currentDate,
@@ -105,16 +136,21 @@ export default function EditRequisitionModal({
       remarks: requisitionData?.remarks || 'Awaiting moderator review.',
     };
 
+    submitLock.current = true;
     setSaving(true);
     try {
       await onSave(payload);
     } catch (err) {
+      // Only a failed save unlocks the form, so the user can fix things and retry
       showError(err?.response?.data?.message || 'Could not save. Please try again.');
+      submitLock.current = false;
       setSaving(false);
       return;
     }
-    setSaving(false);
 
+    // Success: stay locked until the modal closes (the toast is still showing)
+    setSaving(false);
+    setSaved(true);
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
@@ -161,26 +197,42 @@ export default function EditRequisitionModal({
         <form onSubmit={handleSubmit} className="req-modal-form">
           <div className="req-modal-body">
             <div className="form-group">
-              <label className="form-label">Department or Organization</label>
+              <div className="d-flex justify-content-between align-items-center">
+                <label className="form-label mb-0">Department or Organization</label>
+                <span
+                  className={`char-counter ${department.length >= DEPARTMENT_MAX_LENGTH ? 'text-danger' : ''}`}
+                >
+                  {department.length}/{DEPARTMENT_MAX_LENGTH}
+                </span>
+              </div>
               <input
                 type="text"
                 className="form-control custom-input"
                 value={department}
+                maxLength={DEPARTMENT_MAX_LENGTH}
                 placeholder="e.g. College of Technologies"
-                onChange={(e) => setDepartment(e.target.value)}
+                onChange={(e) => setDepartment(cleanText(e.target.value, DEPARTMENT_DISALLOWED))}
                 required
               />
             </div>
 
             {/* Request title */}
             <div className="form-group">
-              <label className="form-label">Request Title</label>
+              <div className="d-flex justify-content-between align-items-center">
+                <label className="form-label mb-0">Request Title</label>
+                <span
+                  className={`char-counter ${title.length >= TITLE_MAX_LENGTH ? 'text-danger' : ''}`}
+                >
+                  {title.length}/{TITLE_MAX_LENGTH}
+                </span>
+              </div>
               <input
                 type="text"
                 className="form-control custom-input"
                 value={title}
+                maxLength={TITLE_MAX_LENGTH}
                 placeholder="e.g. Midterm Lab Supplies"
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => setTitle(cleanText(e.target.value, TITLE_DISALLOWED))}
                 required
               />
             </div>
@@ -214,7 +266,7 @@ export default function EditRequisitionModal({
                     <i className="bi bi-box-seam"></i>
                   </span>
                   <div>
-                    <h4 className="req-section-title">Requested items</h4>
+                    <h4 className="req-section-title">Request for Items</h4>
                     <p className="req-section-desc">Supplies the property office has on hand.</p>
                   </div>
                 </div>
@@ -260,8 +312,18 @@ export default function EditRequisitionModal({
             <button type="button" className="btn-modal-cancel" onClick={handleClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-modal-save" disabled={saving}>
-              {saving ? 'Saving...' : isCreateMode ? 'Submit Requisition' : 'Save Changes'}
+            <button type="submit" className="btn-modal-save" disabled={saving || saved}>
+              {saved
+                ? isCreateMode
+                  ? 'Submitted'
+                  : 'Saved'
+                : saving
+                  ? isCreateMode
+                    ? 'Submitting...'
+                    : 'Saving...'
+                  : isCreateMode
+                    ? 'Submit Requisition'
+                    : 'Save Changes'}
             </button>
           </div>
         </form>
