@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import FilterDropdown from './FilterDropdown';
 
 const ALL = 'All';
+
+// Length limits for the free-text inputs in this modal
+export const REASON_MAX_LENGTH = 150;
+const SEARCH_MAX_LENGTH = 50;
 
 export function validateStockLines(lines, inventory) {
   for (const line of lines) {
@@ -14,8 +19,12 @@ export function validateStockLines(lines, inventory) {
     const limit = inv.maxNormal ?? line.maxNormal ?? 10;
     if (!(qty >= 1)) return `${inv.name}: enter a quantity of at least 1.`;
     if (qty > inv.quantity) return `Only ${inv.quantity} ${inv.unit} of ${inv.name} in stock.`;
-    if (qty > limit && !String(line.reason || '').trim()) {
+    const reason = String(line.reason || '').trim();
+    if (qty > limit && !reason) {
       return `${inv.name}: please explain why you need more than ${limit}.`;
+    }
+    if (reason.length > REASON_MAX_LENGTH) {
+      return `${inv.name}: the reason must be ${REASON_MAX_LENGTH} characters or fewer.`;
     }
   }
   return '';
@@ -38,6 +47,12 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
         a.localeCompare(b)
       ),
     [inventory]
+  );
+
+  // Options for the category dropdown
+  const categoryOptions = useMemo(
+    () => [{ value: ALL, label: 'All categories' }, ...categories.map((c) => ({ value: c, label: c }))],
+    [categories]
   );
 
   const visible = useMemo(() => {
@@ -100,7 +115,7 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
         const qty = Math.floor(Number(l.qty));
         const over = qty > (inv.maxNormal ?? 10);
 
-        return { ...l, qty, reason: over ? String(l.reason).trim() : '' };
+        return { ...l, qty, reason: over ? String(l.reason).trim().slice(0, REASON_MAX_LENGTH) : '' };
       })
     );
   };
@@ -138,24 +153,21 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
               className="form-control custom-input"
               placeholder="Search by name or category, e.g. paper..."
               value={search}
+              maxLength={SEARCH_MAX_LENGTH}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
             />
           </div>
           {categories.length > 0 && (
-            <select
-              className="req-pick-select"
+            <FilterDropdown
+              className="fd--compact"
+              options={categoryOptions}
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              aria-label="Filter by category"
-            >
-              <option value={ALL}>All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              onChange={setCategory}
+              icon={null}
+              ariaLabel="Filter by category"
+              allValue={ALL}
+            />
           )}
         </div>
 
@@ -245,8 +257,17 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
                       className="form-control custom-input"
                       placeholder="Explain why you need this quantity..."
                       value={line.reason || ''}
+                      maxLength={REASON_MAX_LENGTH}
                       onChange={(e) => patchLine(item._id, { reason: e.target.value })}
                     />
+                    <span
+                      className={`char-counter ${
+                        String(line.reason || '').length >= REASON_MAX_LENGTH ? 'text-danger' : ''
+                      }`}
+                      style={{ alignSelf: 'flex-end' }}
+                    >
+                      {String(line.reason || '').length}/{REASON_MAX_LENGTH}
+                    </span>
                   </div>
                 )}
               </li>

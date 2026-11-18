@@ -199,6 +199,14 @@
   background-color: #ef4444;
 }
 
+/* Compact variant for toolbars next to a search box (e.g. the item picker) */
+.fd--compact .fd-trigger {
+  min-width: 190px;
+  min-height: 46px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fd-menu {
     animation: none;
