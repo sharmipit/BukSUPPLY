@@ -329,9 +329,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* The minimum width is what keeps every column readable on smaller screens:
+   below it the table scrolls sideways instead of squeezing the columns. */
 .inv-table {
   width: 100% !important;
-  min-width: 1040px;
+  min-width: 1140px;
   table-layout: fixed;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
@@ -360,23 +362,27 @@
   box-sizing: border-box;
 }
 
+/* Column widths.
+   Item and Category use percentages so they grow together on wide screens
+   (Item is a little narrower than before, Category has more room).
+   The other columns keep a fixed width. */
 .inv-table .inv-col-item {
-  width: auto;
+  width: 23%;
 }
 .inv-table .inv-col-category {
-  width: 150px;
+  width: 18%;
 }
 .inv-table .inv-col-stock {
-  width: 220px;
+  width: 200px;
 }
 .inv-table .inv-col-updated {
-  width: 170px;
-}
-.inv-table .inv-col-status {
   width: 160px;
 }
+.inv-table .inv-col-status {
+  width: 140px;
+}
 .inv-table .inv-col-actions {
-  width: 180px;
+  width: 170px;
 }
 
 .inv-table th {
@@ -450,6 +456,8 @@
   color: #8c7a70;
 }
 
+/* One line of text. It is cut with "..." only when the text really does not fit
+   (the full text is also shown when hovering, through the title attribute). */
 .inv-clamp {
   display: block;
   max-width: 100%;
@@ -1346,5 +1354,343 @@
   .inv-segmented {
     flex-direction: column;
     border-radius: 24px;
+  }
+}
+
+/* ==========================================================================
+   Form dropdown (category), invalid fields, archive warning
+   ========================================================================== */
+
+/* Dropdown that matches the FilterDropdown look (rotating chevron) */
+.inv-dd {
+  position: relative;
+}
+
+.inventory-container .inv-dd-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.inventory-container .inv-dd-trigger:hover {
+  border-color: #8c5839;
+}
+
+.inventory-container .inv-dd-trigger.open {
+  border-color: #8c5839;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.12);
+}
+
+.inv-dd-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inv-dd-text.placeholder {
+  color: #a3968c;
+}
+
+.inv-dd-chevron {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: #594d46;
+  transition: transform 0.2s ease;
+}
+
+.inv-dd-trigger.open .inv-dd-chevron {
+  transform: rotate(180deg);
+}
+
+/* The list opens in the flow of the form, so the modal never clips it */
+.inv-dd-menu {
+  margin: 8px 0 0;
+  padding: 8px;
+  list-style: none;
+  max-height: 210px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border: 1px solid var(--card-border, #dfd8cc);
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(44, 26, 20, 0.12);
+  animation: inv-dd-in 0.15s ease;
+}
+
+@keyframes inv-dd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inv-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-dark, #2c1a14);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.inv-dd-item:hover {
+  background-color: #faf7f2;
+}
+
+.inv-dd-item:focus-visible {
+  outline: 2px solid #8c5839;
+  outline-offset: -2px;
+}
+
+.inv-dd-item.active {
+  background-color: #f5ede3;
+  font-weight: 700;
+}
+
+.inv-dd-item.action {
+  color: #8c5839;
+  font-weight: 600;
+}
+
+.inv-dd-item-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inv-dd-check {
+  margin-left: auto;
+  color: #8c5839;
+  opacity: 0;
+}
+
+.inv-dd-check.show {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-dd-menu {
+    animation: none;
+  }
+  .inv-dd-chevron {
+    transition: none;
+  }
+}
+
+/* Fields with a problem */
+.inventory-container .custom-input.inv-input-invalid {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.inventory-container .custom-input.inv-input-invalid:focus {
+  outline: 2px solid #dc2626;
+  outline-offset: 1px;
+}
+
+.inv-counter {
+  text-align: right;
+}
+
+/* Archive blocked by open requests */
+.inv-warn-box {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.inv-warn-box p {
+  margin: 4px 0 0;
+}
+
+.inv-blocker-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.inv-blocker-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.inv-blocker-slip {
+  font-weight: 700;
+  color: var(--text-dark, #2c1a14);
+  white-space: nowrap;
+}
+
+.inv-blocker-status {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.inv-blocker-status.processing {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.inv-blocker-status.approved {
+  background-color: #ccfbf1;
+  color: #115e59;
+}
+
+.inv-blocker-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-body, #594d46);
+}
+
+/* ==========================================================================
+   Scrollbars inside the modals and dropdown lists (no arrow buttons at the ends)
+   ========================================================================== */
+.inv-modal-body,
+.inv-dd-menu,
+.inv-blocker-list,
+.inv-textarea {
+  scrollbar-width: auto;
+}
+
+.inv-dd-menu::-webkit-scrollbar,
+.inv-blocker-list::-webkit-scrollbar,
+.inv-textarea::-webkit-scrollbar {
+  width: 14px;
+}
+
+.inv-dd-menu::-webkit-scrollbar-track,
+.inv-blocker-list::-webkit-scrollbar-track,
+.inv-textarea::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.inv-dd-menu::-webkit-scrollbar-thumb,
+.inv-blocker-list::-webkit-scrollbar-thumb,
+.inv-textarea::-webkit-scrollbar-thumb {
+  background-color: #dfd8cc;
+  border-radius: 50px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+
+.inv-dd-menu::-webkit-scrollbar-thumb:hover,
+.inv-blocker-list::-webkit-scrollbar-thumb:hover,
+.inv-textarea::-webkit-scrollbar-thumb:hover {
+  background-color: #8c5839;
+  background-clip: padding-box;
+}
+
+/* This is what removes the little up / down arrows */
+.inv-modal-body::-webkit-scrollbar-button,
+.inv-dd-menu::-webkit-scrollbar-button,
+.inv-blocker-list::-webkit-scrollbar-button,
+.inv-textarea::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.inv-modal-body::-webkit-scrollbar-corner,
+.inv-dd-menu::-webkit-scrollbar-corner,
+.inv-blocker-list::-webkit-scrollbar-corner,
+.inv-textarea::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox has no arrow buttons, so it only needs a slim, matching colour */
+@supports (-moz-appearance: none) {
+  .inv-modal-body,
+  .inv-dd-menu,
+  .inv-blocker-list,
+  .inv-textarea {
+    scrollbar-width: thin;
+    scrollbar-color: #dfd8cc transparent;
+  }
+}
+
+/* ==========================================================================
+   Clear filters button (table footer), same look as the Activity Log page
+   ========================================================================== */
+.inv-footer-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.inv-clear-btn {
+  padding: 6px 16px;
+  border: 1px solid #8c5839;
+  border-radius: 50px;
+  background-color: transparent;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #8c5839;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.inv-clear-btn:hover {
+  background-color: #8c5839;
+  color: #ffffff;
+}
+
+.inv-clear-btn:focus-visible {
+  outline: 2px solid #8c5839;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-clear-btn {
+    transition: none;
   }
 }

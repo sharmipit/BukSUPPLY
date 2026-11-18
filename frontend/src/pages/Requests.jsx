@@ -879,16 +879,13 @@ export default function Requests() {
                     <tbody>
                       {detailsCheck.lines.map((l, idx) => {
                         const unit = l.inv?.unit || l.unit || '';
+                        const overLimit = l.qty > l.maxNormal;
                         return (
-                          <tr key={`${l.inventoryItemId}-${idx}`}>
+                          <React.Fragment key={`${l.inventoryItemId}-${idx}`}>
+                          <tr className={overLimit ? 'rq-has-reason' : undefined}>
                             <td>
                               <div className="rq-strong">{l.name || l.inv?.name}</div>
                               <div className="rq-sub">{l.inv?.id || ''}</div>
-                              {l.qty > l.maxNormal && (
-                                <div className="rq-line-reason">
-                                  Over usual limit. Reason: {l.reason || 'none given'}
-                                </div>
-                              )}
                             </td>
                             <td>
                               {l.qty} {unit}
@@ -913,6 +910,21 @@ export default function Requests() {
                               )}
                             </td>
                           </tr>
+                          {overLimit && (
+                            <tr className="rq-reason-row">
+                              <td colSpan={5}>
+                                <div className="rq-reason-inner">
+                                  <span className="rq-reason-label">
+                                    Reason for going over the usual limit
+                                  </span>
+                                  <span className="rq-reason-text">
+                                    {l.reason || 'No reason given'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

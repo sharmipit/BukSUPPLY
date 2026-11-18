@@ -1187,3 +1187,56 @@
   border-color: #fca5a5;
   color: #991b1b;
 }
+
+
+/* ==========================================================================
+   Inventory form controls inside the dashboard modals
+   ========================================================================== */
+.dashboard .inv-dd {
+  position: relative;
+}
+
+.dashboard .inv-dd-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.dashboard .inv-dd-trigger:hover {
+  border-color: #8c5839;
+}
+
+.dashboard .inv-dd-trigger.open {
+  border-color: #8c5839;
+  box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.12);
+}
+
+/* Fields with a problem */
+.dashboard .custom-input.inv-input-invalid,
+.dashboard .db-input.inv-input-invalid {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.dashboard .custom-input.inv-input-invalid:focus,
+.dashboard .db-input.inv-input-invalid:focus {
+  outline: 2px solid #dc2626;
+  outline-offset: 1px;
+  box-shadow: none;
+  background-color: #fef2f2;
+}
+
+/* Message under a field in the Add / Edit form */
+.db-field-error {
+  font-size: 0.8rem;
+  color: #991b1b;
+}
