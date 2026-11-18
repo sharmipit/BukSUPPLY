@@ -362,7 +362,13 @@ export default function UserLayout() {
         {/* SIDEBAR FOOTER */}
         <div className="sidebar-footer">
           <hr className="sidebar-divider" />
-          <div className="user-profile">
+          {/* A real link so page-level "leave this page?" guards can catch the click */}
+          <NavLink
+            to={`${base}/profile`}
+            className={({ isActive }) => `user-profile${isActive ? ' active' : ''}`}
+            title="My Profile"
+            aria-label="Go to my profile"
+          >
             <img
               src={avatarSrc}
               alt={displayName}
@@ -374,7 +380,7 @@ export default function UserLayout() {
               <span className="user-name">{displayName}</span>
               <span className="user-role">{displayRole}</span>
             </div>
-          </div>
+          </NavLink>
         </div>
       </aside>
 

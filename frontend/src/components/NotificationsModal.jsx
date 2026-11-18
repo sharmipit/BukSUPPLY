@@ -45,9 +45,17 @@ export default function NotificationsModal({ base }) {
   const toggle = () => {
     if (!open && wrapRef.current) {
       const r = wrapRef.current.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const top = r.bottom + 10;
+      // Never wider than the screen (minus a 12px margin on each side)
+      const width = Math.min(400, vw - 24);
+      // Line it up under the bell, but never push it past the left or right edge
+      const right = Math.max(12, Math.min(vw - r.right, vw - width - 12));
       setPos({
-        top: r.bottom + 10,
-        right: Math.max(12, document.documentElement.clientWidth - r.right),
+        top,
+        right,
+        width,
+        maxHeight: Math.max(220, window.innerHeight - top - 12),
       });
       load(false);
     }
@@ -57,6 +65,12 @@ export default function NotificationsModal({ base }) {
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
+    // On phones the address bar showing/hiding fires "resize" with the same width,
+    // so only close when the width really changes (rotation, window resize)
+    let lastWidth = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth !== lastWidth) close();
+    };
     const onMouseDown = (e) => {
       const inTrigger = wrapRef.current && wrapRef.current.contains(e.target);
       const inPanel = panelRef.current && panelRef.current.contains(e.target);
@@ -78,13 +92,13 @@ export default function NotificationsModal({ base }) {
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKey);
     document.addEventListener('click', onLinkClick, true);
-    window.addEventListener('resize', close);
+    window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('click', onLinkClick, true);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
