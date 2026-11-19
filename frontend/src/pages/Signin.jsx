@@ -13,6 +13,12 @@ const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gm
 const EMAIL_MESSAGE =
   'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
 const NO_BANNER = { message: '', type: '' };
+const REACTIVATION_MIN = 10;
+const REACTIVATION_MAX = 500;
+
+// Dates are shown in Philippine time, like the rest of the system
+const fmtDay = (v) =>
+  v ? new Date(v).toLocaleDateString('en-PH', { dateStyle: 'medium', timeZone: 'Asia/Manila' }) : '';
 
 // Same rule as the Sign Up page. Only used when CHOOSING a new password,
 // never when logging in (older accounts may have weaker passwords).
@@ -55,6 +61,92 @@ function PasswordInput({ id, value, onChange, placeholder, visible, onToggle, au
   );
 }
 
+// Pop-up shown when the account is deactivated: explains why and lets the user write to the administrator
+function DeactivatedModal({ info, onRequest, onClose }) {
+  const { deactivation, request, lastDecline } = info;
+  const pending = request && request.status === 'Pending';
+  const archived = Boolean(info.archived); // archived accounts cannot send a request
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="modal-card captcha-card deact-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deactTitle"
+      >
+        {/* The icon badge is shown in every state (including "request sent") */}
+        <div className="captcha-icon">
+          <i className="bi bi-person-x"></i>
+        </div>
+        <h2 className="modal-title" id="deactTitle">
+          Account deactivated
+        </h2>
+
+        {pending ? (
+          <p className="modal-subtitle">
+            Your reactivation request was sent on <strong>{fmtDay(request.date)}</strong>. The
+            administrator will review it, and we will email you once there is a decision.
+          </p>
+        ) : (
+          <>
+            {deactivation?.source === 'self' ? (
+              <p className="modal-subtitle">You deactivated this account yourself.</p>
+            ) : deactivation?.reason ? (
+              <>
+                <p className="modal-subtitle">
+                  An administrator deactivated your account for this reason:
+                </p>
+                <div className="deact-reason">{deactivation.reason}</div>
+              </>
+            ) : (
+              <p className="modal-subtitle">An administrator deactivated this account.</p>
+            )}
+
+            {lastDecline && (
+              <>
+                <p className="modal-subtitle deact-gap">
+                  Your last request was declined on {fmtDay(lastDecline.date)}
+                  {lastDecline.note ? ' with this note:' : '.'}
+                </p>
+                {lastDecline.note && <div className="deact-reason note">{lastDecline.note}</div>}
+              </>
+            )}
+
+            {archived ? (
+              <p className="modal-subtitle deact-gap">
+                This account has been archived. Please contact the administrator in person if you
+                would like to come back.
+              </p>
+            ) : (
+              <p className="modal-subtitle deact-gap">
+                If you think this is a mistake, or you would like to come back, you can send a
+                request to the administrator.
+              </p>
+            )}
+          </>
+        )}
+
+        <div className="deact-actions">
+          {!pending && !archived && (
+            <button type="button" className="btn-submit" onClick={onRequest}>
+              Request Reactivation
+            </button>
+          )}
+          <button type="button" className="captcha-cancel" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Signin() {
   usePage(css, 'Sign In | BukSUPPLY');
   const { login } = useAuth();
@@ -73,6 +165,10 @@ export default function Signin() {
   const [busy, setBusy] = useState(false);
   const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA pop-up
   const googleBusyRef = useRef(false); // stops double submits of the Google sign-in
+  // Set when the server says the account is deactivated: { info, credentials }.
+  // credentials are kept only in memory so the request can prove who is asking.
+  const [deactivated, setDeactivated] = useState(null);
+  const [deactOpen, setDeactOpen] = useState(false); // the "account deactivated" pop-up
   const closeTimerRef = useRef(null);
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
@@ -99,6 +195,14 @@ export default function Signin() {
       });
       completeSignIn(data);
     } catch (err) {
+      if (err.response?.status === 403 && err.response?.data?.code === 'ACCOUNT_DEACTIVATED') {
+        setDeactivated({
+          info: err.response.data,
+          credentials: { email: email.trim().toLowerCase(), password },
+        });
+        setDeactOpen(true);
+        return;
+      }
       setBanner({ message: errMsg(err), type: 'error' });
     } finally {
       setBusy(false);
@@ -110,6 +214,7 @@ export default function Signin() {
     e.preventDefault();
     if (busy) return;
     setBanner(NO_BANNER);
+    setDeactivated(null);
 
     const cleanEmail = email.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(cleanEmail)) {
@@ -150,6 +255,7 @@ export default function Signin() {
     if (googleBusyRef.current) return;
     googleBusyRef.current = true;
     setBanner(NO_BANNER);
+    setDeactivated(null);
     try {
       const { data } = await api.post('/auth/google', { credential });
       completeSignIn(data);
@@ -162,9 +268,90 @@ export default function Signin() {
         });
         return;
       }
+      if (err.response?.status === 403 && err.response?.data?.code === 'ACCOUNT_DEACTIVATED') {
+        setDeactivated({ info: err.response.data, credentials: { credential } });
+        setDeactOpen(true);
+        return;
+      }
       setBanner({ message: errMsg(err), type: 'error' });
     } finally {
       googleBusyRef.current = false;
+    }
+  };
+
+  // ---------- Request reactivation modal ----------
+  const [reactOpen, setReactOpen] = useState(false);
+  const [reactMessage, setReactMessage] = useState('');
+  const [reactAlert, setReactAlert] = useState(NO_BANNER);
+  const [reactBusy, setReactBusy] = useState(false);
+
+  // Request pop-up replaces the "deactivated" pop-up; closing it brings that one back
+  const openReactivation = () => {
+    setReactMessage('');
+    setReactAlert(NO_BANNER);
+    setDeactOpen(false);
+    setReactOpen(true);
+  };
+  const closeReactivation = () => {
+    setReactOpen(false);
+    setDeactOpen(true);
+  };
+
+  useEffect(() => {
+    if (!deactOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDeactOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [deactOpen]);
+
+  useEffect(() => {
+    if (!reactOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeReactivation();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [reactOpen]);
+
+  const markRequestPending = (date) =>
+    setDeactivated((d) =>
+      d ? { ...d, info: { ...d.info, request: { status: 'Pending', date } } } : d
+    );
+
+  const sendReactivation = async (e) => {
+    e.preventDefault();
+    if (reactBusy || !deactivated) return;
+
+    const text = reactMessage.trim();
+    if (text.length < REACTIVATION_MIN) {
+      setReactAlert({
+        message: `Please write at least ${REACTIVATION_MIN} characters so the administrator knows why.`,
+        type: 'error',
+      });
+      return;
+    }
+
+    setReactBusy(true);
+    setReactAlert({ message: 'Sending your request...', type: 'info' });
+    try {
+      const { data } = await api.post('/auth/reactivation-request', {
+        ...deactivated.credentials,
+        message: text,
+      });
+      markRequestPending(data.request?.date || new Date().toISOString());
+      closeReactivation(); // shows the "request sent" message
+    } catch (err) {
+      if (err.response?.status === 409 && !err.response?.data?.message?.includes('not deactivated')) {
+        // A request was already waiting
+        markRequestPending(new Date().toISOString());
+        closeReactivation();
+      } else {
+        setReactAlert({ message: errMsg(err), type: 'error' });
+      }
+    } finally {
+      setReactBusy(false);
     }
   };
 
@@ -314,6 +501,7 @@ export default function Signin() {
                 onChange={(e) => {
                   setEmail(e.target.value);
                   setBanner(NO_BANNER);
+                  setDeactivated(null);
                 }}
               />
             </div>
@@ -330,6 +518,7 @@ export default function Signin() {
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setBanner(NO_BANNER);
+                  setDeactivated(null);
                 }}
                 visible={showPassword}
                 onToggle={() => setShowPassword((v) => !v)}
@@ -412,6 +601,85 @@ export default function Signin() {
             <button type="button" className="captcha-cancel" onClick={() => setCaptchaOpen(false)}>
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* DEACTIVATED ACCOUNT POP-UP (only mounted while open) */}
+      {deactOpen && deactivated && (
+        <DeactivatedModal
+          info={deactivated.info}
+          onRequest={openReactivation}
+          onClose={() => setDeactOpen(false)}
+        />
+      )}
+
+      {/* REQUEST REACTIVATION MODAL (only mounted while open) */}
+      {reactOpen && deactivated && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeReactivation();
+          }}
+        >
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reactivateTitle"
+          >
+            <button
+              type="button"
+              className="modal-close-btn"
+              title="Close Modal"
+              onClick={closeReactivation}
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+
+            <header className="modal-header">
+              <h2 className="modal-title" id="reactivateTitle">
+                Request <span>Reactivation</span>
+              </h2>
+              <p className="modal-subtitle">
+                Tell the administrator why your account should be reactivated. You will get an email
+                when they decide.
+              </p>
+            </header>
+
+            <form className="login-form" onSubmit={sendReactivation} noValidate>
+              <div className="form-group">
+                <label htmlFor="reactivateMessage" className="form-label">
+                  <i className="bi bi-chat-left-text-fill"></i> Your message
+                </label>
+                <textarea
+                  id="reactivateMessage"
+                  className="form-input form-textarea"
+                  placeholder="e.g. I deactivated my account by mistake and I need access to file requisitions."
+                  maxLength={REACTIVATION_MAX}
+                  rows={5}
+                  value={reactMessage}
+                  onChange={(e) => {
+                    setReactMessage(e.target.value);
+                    setReactAlert(NO_BANNER);
+                  }}
+                />
+                <div className="char-count">
+                  {reactMessage.length}/{REACTIVATION_MAX}
+                </div>
+              </div>
+
+              <Banner banner={reactAlert} />
+
+              <div className="deact-actions">
+                <button type="submit" className="btn-submit" disabled={reactBusy}>
+                  {reactBusy ? 'Sending...' : 'Send Request'}
+                </button>
+                <button type="button" className="captcha-cancel" onClick={closeReactivation}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

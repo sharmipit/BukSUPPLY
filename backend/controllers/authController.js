@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { sendOtpEmail } = require('../utils/sendEmail');
+const Notification = require('../models/Notification');
+const Deactivation = require('../models/Deactivation');
+const ReactivationRequest = require('../models/ReactivationRequest');
 const settings = require('../services/settings');
 const { logActivity } = require('../services/activityLog');
 
@@ -64,6 +67,45 @@ const verifyRecaptcha = async (token, ip) => {
 const SERVER_ERROR = { message: 'Something went wrong. Please try again.' };
 const GOOGLE_ONLY_MESSAGE =
   'This account uses Google Sign-In. Please use "Continue with Google" instead.';
+
+const REACTIVATION_MIN = 10;
+const REACTIVATION_MAX = 500;
+
+const fullName = (u) =>
+  [u.firstName, u.lastName].filter((n) => n && n !== '-').join(' ') || u.email || 'Unknown user';
+
+/**
+ * The 403 body for a deactivated account. Only sent AFTER the person proved they own the
+ * account (correct password, or a verified Google token), so the reason is not leaked.
+ * The sign-in page uses `code` to show the "request reactivation" option.
+ */
+const deactivatedPayload = async (user) => {
+  const [current, pending, declined] = await Promise.all([
+    Deactivation.findOne({ user: user._id, active: true }).sort({ createdAt: -1 }).lean(),
+    ReactivationRequest.findOne({ user: user._id, status: 'Pending' }).lean(),
+    ReactivationRequest.findOne({ user: user._id, status: 'Declined' })
+      .sort({ resolvedAt: -1 })
+      .lean(),
+  ]);
+
+  // A decline only matters if it came after the current deactivation began
+  const lastDecline =
+    declined && (!current || declined.createdAt >= current.createdAt) ? declined : null;
+
+  return {
+    message: 'Your account has been deactivated.',
+    code: 'ACCOUNT_DEACTIVATED',
+    email: user.email,
+    archived: Boolean(user.archived), // archived accounts cannot send a reactivation request
+    deactivation: {
+      reason: current ? current.reason : '',
+      source: current ? current.source : '',
+      date: current ? current.createdAt : null,
+    },
+    request: pending ? { status: 'Pending', date: pending.createdAt } : null,
+    lastDecline: lastDecline ? { note: lastDecline.adminNote, date: lastDecline.resolvedAt } : null,
+  };
+};
 
 /**
  * Checks an OTP against the stored hash. Counts failed attempts and locks
@@ -242,7 +284,7 @@ exports.signIn = async (req, res) => {
     }
 
     if (user.accountStatus === 'Deactivated') {
-      return res.status(403).json({ message: 'Your account has been deactivated.' });
+      return res.status(403).json(await deactivatedPayload(user));
     }
 
     await logActivity(
@@ -311,7 +353,7 @@ exports.googleSignIn = async (req, res) => {
     let isNewUser = false;
 
     if (user && user.accountStatus === 'Deactivated') {
-      return res.status(403).json({ message: 'Your account has been deactivated.' });
+      return res.status(403).json(await deactivatedPayload(user));
     }
 
     if (!user) {
@@ -405,17 +447,14 @@ exports.requestOtp = async (req, res) => {
       return res.status(400).json({ message: 'Email is required.' });
     }
 
-    // The user is told when the email is not registered, so they can fix a typo.
-    // (otpRequestLimiter in authRoutes.js caps how often this can be tried.)
+    // Same response whether or not the account exists (no email enumeration)
+    const genericResponse = {
+      message: 'If that email is registered, a verification code has been sent.',
+    };
+
     const user = await User.findOne({ email: normalizeEmail(email) });
-    if (!user) {
-      return res.status(404).json({ message: 'No account is registered with that email address.' });
-    }
-    if (user.accountStatus === 'Deactivated') {
-      return res.status(403).json({ message: 'Your account has been deactivated.' });
-    }
-    if (user.authProvider === 'google') {
-      return res.status(400).json({ message: GOOGLE_ONLY_MESSAGE });
+    if (!user || user.accountStatus === 'Deactivated' || user.authProvider === 'google') {
+      return res.status(200).json(genericResponse);
     }
 
     const otp = generateOtp();
@@ -428,7 +467,7 @@ exports.requestOtp = async (req, res) => {
 
     await sendOtpEmail(user.email, otp); // send the plain code, store only the hash
 
-    return res.status(200).json({ message: 'Verification code sent. Please check your email.' });
+    return res.status(200).json(genericResponse);
   } catch (err) {
     console.error('requestOtp error:', err);
     return res.status(500).json(SERVER_ERROR);
@@ -504,6 +543,128 @@ exports.resetPassword = async (req, res) => {
     return res.status(200).json({ message: 'Password reset successful! You may now sign in.' });
   } catch (err) {
     console.error('resetPassword error:', err);
+    return res.status(500).json(SERVER_ERROR);
+  }
+};
+
+/**
+ * POST /api/auth/reactivation-request
+ * A deactivated user asks the administrator to reactivate the account.
+ * Body: { message, email + password }  or  { message, credential }  (Google sign-in token)
+ * The person must prove they own the account again, so nobody can send requests for
+ * someone else's email.
+ */
+exports.requestReactivation = async (req, res) => {
+  try {
+    const { email, password, credential } = req.body;
+    const message = isString(req.body.message) ? req.body.message.trim() : '';
+
+    if (message.length < REACTIVATION_MIN) {
+      return res.status(400).json({
+        message: `Please tell the administrator why you would like your account back (at least ${REACTIVATION_MIN} characters).`,
+      });
+    }
+    if (message.length > REACTIVATION_MAX) {
+      return res.status(400).json({
+        message: `Your message must be ${REACTIVATION_MAX} characters or fewer.`,
+      });
+    }
+
+    const NOT_VERIFIED = {
+      message: 'We could not verify your account. Please go back and sign in again.',
+    };
+    let user = null;
+
+    if (isString(credential) && credential) {
+      // Google account: same token check as the Google sign-in
+      const cfg = settings.get();
+      if (!cfg.googleEnabled || !cfg.googleClientId) {
+        return res.status(403).json({ message: 'Google sign-in is turned off.' });
+      }
+      let payload;
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: cfg.googleClientId,
+        });
+        payload = ticket.getPayload();
+      } catch {
+        return res.status(401).json(NOT_VERIFIED);
+      }
+      if (!payload || !payload.email || !payload.email_verified) {
+        return res.status(403).json({ message: 'Google account email is not verified.' });
+      }
+      user = await User.findOne({ email: normalizeEmail(payload.email) }).select('+googleId');
+      if (user && user.googleId && user.googleId !== payload.sub) user = null;
+    } else {
+      // Email and password
+      if (!isString(email) || !isString(password) || !email.trim() || !password) {
+        return res.status(400).json({ message: 'Email and password are required.' });
+      }
+      user = await User.findOne({ email: normalizeEmail(email) }).select('+password');
+      if (!user || !user.password || !(await user.comparePassword(password))) user = null;
+    }
+
+    if (!user) return res.status(401).json(NOT_VERIFIED);
+
+    if (user.accountStatus !== 'Deactivated') {
+      return res.status(409).json({ message: 'This account is not deactivated.' });
+    }
+
+    // An archived account is hidden from the administrator's lists, so a request would be lost
+    if (user.archived) {
+      return res.status(403).json({
+        message: 'This account has been archived. Please contact the administrator in person.',
+      });
+    }
+
+    const already = { message: 'You already sent a request. Please wait for the administrator.' };
+    if (await ReactivationRequest.exists({ user: user._id, status: 'Pending' })) {
+      return res.status(409).json(already);
+    }
+
+    let request;
+    try {
+      request = await ReactivationRequest.create({ user: user._id, message });
+    } catch (err) {
+      if (err.code === 11000) return res.status(409).json(already); // two clicks at once
+      throw err;
+    }
+
+    // Tell every active administrator (never blocks the response)
+    User.find({ role: 'Administrator', accountStatus: 'Active' })
+      .select('_id')
+      .then((admins) =>
+        admins.length
+          ? Notification.insertMany(
+              admins.map((a) => ({
+                user: a._id,
+                title: 'Reactivation Request',
+                message: `${fullName(user)} (${user.email}) asked to have their account reactivated. Review it in User Management.`,
+                type: 'info',
+                link: '/admin/users',
+              }))
+            )
+          : null
+      )
+      .catch((e) => console.error('reactivation notify error:', e));
+
+    await logActivity(
+      user,
+      {
+        category: 'Account',
+        action: 'REACTIVATION_REQUESTED',
+        description: 'Asked the administrator to reactivate the account',
+      },
+      req
+    );
+
+    return res.status(201).json({
+      message: 'Request sent. The administrator will review it.',
+      request: { status: 'Pending', date: request.createdAt },
+    });
+  } catch (err) {
+    console.error('requestReactivation error:', err);
     return res.status(500).json(SERVER_ERROR);
   }
 };
