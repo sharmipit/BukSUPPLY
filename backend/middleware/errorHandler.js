@@ -9,6 +9,10 @@
  */
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ message: 'Origin not allowed by CORS.' });
   }
