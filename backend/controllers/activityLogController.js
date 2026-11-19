@@ -75,7 +75,7 @@ exports.list = asyncHandler(async (req, res) => {
 });
 
 /** POST /api/activity/logout: the JWT is stateless, so the client tells us it is signing out */
-exports.logout = async (req, res) => {
+exports.logout = asyncHandler(async (req, res) => {
   await logActivity(req.user, { category: 'Account', action: 'SIGN_OUT', description: 'Signed out' }, req);
   res.json({ message: 'Recorded.' });
-};
+});
