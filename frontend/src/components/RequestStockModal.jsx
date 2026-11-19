@@ -99,8 +99,38 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
   };
 
   const changeQty = (item, raw) => {
-    const n = Math.floor(Number(raw));
-    patchLine(item._id, { qty: Number.isFinite(n) && n >= 1 ? Math.min(n, item.quantity) : 1 });
+    // If input is cleared (backspace / delete), keep empty string in state so user can type cleanly
+    if (raw === '' || raw === null || raw === undefined) {
+      patchLine(item._id, { qty: '' });
+      return;
+    }
+
+    const clean = String(raw).replace(/[^\d]/g, '');
+    if (!clean) {
+      patchLine(item._id, { qty: '' });
+      return;
+    }
+
+    const n = parseInt(clean, 10);
+    if (!Number.isFinite(n)) return;
+
+    patchLine(item._id, { qty: Math.min(n, item.quantity) });
+  };
+
+  const handleQtyBlur = (item, line) => {
+    const rawVal = line?.qty;
+    if (rawVal === '' || rawVal === null || rawVal === undefined) {
+      patchLine(item._id, { qty: 1 });
+      return;
+    }
+    const n = Math.floor(Number(rawVal));
+    if (!Number.isFinite(n) || n < 1) {
+      patchLine(item._id, { qty: 1 });
+    } else if (n > item.quantity) {
+      patchLine(item._id, { qty: item.quantity });
+    } else {
+      patchLine(item._id, { qty: n });
+    }
   };
 
   const handleSave = () => {
@@ -218,15 +248,49 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
                     <div className="req-pick-action">
                       {line ? (
                         <>
-                          <input
-                            type="number"
-                            min="1"
-                            max={item.quantity}
-                            className="form-control custom-input req-pick-qty"
-                            value={line.qty}
-                            onChange={(e) => changeQty(item, e.target.value)}
-                            aria-label={`Quantity of ${item.name}`}
-                          />
+                          <div className="req-stepper">
+                            <button
+                              type="button"
+                              className="req-stepper-btn"
+                              onClick={() => {
+                                const cur = Math.floor(Number(line.qty)) || 1;
+                                changeQty(item, Math.max(1, cur - 1));
+                              }}
+                              disabled={(Math.floor(Number(line.qty)) || 1) <= 1}
+                              title="Decrease quantity"
+                              aria-label={`Decrease quantity of ${item.name}`}
+                            >
+                              <i className="bi bi-dash-lg"></i>
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={item.quantity}
+                              className="form-control custom-input req-pick-qty"
+                              value={line.qty}
+                              onChange={(e) => changeQty(item, e.target.value)}
+                              onBlur={() => handleQtyBlur(item, line)}
+                              onKeyDown={(e) => {
+                                if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                              aria-label={`Quantity of ${item.name}`}
+                            />
+                            <button
+                              type="button"
+                              className="req-stepper-btn"
+                              onClick={() => {
+                                const cur = Math.floor(Number(line.qty)) || 0;
+                                changeQty(item, Math.min(item.quantity, cur + 1));
+                              }}
+                              disabled={(Math.floor(Number(line.qty)) || 0) >= item.quantity}
+                              title="Increase quantity"
+                              aria-label={`Increase quantity of ${item.name}`}
+                            >
+                              <i className="bi bi-plus-lg"></i>
+                            </button>
+                          </div>
                           <button
                             type="button"
                             className="btn-remove-item"
