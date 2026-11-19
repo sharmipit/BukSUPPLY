@@ -50,12 +50,10 @@ const toClient = (r) => {
     date: fmtDate(r.createdAt),
     dateFiled: fmtDate(r.createdAt),
 
-    // --- ADD THESE LINES ---
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     reviewedAt: r.reviewedAt,
     approvedAt: r.approvedAt,
-    // -----------------------
 
     dateApproved: r.approvedAt ? fmtDate(r.approvedAt) : undefined,
     dateProcessed: r.processedAt ? fmtDate(r.processedAt) : 'Pending',
@@ -67,6 +65,10 @@ const toClient = (r) => {
     previousStatus: r.previousStatus || undefined,
     itemsList: r.itemsList,
     requester,
+
+    // Feedback: the "Send Feedback" button stays disabled once this is true
+    feedbackSubmitted: !!r.feedbackSubmittedAt,
+    feedbackSubmittedAt: r.feedbackSubmittedAt || undefined,
   };
 };
 

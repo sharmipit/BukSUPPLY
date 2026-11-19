@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import useInventory from '../hooks/useInventory';
-import api, { errMsg } from '../api/client'; // FEEDBACK
+import api, { errMsg } from '../api/client';
 import IssuanceSlipPreview from './IssuanceSlipPreview';
 import '../styles/RequisitionDetailsModal.css';
 
@@ -32,6 +32,11 @@ function ItemList({ items, noteLabel, showUnit = false }) {
 
 const SLIP_STATUSES = ['Approved', 'Accepted'];
 
+// After the form is opened, how often (ms) we ask the server whether the response arrived,
+// and when we stop asking (the next click on the button checks again anyway)
+const POLL_EVERY_MS = 8000;
+const POLL_MAX_MS = 10 * 60 * 1000;
+
 const norm = (s) =>
   String(s || '')
     .trim()
@@ -43,18 +48,73 @@ export default function RequisitionDetailsModal({
   requisition,
   generatedBy,
   onDownloadSlip,
-  allowFeedback = false, // FEEDBACK: true only on the requester's own pages
+  allowFeedback = false, // true only on the requester's own pages
+  onFeedbackSubmitted, // optional: (slipNumber) => void, so a page can refresh its list
 }) {
   const [showSlip, setShowSlip] = useState(false);
   const [slipBusy, setSlipBusy] = useState(false);
-  const [feedbackBusy, setFeedbackBusy] = useState(false); // FEEDBACK
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false); // feedback already received
+  const [waiting, setWaiting] = useState(false); // form opened, waiting for the response
   const { items = [] } = useInventory();
+
+  // Keep the latest callback without restarting the polling effect
+  const onSubmittedRef = useRef(onFeedbackSubmitted);
+  onSubmittedRef.current = onFeedbackSubmitted;
+
+  const slipId = requisition?.id;
+  const canSendFeedback = allowFeedback && requisition?.status === 'Accepted';
+
+  // Start from what the server already knows, and reset when another slip is shown
+  useEffect(() => {
+    setFeedbackSent(Boolean(requisition?.feedbackSubmitted));
+    setWaiting(false);
+  }, [slipId, requisition?.feedbackSubmitted]);
+
+  // Asks the server whether the feedback arrived
+  const checkFeedback = useCallback(async () => {
+    if (!slipId) return;
+    try {
+      const { data } = await api.get(`/feedback/status/${slipId}`);
+      if (data.submitted) {
+        setFeedbackSent(true);
+        setWaiting(false);
+        onSubmittedRef.current?.(slipId);
+      }
+    } catch {
+      // quiet: the next check will try again
+    }
+  }, [slipId]);
+
+  // One check when the details open, in case the user submitted earlier and never came back
+  useEffect(() => {
+    if (isOpen && canSendFeedback && !feedbackSent) checkFeedback();
+  }, [isOpen, canSendFeedback, feedbackSent, checkFeedback]);
+
+  // While waiting: check every few seconds and whenever the user returns to this tab
+  useEffect(() => {
+    if (!isOpen || !waiting || feedbackSent) return undefined;
+
+    const timer = setInterval(checkFeedback, POLL_EVERY_MS);
+    const stop = setTimeout(() => setWaiting(false), POLL_MAX_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkFeedback();
+    };
+    window.addEventListener('focus', checkFeedback);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+      window.removeEventListener('focus', checkFeedback);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isOpen, waiting, feedbackSent, checkFeedback]);
 
   if (!isOpen || !requisition) return null;
 
   const stockItems = Array.isArray(requisition.itemsList) ? requisition.itemsList : null;
   const canViewSlip = SLIP_STATUSES.includes(requisition.status);
-  const canSendFeedback = allowFeedback && requisition.status === 'Accepted'; // FEEDBACK
 
   // Map requestor's name and ensure dates/status are aligned with the requests page
   const slipReq = {
@@ -99,9 +159,10 @@ export default function RequisitionDetailsModal({
     }
   };
 
-  // FEEDBACK: opens the Google Form with the slip number prefilled
+  // Opens the Google Form. The server pre-fills the slip number, a verification code and the
+  // user's own details (name, email, ID number, account type, department).
   const handleFeedback = async () => {
-    if (feedbackBusy) return;
+    if (feedbackBusy || feedbackSent) return;
     setFeedbackBusy(true);
     // Open the tab first, or the popup blocker stops it after the await
     const tab = window.open('', '_blank');
@@ -109,9 +170,17 @@ export default function RequisitionDetailsModal({
       const { data } = await api.get(`/feedback/link/${requisition.id}`);
       if (tab) tab.location.href = data.url;
       else window.location.href = data.url;
+      setWaiting(true); // start watching for the response
     } catch (err) {
       if (tab) tab.close();
-      alert(errMsg(err));
+      // The server says feedback was already received for this slip
+      if (err.response?.status === 409 && err.response?.data?.submitted) {
+        setFeedbackSent(true);
+        setWaiting(false);
+        onSubmittedRef.current?.(requisition.id);
+      } else {
+        alert(errMsg(err));
+      }
     } finally {
       setFeedbackBusy(false);
     }
@@ -199,6 +268,20 @@ export default function RequisitionDetailsModal({
                   <p className="detail-text text-body-secondary">{requisition.remarks || '-'}</p>
                 </div>
               </div>
+
+              {/* Shown after the form is opened, until the response is received */}
+              {canSendFeedback && waiting && !feedbackSent && (
+                <p className="details-feedback-note" role="status">
+                  <i className="bi bi-hourglass-split"></i> Finish the form in the other tab. This
+                  page updates by itself once your feedback is received.
+                </p>
+              )}
+              {canSendFeedback && feedbackSent && (
+                <p className="details-feedback-note done" role="status">
+                  <i className="bi bi-check-circle-fill"></i> Thank you! Your feedback for this
+                  slip was received.
+                </p>
+              )}
             </div>
 
             <div className="details-modal-footer">
@@ -214,17 +297,22 @@ export default function RequisitionDetailsModal({
                   <i className="bi bi-file-earmark-text"></i> Issuance Slip
                 </button>
               )}
-              {/* FEEDBACK: only for the requester, only once the items are received */}
-              {canSendFeedback && (
-                <button
-                  type="button"
-                  className="details-btn-feedback"
-                  onClick={handleFeedback}
-                  disabled={feedbackBusy}
-                >
-                  {feedbackBusy ? 'Opening...' : 'Send Feedback'}
-                </button>
-              )}
+              {/* Only for the requester, only once the items are received, one feedback per slip */}
+              {canSendFeedback &&
+                (feedbackSent ? (
+                  <button type="button" className="details-btn-feedback sent" disabled>
+                    <i className="bi bi-check-circle-fill"></i> Feedback Sent
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="details-btn-feedback"
+                    onClick={handleFeedback}
+                    disabled={feedbackBusy}
+                  >
+                    {feedbackBusy ? 'Opening...' : 'Send Feedback'}
+                  </button>
+                ))}
             </div>
           </div>
         </div>

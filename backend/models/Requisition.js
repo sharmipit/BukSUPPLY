@@ -48,6 +48,9 @@ const RequisitionSchema = new mongoose.Schema(
     // Set when a slip is denied, so an administrator's Undo can return it to where it was
     previousStatus: { type: String, default: '' },
     previousRemarks: { type: String, default: '' },
+    // Set the first time the Google Form shows a valid response for this slip.
+    // Once set, the "Send Feedback" button stays disabled for good.
+    feedbackSubmittedAt: { type: Date },
   },
   { timestamps: true }
 );
