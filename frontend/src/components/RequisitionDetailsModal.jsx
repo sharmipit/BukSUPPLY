@@ -192,7 +192,7 @@ export default function RequisitionDetailsModal({
         <div className="details-modal-overlay active" role="dialog" aria-modal="true">
           <div className="details-modal-card">
             <div className="details-modal-header">
-              <div>
+              <div className="details-modal-heading">
                 <h3 className="details-modal-title">
                   Requisition Details <span className="text-accent">#{requisition.id}</span>
                 </h3>
@@ -200,7 +200,12 @@ export default function RequisitionDetailsModal({
                   Comprehensive summary of slip information and processing status.
                 </p>
               </div>
-              <button className="details-modal-close-btn" onClick={handleClose} type="button">
+              <button
+                className="details-modal-close-btn"
+                onClick={handleClose}
+                type="button"
+                aria-label="Close"
+              >
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
@@ -272,14 +277,14 @@ export default function RequisitionDetailsModal({
               {/* Shown after the form is opened, until the response is received */}
               {canSendFeedback && waiting && !feedbackSent && (
                 <p className="details-feedback-note" role="status">
-                  <i className="bi bi-hourglass-split"></i> Finish the form in the other tab. This
-                  page updates by itself once your feedback is received.
+                  <i className="bi bi-clock"></i>
+                  <span>Waiting for your feedback. This page updates automatically.</span>
                 </p>
               )}
               {canSendFeedback && feedbackSent && (
                 <p className="details-feedback-note done" role="status">
-                  <i className="bi bi-check-circle-fill"></i> Thank you! Your feedback for this
-                  slip was received.
+                  <i className="bi bi-check-circle-fill"></i>
+                  <span>Thank you! Your feedback for this slip was received.</span>
                 </p>
               )}
             </div>
