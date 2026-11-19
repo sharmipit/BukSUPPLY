@@ -5,7 +5,8 @@ const InventoryItem = require('../models/InventoryItem');
 const User = require('../models/User');
 const { deductForRequisition, restoreForRequisition } = require('../services/stock');
 const { logActivity } = require('../services/activityLog');
-const SERVER_ERROR = { message: 'Something went wrong. Please try again.' };
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../utils/AppError');
 
 // YYYY-MM-DD in Philippine time (toISOString would use UTC and show the wrong day)
 const fmtDate = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
@@ -165,28 +166,18 @@ const findShortage = async (doc) => {
 };
 
 /** GET /api/requisitions: the logged-in user's own slips */
-exports.list = async (req, res) => {
-  try {
-    const docs = await Requisition.find({ requester: req.user._id }).sort({ createdAt: -1 });
-    res.json({ requisitions: docs.map(toClient) });
-  } catch (err) {
-    console.error('list requisitions error:', err);
-    res.status(500).json(SERVER_ERROR);
-  }
-};
+exports.list = asyncHandler(async (req, res) => {
+  const docs = await Requisition.find({ requester: req.user._id }).sort({ createdAt: -1 });
+  res.json({ requisitions: docs.map(toClient) });
+});
 
 /** GET /api/requisitions/all: every slip (Moderator / Administrator only) */
-exports.listAll = async (req, res) => {
-  try {
-    const docs = await Requisition.find()
-      .sort({ createdAt: -1 })
-      .populate('requester', 'firstName lastName email idNumber');
-    res.json({ requisitions: docs.map(toClient) });
-  } catch (err) {
-    console.error('listAll requisitions error:', err);
-    res.status(500).json(SERVER_ERROR);
-  }
-};
+exports.listAll = asyncHandler(async (req, res) => {
+  const docs = await Requisition.find()
+    .sort({ createdAt: -1 })
+    .populate('requester', 'firstName lastName email idNumber');
+  res.json({ requisitions: docs.map(toClient) });
+});
 
 // One notification for every active Moderator and Administrator (except the sender)
 const notifyStaff = async (sender, title, message) => {
@@ -210,113 +201,98 @@ const notifyStaff = async (sender, title, message) => {
 };
 
 /** POST /api/requisitions */
-exports.create = async (req, res) => {
-  try {
-    const { data, error } = await parseBody(req.body);
-    if (error) return res.status(400).json({ message: error });
+exports.create = asyncHandler(async (req, res) => {
+  const { data, error } = await parseBody(req.body);
+  if (error) return res.status(400).json({ message: error });
 
-    const doc = await Requisition.create({
-      ...data,
-      requester: req.user._id,
-      slipNumber: await Requisition.nextSlipNumber(),
-      status: 'Pending',
-    });
+  const doc = await Requisition.create({
+    ...data,
+    requester: req.user._id,
+    slipNumber: await Requisition.nextSlipNumber(),
+    status: 'Pending',
+  });
 
-    await Notification.create({
-      user: req.user._id,
-      title: 'New Status Update: Pending',
-      message: `Your requisition slip ${doc.slipNumber} has been submitted and is awaiting moderator review.`,
-      type: 'info',
-      link: '/user/requests',
-    });
+  await Notification.create({
+    user: req.user._id,
+    title: 'New Status Update: Pending',
+    message: `Your requisition slip ${doc.slipNumber} has been submitted and is awaiting moderator review.`,
+    type: 'info',
+    link: '/user/requests',
+  });
 
-    notifyStaff(
-      req.user,
-      'New Requisition Filed',
-      `${personName(req.user)} filed requisition slip ${doc.slipNumber} ("${doc.title}"). Review it in Requests.`
-    ).catch((e) => console.error('notifyStaff error:', e));
+  notifyStaff(
+    req.user,
+    'New Requisition Filed',
+    `${personName(req.user)} filed requisition slip ${doc.slipNumber} ("${doc.title}"). Review it in Requests.`
+  ).catch((e) => console.error('notifyStaff error:', e));
 
-    await logActivity(
-      req.user,
-      {
-        category: 'Requisition',
-        action: 'REQUISITION_FILED',
-        description: `Filed requisition slip "${doc.title}"`,
-        reference: doc.slipNumber,
-      },
-      req
-    );
+  await logActivity(
+    req.user,
+    {
+      category: 'Requisition',
+      action: 'REQUISITION_FILED',
+      description: `Filed requisition slip "${doc.title}"`,
+      reference: doc.slipNumber,
+    },
+    req
+  );
 
-    res.status(201).json({ requisition: toClient(doc) });
-  } catch (err) {
-    console.error('create requisition error:', err);
-    res.status(500).json(SERVER_ERROR);
-  }
-};
+  res.status(201).json({ requisition: toClient(doc) });
+});
 
 /** PUT /api/requisitions/:slip: owner only, Pending only */
-exports.update = async (req, res) => {
-  try {
-    const doc = await Requisition.findOne({ slipNumber: req.params.slip, requester: req.user._id });
-    if (!doc) return res.status(404).json({ message: 'Requisition not found.' });
-    if (doc.status !== 'Pending') {
-      return res.status(409).json({ message: 'Only pending requisitions can be edited.' });
-    }
-
-    const { data, error } = await parseBody(req.body);
-    if (error) return res.status(400).json({ message: error });
-
-    Object.assign(doc, data);
-    await doc.save();
-
-    await logActivity(
-      req.user,
-      {
-        category: 'Requisition',
-        action: 'REQUISITION_EDITED',
-        description: `Edited requisition slip "${doc.title}"`,
-        reference: doc.slipNumber,
-      },
-      req
-    );
-
-    res.json({ requisition: toClient(doc) });
-  } catch (err) {
-    console.error('update requisition error:', err);
-    res.status(500).json(SERVER_ERROR);
+exports.update = asyncHandler(async (req, res) => {
+  const doc = await Requisition.findOne({ slipNumber: req.params.slip, requester: req.user._id });
+  if (!doc) throw new AppError('Requisition not found.', 404);
+  if (doc.status !== 'Pending') {
+    throw new AppError('Only pending requisitions can be edited.', 409);
   }
-};
+
+  const { data, error } = await parseBody(req.body);
+  if (error) return res.status(400).json({ message: error });
+
+  Object.assign(doc, data);
+  await doc.save();
+
+  await logActivity(
+    req.user,
+    {
+      category: 'Requisition',
+      action: 'REQUISITION_EDITED',
+      description: `Edited requisition slip "${doc.title}"`,
+      reference: doc.slipNumber,
+    },
+    req
+  );
+
+  res.json({ requisition: toClient(doc) });
+});
 
 /** PATCH /api/requisitions/:slip/cancel: owner only, Pending only. The slip is kept, not deleted. */
-exports.cancel = async (req, res) => {
-  try {
-    const doc = await Requisition.findOne({ slipNumber: req.params.slip, requester: req.user._id });
-    if (!doc) return res.status(404).json({ message: 'Requisition not found.' });
-    if (doc.status !== 'Pending') {
-      return res.status(409).json({ message: 'Only pending requisitions can be cancelled.' });
-    }
-
-    doc.status = 'Cancelled';
-    doc.cancelledAt = new Date();
-    await doc.save();
-
-    await logActivity(
-      req.user,
-      {
-        category: 'Requisition',
-        action: 'REQUISITION_CANCELLED',
-        description: `Cancelled requisition slip "${doc.title}"`,
-        reference: doc.slipNumber,
-      },
-      req
-    );
-
-    res.json({ requisition: toClient(doc) });
-  } catch (err) {
-    console.error('cancel requisition error:', err);
-    res.status(500).json(SERVER_ERROR);
+exports.cancel = asyncHandler(async (req, res) => {
+  const doc = await Requisition.findOne({ slipNumber: req.params.slip, requester: req.user._id });
+  if (!doc) throw new AppError('Requisition not found.', 404);
+  if (doc.status !== 'Pending') {
+    throw new AppError('Only pending requisitions can be cancelled.', 409);
   }
-};
+
+  doc.status = 'Cancelled';
+  doc.cancelledAt = new Date();
+  await doc.save();
+
+  await logActivity(
+    req.user,
+    {
+      category: 'Requisition',
+      action: 'REQUISITION_CANCELLED',
+      description: `Cancelled requisition slip "${doc.title}"`,
+      reference: doc.slipNumber,
+    },
+    req
+  );
+
+  res.json({ requisition: toClient(doc) });
+});
 
 // What the requester is told for each status change
 const STATUS_NOTIF = {
@@ -337,165 +313,155 @@ const TRANSITIONS = {
 };
 
 /** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
-exports.setStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    const remarks = String(req.body.remarks || '').trim();
+exports.setStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  const remarks = String(req.body.remarks || '').trim();
 
-    if (!STATUS_NOTIF[status]) {
-      return res.status(400).json({ message: 'Invalid status.' });
-    }
-
-    const doc = await Requisition.findOne({ slipNumber: req.params.slip });
-    if (!doc) return res.status(404).json({ message: 'Requisition not found.' });
-
-    if (!(TRANSITIONS[doc.status] || []).includes(status)) {
-      return res
-        .status(409)
-        .json({ message: `A ${doc.status.toLowerCase()} request can't be moved to ${status}.` });
-    }
-    if (status === 'Denied' && !remarks) {
-      return res.status(400).json({ message: 'Please give a reason for the denial.' });
-    }
-    if (status === 'Approved' && !remarks) {
-      return res.status(400).json({ message: 'Please add a remark for the requester.' });
-    }
-
-    // Approving means "ready for release", so the items must really be available.
-    // Nothing is deducted yet.
-    if (status === 'Approved') {
-      const shortage = await findShortage(doc);
-      if (shortage) return res.status(409).json({ message: shortage });
-    }
-
-    // Accepted = the requester received the items. Only now is the inventory reduced.
-    // If anything is short, nothing changes.
-    let stock = null;
-    if (status === 'Accepted') {
-      try {
-        stock = await deductForRequisition(doc._id, personName(req.user));
-      } catch (err) {
-        return res.status(409).json({ message: err.message });
-      }
-    }
-
-    // Remember where a denied slip came from, so an administrator's Undo can restore it
-    if (status === 'Denied') {
-      doc.previousStatus = doc.status; // Pending, Processing or Approved
-      doc.previousRemarks = doc.remarks || '';
-    }
-
-    doc.status = status;
-    if (remarks) doc.remarks = remarks; // Approved: the pick-up note. Denied: the reason the requester sees.
-    doc.reviewedBy = personName(req.user);
-    doc.reviewedAt = new Date();
-    if (status === 'Approved') doc.approvedAt = new Date();
-    if (status === 'Accepted' || status === 'Denied') doc.processedAt = new Date();
-    await doc.save();
-
-    const n = STATUS_NOTIF[status];
-    await Notification.create({
-      user: doc.requester,
-      title: `Requisition ${status}`,
-      message: `Your requisition slip ${doc.slipNumber} ${n.text}${remarks ? ` Remarks: ${remarks}` : ''}`,
-      type: n.type,
-      link: '/user/requests',
-    });
-
-    await logActivity(
-      req.user,
-      {
-        category: 'Requisition',
-        action: 'REQUISITION_STATUS',
-        description: `Changed requisition slip "${doc.title}" to ${status}`,
-        reference: doc.slipNumber,
-      },
-      req
-    );
-
-    res.json({ requisition: toClient(doc), stock });
-  } catch (err) {
-    console.error('setStatus error:', err);
-    res.status(500).json(SERVER_ERROR);
+  if (!STATUS_NOTIF[status]) {
+    return res.status(400).json({ message: 'Invalid status.' });
   }
-};
+
+  const doc = await Requisition.findOne({ slipNumber: req.params.slip });
+  if (!doc) throw new AppError('Requisition not found.', 404);
+
+  if (!(TRANSITIONS[doc.status] || []).includes(status)) {
+    return res
+      .status(409)
+      .json({ message: `A ${doc.status.toLowerCase()} request can't be moved to ${status}.` });
+  }
+  if (status === 'Denied' && !remarks) {
+    return res.status(400).json({ message: 'Please give a reason for the denial.' });
+  }
+  if (status === 'Approved' && !remarks) {
+    return res.status(400).json({ message: 'Please add a remark for the requester.' });
+  }
+
+  // Approving means "ready for release", so the items must really be available.
+  // Nothing is deducted yet.
+  if (status === 'Approved') {
+    const shortage = await findShortage(doc);
+    if (shortage) return res.status(409).json({ message: shortage });
+  }
+
+  // Accepted = the requester received the items. Only now is the inventory reduced.
+  // If anything is short, nothing changes.
+  let stock = null;
+  if (status === 'Accepted') {
+    try {
+      stock = await deductForRequisition(doc._id, personName(req.user));
+    } catch (err) {
+      return res.status(409).json({ message: err.message });
+    }
+  }
+
+  // Remember where a denied slip came from, so an administrator's Undo can restore it
+  if (status === 'Denied') {
+    doc.previousStatus = doc.status; // Pending, Processing or Approved
+    doc.previousRemarks = doc.remarks || '';
+  }
+
+  doc.status = status;
+  if (remarks) doc.remarks = remarks; // Approved: the pick-up note. Denied: the reason the requester sees.
+  doc.reviewedBy = personName(req.user);
+  doc.reviewedAt = new Date();
+  if (status === 'Approved') doc.approvedAt = new Date();
+  if (status === 'Accepted' || status === 'Denied') doc.processedAt = new Date();
+  await doc.save();
+
+  const n = STATUS_NOTIF[status];
+  await Notification.create({
+    user: doc.requester,
+    title: `Requisition ${status}`,
+    message: `Your requisition slip ${doc.slipNumber} ${n.text}${remarks ? ` Remarks: ${remarks}` : ''}`,
+    type: n.type,
+    link: '/user/requests',
+  });
+
+  await logActivity(
+    req.user,
+    {
+      category: 'Requisition',
+      action: 'REQUISITION_STATUS',
+      description: `Changed requisition slip "${doc.title}" to ${status}`,
+      reference: doc.slipNumber,
+    },
+    req
+  );
+
+  res.json({ requisition: toClient(doc), stock });
+});
 
 // Where Undo sends a slip back to (Denied goes back to where it was before the denial)
 const UNDO_TARGET = { Processing: 'Pending', Approved: 'Processing', Accepted: 'Approved' };
 
 /** POST /api/requisitions/:slip/undo (Administrator only) */
-exports.undo = async (req, res) => {
-  try {
-    const doc = await Requisition.findOne({ slipNumber: req.params.slip });
-    if (!doc) return res.status(404).json({ message: 'Requisition not found.' });
+exports.undo = asyncHandler(async (req, res) => {
+  const doc = await Requisition.findOne({ slipNumber: req.params.slip });
+  if (!doc) throw new AppError('Requisition not found.', 404);
 
-    const from = doc.status;
-    const target = from === 'Denied' ? doc.previousStatus || 'Pending' : UNDO_TARGET[from];
-    if (!target) {
-      return res.status(409).json({ message: `A ${from.toLowerCase()} request can't be undone.` });
-    }
-
-    // Undoing a denial back to Approved: the items must still be available
-    if (from === 'Denied' && target === 'Approved') {
-      const shortage = await findShortage(doc);
-      if (shortage) return res.status(409).json({ message: shortage });
-    }
-
-    // Accepted -> Approved: put the deducted stock back first
-    let stock = null;
-    if (from === 'Accepted') {
-      try {
-        stock = await restoreForRequisition(doc._id, personName(req.user));
-      } catch (err) {
-        return res.status(409).json({ message: err.message });
-      }
-    }
-
-    // Clear what the undone step had set
-    if (from === 'Approved') {
-      doc.approvedAt = undefined;
-      doc.remarks = '';
-    }
-    if (from === 'Accepted') doc.processedAt = undefined;
-    if (from === 'Denied') {
-      doc.processedAt = undefined;
-      doc.remarks = doc.previousRemarks || '';
-      doc.previousStatus = '';
-      doc.previousRemarks = '';
-    }
-
-    doc.status = target;
-    if (target === 'Pending') {
-      doc.reviewedBy = '';
-      doc.reviewedAt = undefined;
-    } else {
-      doc.reviewedBy = personName(req.user);
-      doc.reviewedAt = new Date();
-    }
-    await doc.save();
-
-    await Notification.create({
-      user: doc.requester,
-      title: `Requisition moved back to ${target}`,
-      message: `Your requisition slip ${doc.slipNumber} was moved back to ${target} after a correction by an administrator.`,
-      type: 'info',
-      link: '/user/requests',
-    });
-
-    await logActivity(
-      req.user,
-      {
-        category: 'Requisition',
-        action: 'REQUISITION_UNDO',
-        description: `Undid requisition slip "${doc.title}": ${from} to ${target}`,
-        reference: doc.slipNumber,
-      },
-      req
-    );
-
-    res.json({ requisition: toClient(doc), stock });
-  } catch (err) {
-    console.error('undo error:', err);
-    res.status(500).json(SERVER_ERROR);
+  const from = doc.status;
+  const target = from === 'Denied' ? doc.previousStatus || 'Pending' : UNDO_TARGET[from];
+  if (!target) {
+    return res.status(409).json({ message: `A ${from.toLowerCase()} request can't be undone.` });
   }
-};
+
+  // Undoing a denial back to Approved: the items must still be available
+  if (from === 'Denied' && target === 'Approved') {
+    const shortage = await findShortage(doc);
+    if (shortage) return res.status(409).json({ message: shortage });
+  }
+
+  // Accepted -> Approved: put the deducted stock back first
+  let stock = null;
+  if (from === 'Accepted') {
+    try {
+      stock = await restoreForRequisition(doc._id, personName(req.user));
+    } catch (err) {
+      return res.status(409).json({ message: err.message });
+    }
+  }
+
+  // Clear what the undone step had set
+  if (from === 'Approved') {
+    doc.approvedAt = undefined;
+    doc.remarks = '';
+  }
+  if (from === 'Accepted') doc.processedAt = undefined;
+  if (from === 'Denied') {
+    doc.processedAt = undefined;
+    doc.remarks = doc.previousRemarks || '';
+    doc.previousStatus = '';
+    doc.previousRemarks = '';
+  }
+
+  doc.status = target;
+  if (target === 'Pending') {
+    doc.reviewedBy = '';
+    doc.reviewedAt = undefined;
+  } else {
+    doc.reviewedBy = personName(req.user);
+    doc.reviewedAt = new Date();
+  }
+  await doc.save();
+
+  await Notification.create({
+    user: doc.requester,
+    title: `Requisition moved back to ${target}`,
+    message: `Your requisition slip ${doc.slipNumber} was moved back to ${target} after a correction by an administrator.`,
+    type: 'info',
+    link: '/user/requests',
+  });
+
+  await logActivity(
+    req.user,
+    {
+      category: 'Requisition',
+      action: 'REQUISITION_UNDO',
+      description: `Undid requisition slip "${doc.title}": ${from} to ${target}`,
+      reference: doc.slipNumber,
+    },
+    req
+  );
+
+  res.json({ requisition: toClient(doc), stock });
+});

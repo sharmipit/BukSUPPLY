@@ -77,17 +77,7 @@ app.use('/api', (req, res) => {
 });
 
 // --- Global Error Handler ---
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({ message: 'Origin not allowed by CORS.' });
-  }
-  if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ message: 'Invalid JSON body.' });
-  }
-  console.error('Unhandled error:', err);
-  res.status(500).json({ message: 'Something went wrong. Please try again.' });
-});
+app.use(require('./middleware/errorHandler'));
 
 // --- Start Server ---
 const PORT = process.env.PORT || 5001;
