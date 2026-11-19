@@ -477,6 +477,11 @@
 /* ==========================================================================
    Modals (create moderator, confirm reactivate)
    ========================================================================== */
+
+.um-modal-backdrop *:not(.bi) {
+  font-family: 'Poppins', -apple-system, 'Segoe UI', sans-serif;
+}
+
 .um-modal-backdrop {
   position: fixed;
   inset: 0;
