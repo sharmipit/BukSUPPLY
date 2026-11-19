@@ -71,6 +71,11 @@ const UserSchema = new mongoose.Schema(
       required: [true, "Role is required"],
     },
     accountStatus: { type: String, enum: ["Active", "Deactivated"], default: "Active" },
+    // Archived = a deactivated account hidden from the normal lists. Never deleted, and it
+    // can be unarchived. Old documents have no "archived" field, so always test { $ne: true }.
+    archived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date },
+    archivedBy: { type: String, trim: true, default: "" },
     agreedToTerms: {
       type: Boolean,
       required: [true, "You must agree to the Terms and Conditions and Privacy Policy"],

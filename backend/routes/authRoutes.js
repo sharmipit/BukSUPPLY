@@ -9,6 +9,7 @@ const {
   requestOtp,
   verifyOtp,
   resetPassword,
+  requestReactivation,
 } = require("../controllers/authController");
 
 const isProd = process.env.NODE_ENV === "production";
@@ -28,6 +29,7 @@ const signupLimiter = makeLimiter(10, 60);  // fake account creation
 const googleLimiter = makeLimiter(30);
 const otpRequestLimiter = makeLimiter(5);   // each request sends an email
 const otpCheckLimiter = makeLimiter(10, 15, { skipSuccessfulRequests: true }); // verify + reset (failures only)
+const reactivationLimiter = makeLimiter(8, 60); // reactivation requests (each one notifies the admins)
 
 // --- Sign up / Sign in ---
 router.post("/signup", signupLimiter, signUp);
@@ -35,6 +37,9 @@ router.post("/signin", signinLimiter, signIn);
 
 // --- Google Sign-In ---
 router.post("/google", googleLimiter, googleSignIn);
+
+// --- Deactivated account: ask the administrator to reactivate it ---
+router.post("/reactivation-request", reactivationLimiter, requestReactivation);
 
 // --- Forgot password (6-digit OTP workflow) ---
 router.post("/forgot-password/request-code", otpRequestLimiter, requestOtp);

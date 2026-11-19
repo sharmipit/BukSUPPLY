@@ -8,6 +8,14 @@ import api, { errMsg } from '../../api/client';
 import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
+import {
+  ConfirmModal,
+  ReasonModal,
+  UserDetailsModal,
+  apiFetch,
+  DEACTIVATE_SUGGESTIONS,
+  DECLINE_SUGGESTIONS,
+} from '../../components/UserAccountModals';
 
 import '../../styles/admin/Dashboard.css';
 import '../../styles/Requests.css';
@@ -43,26 +51,6 @@ const DENY_PRESETS = [
   'The item(s) were not claimed within the allowed period.',
   'Please resubmit with a smaller quantity.',
 ];
-
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5001')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '');
-
-async function apiFetch(path, options = {}) {
-  const token = sessionStorage.getItem('token');
-  const res = await fetch(`${API_BASE}/api/admin/users${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || 'Something went wrong.');
-  return data;
-}
 
 // Where each dashboard shortcut goes. Change these to match your router.
 const ROUTES = {
@@ -518,39 +506,6 @@ function RemarksField({ id, label, presets, value, onChange, hint }) {
   );
 }
 
-function ConfirmModal({ isOpen: open, title, message, confirmLabel, onConfirm, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="um-modal-backdrop" onClick={onClose}>
-      <div
-        className="um-modal"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="db-um-confirm-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="um-modal-header">
-          <h3 id="db-um-confirm-title">{title}</h3>
-          <button type="button" className="um-modal-close" onClick={onClose} aria-label="Close">
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <div className="um-modal-body">
-          <p className="um-confirm-text">{message}</p>
-        </div>
-        <div className="um-modal-footer">
-          <button type="button" className="um-btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="um-btn-primary" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -614,6 +569,7 @@ const Dashboard = ({
   // Live user accounts (same API as the User Management page)
   const [users, setUsers] = useState([]);
   const [moderatorCount, setModeratorCount] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState('');
   const [usersRefreshKey, setUsersRefreshKey] = useState(0);
@@ -641,6 +597,7 @@ const Dashboard = ({
           apiFetch(`?${modParams}`, { signal: controller.signal }),
         ]);
         setUsers(list.users || []);
+        setPendingRequests(list.pendingRequests || 0);
         setModeratorCount((mods.users || []).filter((u) => u.status === 'Active').length);
       } catch (err) {
         if (err.name !== 'AbortError') setUsersError(err.message);
@@ -1295,17 +1252,44 @@ const Dashboard = ({
   };
 
   /* ================================================================ */
-  /* Users: reactivate                                                 */
+  /* Users: details, deactivate, reactivate, decline, archive          */
+  /* (same actions and pop-ups as the User Management page)            */
   /* ================================================================ */
 
+  const [userDetailsTarget, setUserDetailsTarget] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [reactivateTarget, setReactivateTarget] = useState(null);
+  const [declineTarget, setDeclineTarget] = useState(null);
+  const [userArchiveTarget, setUserArchiveTarget] = useState(null);
+  const [userUnarchiveTarget, setUserUnarchiveTarget] = useState(null);
+
+  // Throws on error; the pop-up shows the message
+  const handleConfirmDeactivate = async (reason) => {
+    const target = deactivateTarget;
+    await apiFetch(`/${target._id}/deactivate`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    });
+    setDeactivateTarget(null);
+    setUsersRefreshKey((k) => k + 1);
+    setNotice({ type: 'success', text: `${target.name} (${target.id}) was deactivated.` });
+  };
+
+  const handleConfirmDecline = async (note) => {
+    const target = declineTarget;
+    await apiFetch(`/${target._id}/decline-request`, {
+      method: 'PATCH',
+      body: JSON.stringify({ note }),
+    });
+    setDeclineTarget(null);
+    setUsersRefreshKey((k) => k + 1);
+    setNotice({ type: 'success', text: `The request of ${target.name} (${target.id}) was declined.` });
+  };
 
   const handleConfirmReactivate = async () => {
     if (reactivateTarget) {
       try {
-        await apiFetch(`/${reactivateTarget._id}/reactivate`, {
-          method: 'PATCH',
-        });
+        await apiFetch(`/${reactivateTarget._id}/reactivate`, { method: 'PATCH' });
         setUsersRefreshKey((k) => k + 1);
         setNotice({
           type: 'success',
@@ -1316,6 +1300,39 @@ const Dashboard = ({
       }
     }
     setReactivateTarget(null);
+  };
+
+  // Archive hides a deactivated account from the normal lists (it is never deleted)
+  const handleConfirmUserArchive = async () => {
+    if (userArchiveTarget) {
+      try {
+        await apiFetch(`/${userArchiveTarget._id}/archive`, { method: 'PATCH' });
+        setUsersRefreshKey((k) => k + 1);
+        setNotice({
+          type: 'success',
+          text: `${userArchiveTarget.name} (${userArchiveTarget.id}) was archived.`,
+        });
+      } catch (err) {
+        setUsersError(err.message);
+      }
+    }
+    setUserArchiveTarget(null);
+  };
+
+  const handleConfirmUserUnarchive = async () => {
+    if (userUnarchiveTarget) {
+      try {
+        await apiFetch(`/${userUnarchiveTarget._id}/unarchive`, { method: 'PATCH' });
+        setUsersRefreshKey((k) => k + 1);
+        setNotice({
+          type: 'success',
+          text: `${userUnarchiveTarget.name} (${userUnarchiveTarget.id}) was unarchived.`,
+        });
+      } catch (err) {
+        setUsersError(err.message);
+      }
+    }
+    setUserUnarchiveTarget(null);
   };
 
   /* ================================================================ */
@@ -1662,7 +1679,7 @@ const Dashboard = ({
             <div>
               <h3 className="db-card-title">User Accounts</h3>
               <p className="db-card-desc">
-                Latest accounts and their status. Click a deactivated account to reactivate it.
+                Latest accounts and their status. Click an account to see its details or manage it.
               </p>
             </div>
           </div>
@@ -1705,13 +1722,12 @@ const Dashboard = ({
                   currentUsers.map((u) => (
                     <tr
                       key={u._id || u.id}
-                      className={u.status === 'Deactivated' ? 'db-row-clickable' : undefined}
-                      title={
-                        u.status === 'Deactivated' ? 'Click to reactivate this account' : undefined
-                      }
-                      onClick={
-                        u.status === 'Deactivated' ? () => setReactivateTarget(u) : undefined
-                      }
+                      className="db-row-clickable"
+                      tabIndex={0}
+                      onClick={() => setUserDetailsTarget(u)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target === e.currentTarget) setUserDetailsTarget(u);
+                      }}
                     >
                       <td className="db-user-id">{u.id}</td>
                       <td>
@@ -1723,7 +1739,14 @@ const Dashboard = ({
                         </div>
                       </td>
                       <td className="db-nowrap-cell">
-                        <span className={`db-badge ${u.status.toLowerCase()}`}>{u.status}</span>
+                        <div className="db-status-stack">
+                          <span className={`db-badge ${u.archived ? 'archived' : u.status.toLowerCase()}`}>
+                            {u.archived ? 'Archived' : u.status}
+                          </span>
+                          {u.hasRequest && !u.archived && (
+                            <span className="db-badge db-badge-request">Request sent</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1745,6 +1768,11 @@ const Dashboard = ({
           </div>
 
           <div className="db-footer-bar">
+            {pendingRequests > 0 && (
+              <span className="db-footer-note">
+                {pendingRequests} reactivation request{pendingRequests > 1 ? 's' : ''} waiting
+              </span>
+            )}
             <button type="button" className="db-view-btn" onClick={handleViewUsers}>
               View users
               <span className="db-view-arrow">
@@ -3037,19 +3065,136 @@ const Dashboard = ({
       )}
 
       {/* ============================================================ */}
-      {/* Users: reactivate confirmation                                */}
+      {/* Users: pop-ups (same as User Management)                     */}
       {/* ============================================================ */}
+      <UserDetailsModal
+        user={userDetailsTarget}
+        onClose={() => setUserDetailsTarget(null)}
+        onDeactivate={(u) => {
+          setUserDetailsTarget(null);
+          setDeactivateTarget(u);
+        }}
+        onReactivate={(u) => {
+          setUserDetailsTarget(null);
+          setReactivateTarget(u);
+        }}
+        onDecline={(u) => {
+          setUserDetailsTarget(null);
+          setDeclineTarget(u);
+        }}
+        onArchive={(u) => {
+          setUserDetailsTarget(null);
+          setUserArchiveTarget(u);
+        }}
+        onUnarchive={(u) => {
+          setUserDetailsTarget(null);
+          setUserUnarchiveTarget(u);
+        }}
+      />
+
+      <ReasonModal
+        isOpen={!!deactivateTarget}
+        title="Deactivate account?"
+        message={
+          deactivateTarget ? (
+            <>
+              <strong>{deactivateTarget.name}</strong> ({deactivateTarget.id}) will be signed out
+              and will no longer be able to sign in. The reason you write is shown to them on the
+              sign-in page and sent to their email.
+            </>
+          ) : (
+            ''
+          )
+        }
+        label="Reason for deactivation"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={DEACTIVATE_SUGGESTIONS}
+        hint="The user will see this reason."
+        required
+        minLength={5}
+        maxLength={300}
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={handleConfirmDeactivate}
+        onClose={() => setDeactivateTarget(null)}
+      />
+
+      <ReasonModal
+        isOpen={!!declineTarget}
+        title="Decline request?"
+        message={
+          declineTarget ? (
+            <>
+              <strong>{declineTarget.name}</strong> ({declineTarget.id}) stays deactivated. They
+              are told the request was declined and can send a new one later.
+            </>
+          ) : (
+            ''
+          )
+        }
+        label="Note to the user"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={DECLINE_SUGGESTIONS}
+        hint="The user will see this note."
+        maxLength={300}
+        confirmLabel="Decline request"
+        onConfirm={handleConfirmDecline}
+        onClose={() => setDeclineTarget(null)}
+      />
+
       <ConfirmModal
         isOpen={!!reactivateTarget}
         title="Reactivate account?"
         message={
-          reactivateTarget
-            ? `${reactivateTarget.name} (${reactivateTarget.id}) will regain access to the system.`
-            : ''
+          reactivateTarget ? (
+            <>
+              <strong>{reactivateTarget.name}</strong> ({reactivateTarget.id}) will regain access
+              to the system.
+            </>
+          ) : (
+            ''
+          )
         }
         confirmLabel="Reactivate"
         onConfirm={handleConfirmReactivate}
         onClose={() => setReactivateTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!userArchiveTarget}
+        title="Archive account?"
+        message={
+          userArchiveTarget ? (
+            <>
+              <strong>{userArchiveTarget.name}</strong> ({userArchiveTarget.id}) will be moved out
+              of the main list and stays deactivated. The account is not deleted, and you can find
+              it under the Archived filter in User Management and unarchive it at any time.
+            </>
+          ) : (
+            ''
+          )
+        }
+        confirmLabel="Archive"
+        onConfirm={handleConfirmUserArchive}
+        onClose={() => setUserArchiveTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!userUnarchiveTarget}
+        title="Unarchive account?"
+        message={
+          userUnarchiveTarget ? (
+            <>
+              <strong>{userUnarchiveTarget.name}</strong> ({userUnarchiveTarget.id}) will go back
+              to the Deactivated list. The account stays deactivated until you reactivate it.
+            </>
+          ) : (
+            ''
+          )
+        }
+        confirmLabel="Unarchive"
+        onConfirm={handleConfirmUserUnarchive}
+        onClose={() => setUserUnarchiveTarget(null)}
       />
     </div>
   );

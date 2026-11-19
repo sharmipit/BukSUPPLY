@@ -1,4 +1,5 @@
 const { logActivity } = require('../services/activityLog');
+const Deactivation = require('../models/Deactivation');
 
 const publicUser = (u) => ({
   id: u._id,
@@ -74,6 +75,20 @@ exports.deactivateAccount = async (req, res) => {
     }
     user.accountStatus = 'Deactivated';
     await user.save();
+
+    // Remember that the owner did this, so the sign-in page can explain it later.
+    // A problem here must never undo the deactivation.
+    try {
+      await Deactivation.updateMany({ user: user._id, active: true }, { active: false, endedAt: new Date() });
+      await Deactivation.create({
+        user: user._id,
+        source: 'self',
+        reason: 'You deactivated this account yourself.',
+        byName: [user.firstName, user.lastName].filter((n) => n && n !== '-').join(' ') || user.email,
+      });
+    } catch (e) {
+      console.error('deactivation record error:', e.message);
+    }
 
     await logActivity(
       user,

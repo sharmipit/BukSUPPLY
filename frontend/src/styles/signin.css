@@ -590,3 +590,67 @@ body {
     transform-origin: center;
   }
 }
+
+/* ==========================================================================
+   Deactivated account pop-up + "Request reactivation" pop-up
+   (the pop-ups reuse the reCAPTCHA pop-up look; everything new starts with deact-)
+   ========================================================================== */
+.deact-card .modal-subtitle strong {
+  color: var(--text-dark);
+}
+
+.deact-gap {
+  margin-top: 12px;
+}
+
+/* Highlighted text written by the administrator */
+.deact-reason {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #FDF2F0;
+  border: 1px solid #F0C4BD;
+  color: #8F2A1D;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.deact-reason.note {
+  background: #F5EFE6;
+  border-color: var(--card-border);
+  color: var(--text-dark);
+}
+
+/* Buttons stacked with the same width and height */
+.deact-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.deact-card .deact-actions {
+  margin-top: 22px;
+}
+
+.deact-actions .btn-submit {
+  width: 100%;
+}
+
+/* Multi-line message box (same look as .form-input, but not a pill) */
+.form-input.form-textarea {
+  border-radius: 20px;
+  padding: 13px 20px;
+  line-height: 1.5;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.char-count {
+  margin-top: 4px;
+  text-align: right;
+  font-size: 0.78rem;
+  color: #8C7C72;
+}

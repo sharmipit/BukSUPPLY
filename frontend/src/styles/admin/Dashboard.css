@@ -668,6 +668,10 @@
   background-color: #fee2e2;
   color: #991b1b;
 }
+.db-badge.archived {
+  background-color: #e5e7eb;
+  color: #374151;
+}
 
 .db-inv-table td {
   height: 88px;
@@ -796,6 +800,11 @@
   background-color: #ecfdf5;
   border-color: #a7f3d0;
   color: #065f46;
+}
+
+.db-notice-toast span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .db-notice-close {
@@ -1238,4 +1247,46 @@
 .db-field-error {
   font-size: 0.8rem;
   color: #991b1b;
+}
+
+/* ==========================================================================
+   User Accounts table
+   ========================================================================== */
+.db-users-table tbody tr.db-row-clickable:focus-visible {
+  outline: 2px solid #8c5839;
+  outline-offset: -2px;
+}
+
+/* "Active / Deactivated / Archived" and "Request sent" */
+.db-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.db-status-stack .db-badge {
+  width: 118px;
+  text-align: center;
+}
+
+/* Request sent */
+.db-badge.db-badge-request {
+  background-color: #fef3c7;
+  color: #92400e;
+  box-shadow: inset 0 0 0 1px #fcd34d;
+}
+
+/* Reactivation requests waiting */
+.db-footer-note {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid #fcd34d;
+  border-radius: 50px;
+  background-color: #fef3c7;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
 }

@@ -1,13 +1,47 @@
 import React, { useState, useEffect } from "react";
+import FilterDropdown from "../../components/FilterDropdown";
 import "../../styles/admin/UserManagement.css";
 
-const FILTERS = ["All", "User", "Moderator", "Deactivated"];
 const ITEMS_PER_PAGE = 5;
+
+// Quick comments the administrator can pick instead of typing
+const DEACTIVATE_SUGGESTIONS = [
+  "Violated the rules stated in the Terms and Conditions.",
+  "Misuse of the system or of requisition slips.",
+  "Sharing the account with another person.",
+  "Providing false or misleading information.",
+  "The account is no longer needed (graduated or separated from the university).",
+];
+
+const DECLINE_SUGGESTIONS = [
+  "Your account was deactivated for violating the Terms and Conditions.",
+  "Please visit the Property Window to settle this matter first.",
+  "Your request is incomplete or unclear. Please send a new request with more details.",
+  "We could not verify your identity. Please bring a valid ID to the Property Window.",
+  "Your account will stay deactivated for now. You may send a new request later.",
+];
 
 // Works whether or not VITE_API_URL ends in "/api"
 const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5001")
   .replace(/\/+$/, "")
   .replace(/\/api$/, "");
+
+// Dates are shown in Philippine time, like the rest of the system
+const fmtDateTime = (v) =>
+  v
+    ? new Date(v).toLocaleString("en-PH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Manila",
+      })
+    : "";
+const fmtDay = (v) =>
+  v
+    ? new Date(v).toLocaleDateString("en-PH", {
+        dateStyle: "medium",
+        timeZone: "Asia/Manila",
+      })
+    : "";
 
 async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem("token");
@@ -80,6 +114,436 @@ function ConfirmModal({
   );
 }
 
+/**
+ * Asks for a written reason / note before an action (deactivate, decline a request).
+ * onConfirm(text) may throw: the message is shown inside the pop-up.
+ * `message` can be plain text or JSX (so the user's name can be bold).
+ */
+function ReasonModal({
+  isOpen,
+  title,
+  message,
+  label,
+  placeholder,
+  required,
+  minLength = 5,
+  maxLength = 300,
+  confirmLabel,
+  danger,
+  suggestions = [],
+  hint,
+  onConfirm,
+  onClose,
+}) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setText("");
+      setError("");
+      setBusy(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const value = text.trim();
+    if (required && value.length < minLength) {
+      setError(`Please enter at least ${minLength} characters.`);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await onConfirm(value);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="um-modal-backdrop" onClick={onClose}>
+      <div
+        className="um-modal um-modal-reason"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="um-reason-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="um-modal-header">
+          <h3 id="um-reason-title">{title}</h3>
+          <button
+            type="button"
+            className="um-modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <form className="um-modal-form" onSubmit={handleSubmit} noValidate>
+          <div className="um-modal-body">
+            <p className="um-confirm-text">{message}</p>
+
+            <div className="um-field">
+              <label htmlFor="um-reason">
+                {label} {!required && <span className="um-optional">(optional)</span>}
+              </label>
+              {suggestions.length > 0 && (
+                <div
+                  className="um-chips"
+                  role="group"
+                  aria-label="Suggested comments"
+                >
+                  {suggestions.map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      className={`um-chip${text === sug ? " selected" : ""}`}
+                      onClick={() => {
+                        setText(sug);
+                        setError("");
+                      }}
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <textarea
+                id="um-reason"
+                className="um-input um-textarea"
+                rows={4}
+                maxLength={maxLength}
+                placeholder={placeholder}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setError("");
+                }}
+              />
+              <div className="um-field-meta">
+                {hint ? <span className="um-hint">{hint}</span> : <span />}
+                <span className="um-char-count">
+                  {text.length}/{maxLength}
+                </span>
+              </div>
+              {error && <span className="um-field-error">{error}</span>}
+            </div>
+          </div>
+
+          <div className="um-modal-footer">
+            <button
+              type="button"
+              className="um-btn-secondary"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={danger ? "um-btn-danger" : "um-btn-primary"}
+              disabled={busy}
+            >
+              {busy ? "Please wait..." : confirmLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// One label + value pair inside a detail card
+// multiline = long free text that may wrap
+function DetailRow({ label, children, multiline }) {
+  return (
+    <div className={`um-detail-row${multiline ? " multiline" : ""}`}>
+      <dt>{label}</dt>
+      <dd title={typeof children === "string" ? children : undefined}>
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+/** Account details pop-up. Shows the row's data at once and loads the rest. */
+function UserDetailsModal({
+  user,
+  onClose,
+  onDeactivate,
+  onReactivate,
+  onDecline,
+  onArchive,
+  onUnarchive,
+}) {
+  const [details, setDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const controller = new AbortController();
+    setDetails(null);
+    setError("");
+    setLoading(true);
+    apiFetch(`/${user._id}`, { signal: controller.signal })
+      .then((data) => setDetails(data.user))
+      .catch((err) => {
+        if (err.name !== "AbortError") setError(err.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [user]);
+
+  if (!user) return null;
+
+  const d = details || user;
+  const isDeactivated = d.status === "Deactivated";
+  const isArchived = !!d.archived;
+  const statusLabel = isArchived ? "Archived" : d.status;
+  const hasRequest = details ? !!details.request : !!user.hasRequest;
+  const initials = d.name
+    .split(" ")
+    .filter((w) => w && /\p{L}/u.test(w[0]))
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  const extra = (value) => (loading ? "Loading..." : value || "—");
+
+  return (
+    <div className="um-modal-backdrop" onClick={onClose}>
+      <div
+        className="um-modal um-modal-md"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="um-details-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="um-modal-header">
+          <div>
+            <h3 id="um-details-title">Account details</h3>
+            <p className="um-modal-subtitle">
+              Information saved for this account.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="um-modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="um-modal-body">
+          <div className="um-detail-top">
+            <div className="um-avatar" aria-hidden="true">
+              {initials || <i className="bi bi-person"></i>}
+            </div>
+            <div className="um-detail-who">
+              <div className="um-detail-name" title={d.name}>
+                {d.name}
+              </div>
+              <div className="um-role">{d.role}</div>
+            </div>
+            <span className={`um-badge ${statusLabel.toLowerCase()}`}>
+              {statusLabel}
+            </span>
+          </div>
+
+          {error && (
+            <div className="um-error-box" role="alert">
+              {error}
+            </div>
+          )}
+
+          {/* Main account information */}
+          <div className="um-detail-card">
+            <dl className="um-detail-grid">
+              <DetailRow label="ID number">{d.id}</DetailRow>
+              <DetailRow label="Role">{d.role}</DetailRow>
+              <DetailRow label="Contact number">{d.contact || "—"}</DetailRow>
+              <DetailRow label="Sign-in method">
+                {extra(details && details.signInMethod)}
+              </DetailRow>
+              <DetailRow label="Account created">
+                {fmtDateTime(d.createdAt) || "—"}
+              </DetailRow>
+              <DetailRow label="Last sign-in">
+                {extra(fmtDateTime(details && details.lastSignIn))}
+              </DetailRow>
+            </dl>
+            <dl className="um-detail-long">
+              <DetailRow label="Email address">{d.email}</DetailRow>
+            </dl>
+          </div>
+
+          {isDeactivated && details && (
+            <section className="um-detail-section">
+              <h4>
+                <i className="bi bi-person-x"></i> Deactivation
+              </h4>
+              <div className="um-detail-card">
+                <dl className="um-detail-grid">
+                  <DetailRow label="Deactivated on">
+                    {fmtDateTime(
+                      details.deactivation && details.deactivation.date
+                    ) || "—"}
+                  </DetailRow>
+                  <DetailRow label="Deactivated by">
+                    {details.deactivation &&
+                    details.deactivation.source === "self"
+                      ? "The account owner"
+                      : (details.deactivation && details.deactivation.byName) ||
+                        "—"}
+                  </DetailRow>
+                  {isArchived && (
+                    <DetailRow label="Archived on">
+                      {fmtDateTime(details.archivedAt) || "—"}
+                    </DetailRow>
+                  )}
+                </dl>
+                <dl className="um-detail-long">
+                  <DetailRow label="Reason" multiline>
+                    {(details.deactivation && details.deactivation.reason) ||
+                      "No reason was recorded."}
+                  </DetailRow>
+                </dl>
+              </div>
+            </section>
+          )}
+
+          {isDeactivated && details && details.request && (
+            <section className="um-detail-section">
+              <h4>
+                <i className="bi bi-envelope-paper"></i> Reactivation request
+              </h4>
+              <div className="um-detail-card">
+                <dl className="um-detail-grid">
+                  <DetailRow label="Sent on">
+                    {fmtDateTime(details.request.date)}
+                  </DetailRow>
+                </dl>
+                <dl className="um-detail-long">
+                  <DetailRow label="Message" multiline>
+                    {details.request.message}
+                  </DetailRow>
+                </dl>
+              </div>
+            </section>
+          )}
+
+          {isDeactivated &&
+            details &&
+            !details.request &&
+            details.lastDecline && (
+              <div className="um-note-card">
+                <h4 className="um-note-title">Last request declined</h4>
+                <p className="um-note-text">
+                  The last request was declined on{" "}
+                  {fmtDay(details.lastDecline.date)}
+                  {details.lastDecline.note
+                    ? `. Note: ${details.lastDecline.note}`
+                    : "."}
+                </p>
+              </div>
+            )}
+        </div>
+
+        <div className="um-modal-footer">
+          <button type="button" className="um-btn-secondary" onClick={onClose}>
+            Close
+          </button>
+          {isArchived ? (
+            <button
+              type="button"
+              className="um-btn-primary"
+              onClick={() => onUnarchive(user)}
+            >
+              <i className="bi bi-box-arrow-up"></i> Unarchive
+            </button>
+          ) : isDeactivated ? (
+            <>
+              {hasRequest && (
+                <button
+                  type="button"
+                  className="um-btn-secondary"
+                  onClick={() => onDecline(user)}
+                >
+                  Decline request
+                </button>
+              )}
+              {!hasRequest && (
+                <button
+                  type="button"
+                  className="um-btn-secondary"
+                  onClick={() => onArchive(user)}
+                >
+                  <i className="bi bi-archive"></i> Archive
+                </button>
+              )}
+              <button
+                type="button"
+                className="um-btn-primary"
+                onClick={() => onReactivate(user)}
+              >
+                {hasRequest ? "Approve & reactivate" : "Reactivate"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="um-btn-danger"
+              onClick={() => onDeactivate(user)}
+            >
+              <i className="bi bi-person-x"></i> Deactivate account
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Create moderator: input limits and formats ---- */
+const LIMITS = {
+  idNumber: { min: 3, max: 15 },
+  name: { min: 2, max: 50 },
+  email: { max: 100 },
+  password: { min: 8, max: 64 },
+};
+
+// Typing filters: characters that are not allowed are dropped as the admin types
+const FILTERS_BY_FIELD = {
+  // letters, numbers and hyphens only, always uppercase (e.g. P-1234)
+  idNumber: (v) => v.replace(/[^A-Za-z0-9-]/g, "").toUpperCase(),
+  // letters (any language), spaces, hyphens, apostrophes and periods only
+  firstName: (v) => v.replace(/[^\p{L}\s.'’-]/gu, "").replace(/\s{2,}/g, " "),
+  lastName: (v) => v.replace(/[^\p{L}\s.'’-]/gu, "").replace(/\s{2,}/g, " "),
+  // no spaces in an email address
+  email: (v) => v.replace(/\s/g, ""),
+  // no spaces in a password
+  password: (v) => v.replace(/\s/g, ""),
+  confirmPassword: (v) => v.replace(/\s/g, ""),
+};
+
+const NAME_PATTERN = /^\p{L}+(?:[ .'’-]\p{L}+)*\.?$/u; // starts with a letter, no doubled symbols
+const ID_PATTERN = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/; // e.g. P-1234 (no leading, trailing or double hyphens)
+// Moderators use the staff address of the university
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@buksu\.edu\.ph$/i;
+
 const EMPTY_FORM = {
   idNumber: "",
   firstName: "",
@@ -112,30 +576,60 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    const filter = FILTERS_BY_FIELD[name];
+    const value = filter ? filter(e.target.value) : e.target.value;
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
     setServerError("");
   };
 
+  const validateName = (value, label) => {
+    const v = value.trim();
+    if (!v) return `${label} is required.`;
+    if (v.length < LIMITS.name.min)
+      return `${label} must be at least ${LIMITS.name.min} letters.`;
+    if (v.length > LIMITS.name.max)
+      return `${label} must be ${LIMITS.name.max} characters or fewer.`;
+    if (!NAME_PATTERN.test(v))
+      return `${label} may only have letters, spaces, hyphens, apostrophes and periods.`;
+    return "";
+  };
+
   const validate = () => {
     const next = {};
-    if (!form.idNumber.trim()) next.idNumber = "ID number is required.";
-    else if (!/^[A-Za-z0-9-]{3,20}$/.test(form.idNumber.trim()))
-      next.idNumber = "Use 3-20 letters, numbers, or hyphens.";
-    // Stricter option if moderator IDs always look like P-1234:
-    // else if (!/^P-\d{4}$/i.test(form.idNumber.trim()))
-    //   next.idNumber = "Use the format P-1234.";
-    if (!form.firstName.trim()) next.firstName = "First name is required.";
-    if (!form.lastName.trim()) next.lastName = "Last name is required.";
-    if (!form.email.trim()) next.email = "Email address is required.";
-    else if (!/^\S+@\S+\.\S+$/.test(form.email))
-      next.email = "Enter a valid email address.";
+
+    const id = form.idNumber.trim();
+    if (!id) next.idNumber = "ID number is required.";
+    else if (id.length < LIMITS.idNumber.min || id.length > LIMITS.idNumber.max)
+      next.idNumber = `Use ${LIMITS.idNumber.min}-${LIMITS.idNumber.max} characters.`;
+    else if (!ID_PATTERN.test(id))
+      next.idNumber = "Use only letters, numbers and single hyphens (e.g. P-1234).";
+
+    const firstErr = validateName(form.firstName, "First name");
+    if (firstErr) next.firstName = firstErr;
+    const lastErr = validateName(form.lastName, "Last name");
+    if (lastErr) next.lastName = lastErr;
+
+    const mail = form.email.trim();
+    if (!mail) next.email = "Email address is required.";
+    else if (mail.length > LIMITS.email.max)
+      next.email = `Email must be ${LIMITS.email.max} characters or fewer.`;
+    else if (!EMAIL_PATTERN.test(mail))
+      next.email = "Use a BukSU staff email ending in @buksu.edu.ph.";
+
     // if (!form.contact.trim()) next.contact = "Contact number is required.";
     // else if (!/^09\d{9}$/.test(form.contact))
     //   next.contact = "Use an 11-digit number starting with 09.";
-    if (form.password.length < 8)
-      next.password = "Password must be at least 8 characters.";
+
+    const pw = form.password;
+    if (pw.length < LIMITS.password.min)
+      next.password = `Password must be at least ${LIMITS.password.min} characters.`;
+    else if (pw.length > LIMITS.password.max)
+      next.password = `Password must be ${LIMITS.password.max} characters or fewer.`;
+    else if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw))
+      next.password = "Password must include at least one letter and one number.";
+
     if (form.confirmPassword !== form.password)
       next.confirmPassword = "Passwords do not match.";
     return next;
@@ -153,9 +647,9 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
     try {
       await onCreate({
         idNumber: form.idNumber.trim().toUpperCase(),
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
+        firstName: form.firstName.trim().replace(/\s+/g, " "),
+        lastName: form.lastName.trim().replace(/\s+/g, " "),
+        email: form.email.trim().toLowerCase(),
         // contact: form.contact.trim(),
         password: form.password, // sent over HTTPS only; the server hashes it
       });
@@ -171,7 +665,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   return (
     <div className="um-modal-backdrop" onClick={onClose}>
       <div
-        className="um-modal"
+        className="um-modal um-modal-create"
         role="dialog"
         aria-modal="true"
         aria-labelledby="um-create-title"
@@ -205,6 +699,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                 type="text"
                 className="um-input"
                 placeholder="e.g. P-1234"
+                maxLength={LIMITS.idNumber.max}
+                autoComplete="off"
                 value={form.idNumber}
                 onChange={handleChange}
               />
@@ -222,6 +718,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                   type="text"
                   className="um-input"
                   placeholder="First name"
+                  maxLength={LIMITS.name.max}
+                  autoComplete="off"
                   value={form.firstName}
                   onChange={handleChange}
                 />
@@ -237,6 +735,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                   type="text"
                   className="um-input"
                   placeholder="Last name"
+                  maxLength={LIMITS.name.max}
+                  autoComplete="off"
                   value={form.lastName}
                   onChange={handleChange}
                 />
@@ -254,6 +754,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                 type="email"
                 className="um-input"
                 placeholder="moderator@buksu.edu.ph"
+                maxLength={LIMITS.email.max}
+                autoComplete="off"
                 value={form.email}
                 onChange={handleChange}
               />
@@ -290,7 +792,9 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     className="um-input"
-                    placeholder="At least 8 characters"
+                    placeholder="8+ characters, letter & number"
+                    maxLength={LIMITS.password.max}
+                    autoComplete="new-password"
                     value={form.password}
                     onChange={handleChange}
                   />
@@ -320,6 +824,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     type={showConfirm ? "text" : "password"}
                     className="um-input"
                     placeholder="Re-enter password"
+                    maxLength={LIMITS.password.max}
+                    autoComplete="new-password"
                     value={form.confirmPassword}
                     onChange={handleChange}
                   />
@@ -383,6 +889,7 @@ export default function UserManagement() {
 
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -395,6 +902,14 @@ export default function UserManagement() {
   // Modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [declineTarget, setDeclineTarget] = useState(null);
+  const [detailsTarget, setDetailsTarget] = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [unarchiveTarget, setUnarchiveTarget] = useState(null);
+
+  // Three-dots menu: { user, top, left } (drawn with position: fixed so the table never clips it)
+  const [menu, setMenu] = useState(null);
 
   // Toast notice
   const [notice, setNotice] = useState(null);
@@ -403,6 +918,63 @@ export default function UserManagement() {
     const timer = setTimeout(() => setNotice(null), 3500);
     return () => clearTimeout(timer);
   }, [notice]);
+
+  // Options for the Filter Dropdown. The values are what the API expects;
+  // only the labels (and the small colour dots) are for display.
+  const filterOptions = [
+    { value: "All", label: "All accounts" },
+    { value: "User", label: "Users" },
+    { value: "Moderator", label: "Moderators" },
+    { value: "Deactivated", label: "Deactivated", tone: "denied" },
+    { value: "Archived", label: "Archived", tone: "cancelled" },
+    {
+      value: "Requests",
+      label:
+        pendingRequests > 0
+          ? `Reactivation requests (${pendingRequests})`
+          : "Reactivation requests",
+      tone: "pending",
+    },
+  ];
+
+  /* ---- Three-dots menu: open, place, close ---- */
+  const openMenu = (e, u) => {
+    e.stopPropagation(); // the row itself opens the details pop-up
+    if (menu && menu.user._id === u._id) {
+      setMenu(null);
+      return;
+    }
+    const MENU_W = 190;
+    const MENU_H = 150;
+    const r = e.currentTarget.getBoundingClientRect();
+    const top =
+      r.bottom + 6 + MENU_H > window.innerHeight
+        ? Math.max(8, r.top - MENU_H - 6) // not enough room below: open upward
+        : r.bottom + 6;
+    const left = Math.max(
+      8,
+      Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8)
+    );
+    setMenu({ user: u, top, left });
+  };
+
+  useEffect(() => {
+    if (!menu) return undefined;
+    const close = () => setMenu(null);
+    const onKey = (e) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menu]);
 
   /* ---- Debounce search so we don't hit the API on every keystroke ---- */
   useEffect(() => {
@@ -426,8 +998,14 @@ export default function UserManagement() {
         const data = await apiFetch(`?${params}`, {
           signal: controller.signal,
         });
+        // Last row of a page was just removed from this filter: go back one page
+        if (data.users.length === 0 && currentPage > 1) {
+          setCurrentPage((p) => Math.max(p - 1, 1));
+          return;
+        }
         setUsers(data.users);
         setTotal(data.total);
+        setPendingRequests(data.pendingRequests || 0);
       } catch (err) {
         if (err.name !== "AbortError") setLoadError(err.message);
       } finally {
@@ -469,6 +1047,35 @@ export default function UserManagement() {
     });
   };
 
+  // Throws on error; the pop-up shows the message
+  const handleConfirmDeactivate = async (reason) => {
+    const target = deactivateTarget;
+    await apiFetch(`/${target._id}/deactivate`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    });
+    setDeactivateTarget(null);
+    setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `${target.name} (${target.id}) was deactivated.`,
+    });
+  };
+
+  const handleConfirmDecline = async (note) => {
+    const target = declineTarget;
+    await apiFetch(`/${target._id}/decline-request`, {
+      method: "PATCH",
+      body: JSON.stringify({ note }),
+    });
+    setDeclineTarget(null);
+    setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `The request of ${target.name} (${target.id}) was declined.`,
+    });
+  };
+
   const handleConfirmReactivate = async () => {
     if (reactivateTarget) {
       try {
@@ -485,6 +1092,39 @@ export default function UserManagement() {
       }
     }
     setReactivateTarget(null);
+  };
+
+  // Archive: hides a deactivated account from the normal lists (it is never deleted)
+  const handleConfirmArchive = async () => {
+    if (archiveTarget) {
+      try {
+        await apiFetch(`/${archiveTarget._id}/archive`, { method: "PATCH" });
+        setRefreshKey((k) => k + 1);
+        setNotice({
+          type: "success",
+          text: `${archiveTarget.name} (${archiveTarget.id}) was archived.`,
+        });
+      } catch (err) {
+        setLoadError(err.message);
+      }
+    }
+    setArchiveTarget(null);
+  };
+
+  const handleConfirmUnarchive = async () => {
+    if (unarchiveTarget) {
+      try {
+        await apiFetch(`/${unarchiveTarget._id}/unarchive`, { method: "PATCH" });
+        setRefreshKey((k) => k + 1);
+        setNotice({
+          type: "success",
+          text: `${unarchiveTarget.name} (${unarchiveTarget.id}) was unarchived.`,
+        });
+      } catch (err) {
+        setLoadError(err.message);
+      }
+    }
+    setUnarchiveTarget(null);
   };
 
   // One helper for the loading / empty rows
@@ -511,8 +1151,9 @@ export default function UserManagement() {
           <p className="um-subtitle">
             Manage user accounts and system access for{" "}
             <strong>BukSU Supply &amp; Property Management</strong>. Create new
-            moderator credentials or monitor active staff and student accounts,
-            and manage deactivated accounts.
+            moderator credentials, monitor staff and student accounts, and
+            deactivate, reactivate, or archive accounts. Deactivated users can send a
+            reactivation request from the sign-in page.
           </p>
         </div>
         <button
@@ -539,7 +1180,7 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Search + filter tabs */}
+      {/* Search + filter dropdown */}
       <div className="um-filter-bar">
         <div className="um-search-wrapper">
           <i className="bi bi-search"></i>
@@ -551,20 +1192,13 @@ export default function UserManagement() {
           />
         </div>
 
-        <div className="um-status-tabs" role="tablist">
-          {FILTERS.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              role="tab"
-              aria-selected={activeFilter === filter}
-              className={`um-tab-btn ${activeFilter === filter ? "active" : ""}`}
-              onClick={() => handleFilterChange(filter)}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
+        <FilterDropdown
+          options={filterOptions}
+          value={activeFilter}
+          onChange={handleFilterChange}
+          ariaLabel="Filter accounts"
+          allValue="All"
+        />
       </div>
 
       {loadError && (
@@ -596,49 +1230,68 @@ export default function UserManagement() {
                   )
                 : users.length > 0
                   ? users.map((u) => (
-                      <tr key={u._id}>
+                      <tr
+                        key={u._id}
+                        className="um-row"
+                        tabIndex={0}
+                        onClick={() => setDetailsTarget(u)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && e.target === e.currentTarget)
+                            setDetailsTarget(u);
+                        }}
+                      >
                         <td className="um-cell-id">{u.id}</td>
                         <td>
-                          <div className="um-name um-clamp" title={u.name}>
+                          <div className="um-name um-ellipsis" title={u.name}>
                             {u.name}
                           </div>
                           <div className="um-role">{u.role}</div>
                         </td>
                         <td>
-                          <div className="um-clamp" title={u.email}>
+                          <div className="um-ellipsis" title={u.email}>
                             {u.email}
                           </div>
                         </td>
                         <td>{u.contact || "—"}</td>
-                        <td>
-                          <span
-                            className={`um-badge ${u.status.toLowerCase()}`}
-                          >
-                            {u.status}
-                          </span>
-                        </td>
-                        <td>
-                          {u.status === "Deactivated" ? (
-                            <button
-                              type="button"
-                              className="um-btn-action um-btn-reactivate"
-                              onClick={() => setReactivateTarget(u)}
-                              aria-label={`Reactivate ${u.name}`}
+                        <td className="um-cell-status">
+                          <div className="um-status-stack">
+                            <span
+                              className={`um-badge ${u.archived ? "archived" : u.status.toLowerCase()}`}
                             >
-                              <i className="bi bi-arrow-counterclockwise"></i>{" "}
-                              Reactivate
-                            </button>
-                          ) : (
-                            <span className="um-no-action">—</span>
-                          )}
+                              {u.archived ? "Archived" : u.status}
+                            </span>
+                            {u.hasRequest && !u.archived && (
+                              <span className="um-badge um-badge-request">
+                                Request sent
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="um-cell-actions">
+                          <button
+                            type="button"
+                            className={`um-kebab${menu && menu.user._id === u._id ? " open" : ""}`}
+                            onClick={(e) => openMenu(e, u)}
+                            aria-label={`Actions for ${u.name}`}
+                            aria-haspopup="menu"
+                            aria-expanded={!!(menu && menu.user._id === u._id)}
+                          >
+                            <i className="bi bi-three-dots-vertical"></i>
+                          </button>
                         </td>
                       </tr>
                     ))
-                  : messageRow(
-                      "bi-people",
-                      "No Users Found",
-                      "No accounts match your current search or filter."
-                    )}
+                  : activeFilter === "Archived"
+                    ? messageRow(
+                        "bi-archive",
+                        "No Archived Accounts",
+                        "Deactivated accounts that you archive will appear here."
+                      )
+                    : messageRow(
+                        "bi-people",
+                        "No Users Found",
+                        "No accounts match your current search or filter."
+                      )}
             </tbody>
           </table>
         </div>
@@ -670,6 +1323,84 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Three-dots menu */}
+      {menu && (
+        <div
+          className="um-menu"
+          role="menu"
+          style={{ top: menu.top, left: menu.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="um-menu-item"
+            onClick={() => {
+              setDetailsTarget(menu.user);
+              setMenu(null);
+            }}
+          >
+            <i className="bi bi-eye"></i> View details
+          </button>
+          {menu.user.archived ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="um-menu-item"
+              onClick={() => {
+                setUnarchiveTarget(menu.user);
+                setMenu(null);
+              }}
+            >
+              <i className="bi bi-box-arrow-up"></i> Unarchive
+            </button>
+          ) : menu.user.status === "Deactivated" ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="um-menu-item"
+                onClick={() => {
+                  setReactivateTarget(menu.user);
+                  setMenu(null);
+                }}
+              >
+                <i className="bi bi-arrow-counterclockwise"></i> Reactivate
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="um-menu-item"
+                disabled={menu.user.hasRequest}
+                title={
+                  menu.user.hasRequest
+                    ? "Approve or decline the reactivation request first"
+                    : undefined
+                }
+                onClick={() => {
+                  setArchiveTarget(menu.user);
+                  setMenu(null);
+                }}
+              >
+                <i className="bi bi-archive"></i> Archive
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              className="um-menu-item danger"
+              onClick={() => {
+                setDeactivateTarget(menu.user);
+                setMenu(null);
+              }}
+            >
+              <i className="bi bi-person-x"></i> Deactivate
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <CreateModeratorModal
         isOpen={createModalOpen}
@@ -677,17 +1408,138 @@ export default function UserManagement() {
         onCreate={handleCreateModerator}
       />
 
+      <UserDetailsModal
+        user={detailsTarget}
+        onClose={() => setDetailsTarget(null)}
+        onDeactivate={(u) => {
+          setDetailsTarget(null);
+          setDeactivateTarget(u);
+        }}
+        onReactivate={(u) => {
+          setDetailsTarget(null);
+          setReactivateTarget(u);
+        }}
+        onDecline={(u) => {
+          setDetailsTarget(null);
+          setDeclineTarget(u);
+        }}
+        onArchive={(u) => {
+          setDetailsTarget(null);
+          setArchiveTarget(u);
+        }}
+        onUnarchive={(u) => {
+          setDetailsTarget(null);
+          setUnarchiveTarget(u);
+        }}
+      />
+
+      <ReasonModal
+        isOpen={!!deactivateTarget}
+        title="Deactivate account?"
+        message={
+          deactivateTarget ? (
+            <>
+              <strong>{deactivateTarget.name}</strong> ({deactivateTarget.id})
+              will be signed out and will no longer be able to sign in. The
+              reason you write is shown to them on the sign-in page and sent to
+              their email.
+            </>
+          ) : (
+            ""
+          )
+        }
+        label="Reason for deactivation"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={DEACTIVATE_SUGGESTIONS}
+        hint="The user will see this reason."
+        required
+        minLength={5}
+        maxLength={300}
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={handleConfirmDeactivate}
+        onClose={() => setDeactivateTarget(null)}
+      />
+
+      <ReasonModal
+        isOpen={!!declineTarget}
+        title="Decline request?"
+        message={
+          declineTarget ? (
+            <>
+              <strong>{declineTarget.name}</strong> ({declineTarget.id}) stays
+              deactivated. They are told the request was declined and can send a
+              new one later.
+            </>
+          ) : (
+            ""
+          )
+        }
+        label="Note to the user"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={DECLINE_SUGGESTIONS}
+        hint="The user will see this note."
+        maxLength={300}
+        confirmLabel="Decline request"
+        onConfirm={handleConfirmDecline}
+        onClose={() => setDeclineTarget(null)}
+      />
+
       <ConfirmModal
         isOpen={!!reactivateTarget}
         title="Reactivate account?"
         message={
-          reactivateTarget
-            ? `${reactivateTarget.name} (${reactivateTarget.id}) will regain access to the system.`
-            : ""
+          reactivateTarget ? (
+            <>
+              <strong>{reactivateTarget.name}</strong> ({reactivateTarget.id})
+              will regain access to the system.
+            </>
+          ) : (
+            ""
+          )
         }
         confirmLabel="Reactivate"
         onConfirm={handleConfirmReactivate}
         onClose={() => setReactivateTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!archiveTarget}
+        title="Archive account?"
+        message={
+          archiveTarget ? (
+            <>
+              <strong>{archiveTarget.name}</strong> ({archiveTarget.id}) will be
+              moved out of the main list and stays deactivated. The account is
+              not deleted, and you can find it under the Archived filter and
+              unarchive it at any time.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Archive"
+        onConfirm={handleConfirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!unarchiveTarget}
+        title="Unarchive account?"
+        message={
+          unarchiveTarget ? (
+            <>
+              <strong>{unarchiveTarget.name}</strong> ({unarchiveTarget.id}) will
+              go back to the Deactivated list. The account stays deactivated
+              until you reactivate it.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Unarchive"
+        onConfirm={handleConfirmUnarchive}
+        onClose={() => setUnarchiveTarget(null)}
       />
     </div>
   );
