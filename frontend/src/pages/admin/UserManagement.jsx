@@ -1149,11 +1149,8 @@ export default function UserManagement() {
         <div className="um-header-text">
           <h1 className="um-title">User Management</h1>
           <p className="um-subtitle">
-            Manage user accounts and system access for{" "}
-            <strong>BukSU Supply &amp; Property Management</strong>. Create new
-            moderator credentials, monitor staff and student accounts, and
-            deactivate, reactivate, or archive accounts. Deactivated users can send a
-            reactivation request from the sign-in page.
+            Create moderators, monitor staff and students, and deactivate, reactivate, 
+            or archive accounts with sign-in reactivation requests.
           </p>
         </div>
         <button
