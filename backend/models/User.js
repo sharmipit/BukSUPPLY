@@ -71,6 +71,13 @@ const UserSchema = new mongoose.Schema(
     archived: { type: Boolean, default: false, index: true },
     archivedAt: { type: Date },
     archivedBy: { type: String, trim: true, default: "" },
+    // One-time pop-up shown at the next sign-in after an administrator reactivates the account.
+    // "pending" is cleared once the user has seen it.
+    reactivationNotice: {
+      pending: { type: Boolean, default: false },
+      reason: { type: String, trim: true, default: "" },
+      date: { type: Date },
+    },
     agreedToTerms: {
       type: Boolean,
       required: [true, "You must agree to the Terms and Conditions and Privacy Policy"],

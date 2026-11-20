@@ -10,6 +10,7 @@ const deactivationSchema = new mongoose.Schema(
     active: { type: Boolean, default: true },
     endedAt: { type: Date },
     endedByName: { type: String, trim: true, default: '' },
+    endReason: { type: String, trim: true, maxlength: 300, default: '' }, // why it was reactivated
   },
   { timestamps: true }
 );

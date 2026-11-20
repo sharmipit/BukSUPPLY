@@ -2,6 +2,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const router = express.Router();
 
+const { protect } = require("../middleware/auth");
 const {
   signUp,
   sendSignupCode,
@@ -12,6 +13,7 @@ const {
   verifyOtp,
   resetPassword,
   requestReactivation,
+  dismissReactivationNotice,
 } = require("../controllers/authController");
 
 const isProd = process.env.NODE_ENV === "production";
@@ -32,6 +34,7 @@ const googleLimiter = makeLimiter(30);
 const otpRequestLimiter = makeLimiter(5);   // each request sends an email
 const otpCheckLimiter = makeLimiter(10, 15, { skipSuccessfulRequests: true }); // verify + reset (failures only)
 const reactivationLimiter = makeLimiter(8, 60); // reactivation requests (each one notifies the admins)
+const noticeLimiter = makeLimiter(30);          // "I saw the reactivation pop-up"
 const signupCodeLimiter = makeLimiter(5, 15);   // each request sends an email
 
 // --- Sign up / Sign in ---
@@ -45,6 +48,9 @@ router.post("/google", googleLimiter, googleSignIn);
 
 // --- Deactivated account: ask the administrator to reactivate it ---
 router.post("/reactivation-request", reactivationLimiter, requestReactivation);
+
+// --- Reactivated account: the user has seen the "welcome back" pop-up ---
+router.post("/reactivation-notice/seen", protect, noticeLimiter, dismissReactivationNotice);
 
 // --- Forgot password (6-digit OTP workflow) ---
 router.post("/forgot-password/request-code", otpRequestLimiter, requestOtp);

@@ -145,6 +145,52 @@ function DeactivatedModal({ info, onRequest, onClose }) {
   );
 }
 
+// Pop-up shown once, before the first sign-in after an administrator reactivated the account
+function ReactivatedModal({ info, onContinue }) {
+  return (
+    <div className="modal-overlay">
+      <div
+        className="modal-card captcha-card deact-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reactivatedTitle"
+      >
+        <div className="captcha-icon success">
+          <i className="bi bi-person-check"></i>
+        </div>
+        <h2 className="modal-title" id="reactivatedTitle">
+          Account reactivated
+        </h2>
+        <p className="modal-subtitle">
+          Good news! An administrator reactivated your account
+          {info.date ? (
+            <>
+              {' '}
+              on <strong>{fmtDay(info.date)}</strong>
+            </>
+          ) : null}
+          .
+        </p>
+
+        {info.reason && (
+          <>
+            <p className="modal-subtitle deact-gap">Reason:</p>
+            <div className="deact-reason good">{info.reason}</div>
+          </>
+        )}
+
+        <p className="modal-subtitle deact-gap">You can now use your account again.</p>
+
+        <div className="deact-actions">
+          <button type="button" className="btn-submit" onClick={onContinue} autoFocus>
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Signin() {
   usePage(css, 'Sign In | BukSUPPLY');
   const { login } = useAuth();
@@ -171,15 +217,40 @@ export default function Signin() {
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
-  // Shared by email/password and Google sign-in
-  const completeSignIn = ({ token, user }) => {
-    if (!ROLE_HOME[user.role]) {
-      setBanner({ message: 'This account type is not supported here yet.', type: 'error' });
-      return;
-    }
+  // Set when the account was just reactivated: { token, user, reactivation: { reason, date } }.
+  // The person is only signed in after they press Continue on the pop-up.
+  const [welcomeBack, setWelcomeBack] = useState(null);
+
+  const finishSignIn = ({ token, user }) => {
     login(token, user);
     setBanner({ message: 'Signed in! Redirecting...', type: 'success' });
     navigate(homeFor(user.role), { replace: true });
+  };
+
+  // Shared by email/password and Google sign-in
+  const completeSignIn = (data) => {
+    if (!ROLE_HOME[data.user.role]) {
+      setBanner({ message: 'This account type is not supported here yet.', type: 'error' });
+      return;
+    }
+    if (data.reactivation) {
+      setWelcomeBack(data);
+      return;
+    }
+    finishSignIn(data);
+  };
+
+  const continueAfterReactivation = () => {
+    const data = welcomeBack;
+    if (!data) return;
+    setWelcomeBack(null);
+    // Tell the server the pop-up was seen so it is not shown again (never blocks sign-in)
+    api
+      .post('/auth/reactivation-notice/seen', null, {
+        headers: { Authorization: `Bearer ${data.token}` },
+      })
+      .catch(() => {});
+    finishSignIn(data);
   };
 
   // Sends the sign-in request. captchaToken is null when reCAPTCHA is turned off.
@@ -601,6 +672,11 @@ export default function Signin() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* ACCOUNT REACTIVATED POP-UP (only mounted while open) */}
+      {welcomeBack && (
+        <ReactivatedModal info={welcomeBack.reactivation} onContinue={continueAfterReactivation} />
       )}
 
       {/* DEACTIVATED ACCOUNT POP-UP (only mounted while open) */}

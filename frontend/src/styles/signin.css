@@ -606,6 +606,18 @@ body {
   color: var(--text-dark);
 }
 
+/* Account reactivated pop-up */
+.captcha-icon.success {
+  background-color: #E8F5E9;
+  color: var(--success-color, #2e7d32);
+}
+
+.deact-reason.good {
+  background: #E8F5E9;
+  border-color: #B9DBBB;
+  color: #1F5F26;
+}
+
 /* Stacked modal buttons */
 .deact-actions {
   display: flex;
