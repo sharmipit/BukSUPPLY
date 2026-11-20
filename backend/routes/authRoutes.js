@@ -4,6 +4,8 @@ const router = express.Router();
 
 const {
   signUp,
+  sendSignupCode,
+  resendSignupCode,
   signIn,
   googleSignIn,
   requestOtp,
@@ -30,8 +32,11 @@ const googleLimiter = makeLimiter(30);
 const otpRequestLimiter = makeLimiter(5);   // each request sends an email
 const otpCheckLimiter = makeLimiter(10, 15, { skipSuccessfulRequests: true }); // verify + reset (failures only)
 const reactivationLimiter = makeLimiter(8, 60); // reactivation requests (each one notifies the admins)
+const signupCodeLimiter = makeLimiter(5, 15);   // each request sends an email
 
 // --- Sign up / Sign in ---
+router.post("/signup/send-code", signupCodeLimiter, sendSignupCode);
+router.post("/signup/resend-code", signupCodeLimiter, resendSignupCode);
 router.post("/signup", signupLimiter, signUp);
 router.post("/signin", signinLimiter, signIn);
 

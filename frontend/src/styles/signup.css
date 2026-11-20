@@ -632,6 +632,122 @@ body {
 }
 
 /* ==========================================================================
+   Verify email pop-up (matches the Reset Password pop-up)
+   ========================================================================== */
+.vc-card {
+  position: relative;
+  max-width: 440px;
+  padding: clamp(28px, 5vh, 40px) clamp(22px, 5vw, 34px);
+}
+
+.vc-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-dark);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.vc-close:hover {
+  background-color: #F5EFE6;
+}
+
+.vc-header {
+  margin-bottom: 22px;
+}
+
+.vc-card .modal-title {
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  margin-bottom: 10px;
+}
+
+.vc-card .modal-title span {
+  color: var(--text-light-brown);
+}
+
+.vc-card .modal-description {
+  margin-bottom: 0;
+  padding: 0 4px;
+}
+
+.vc-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+}
+
+.vc-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.vc-code {
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+}
+
+.vc-code::placeholder {
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.vc-error {
+  text-align: left;
+  padding-left: 12px;
+  margin-top: 6px;
+}
+
+.vc-form .btn-submit {
+  align-self: center;
+  width: min(100%, 320px);
+}
+
+/* Resend and Change email: small text links on one centered row */
+.vc-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 0.88rem;
+  color: var(--text-body);
+}
+
+.vc-link {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-light-brown);
+  cursor: pointer;
+}
+
+.vc-link:hover:not(:disabled) {
+  color: var(--text-dark);
+  text-decoration: underline;
+}
+
+.vc-link:disabled {
+  color: #A3968C;
+  font-weight: 500;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
    Terms & Privacy modal
    ========================================================================== */
 .lgl-card {
