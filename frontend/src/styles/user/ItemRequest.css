@@ -1,6 +1,4 @@
-/* ==========================================================================
-    BukSUPPLY - Item Request Hub Styles
-    ========================================================================== */
+/* Item Request Hub */
 
 .item-request-container {
   padding: 32px 40px;
@@ -104,7 +102,7 @@
   overflow-y: hidden;
 }
 
-/* Filter tabs scrollbar: same design as the table scrollbar, slimmer */
+/* Filter tabs scrollbar */
 .item-request-container .status-filter-tabs::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -125,8 +123,6 @@
   background-color: #8c5839;
 }
 
-/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
-   standard scrollbar properties are set, so reset them there */
 @supports selector(::-webkit-scrollbar) {
   .item-request-container .status-filter-tabs {
     scrollbar-width: auto;
@@ -134,7 +130,7 @@
   }
 }
 
-/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
+/* Firefox scrollbar styles */
 @supports not selector(::-webkit-scrollbar) {
   .item-request-container .status-filter-tabs {
     scrollbar-width: thin;
@@ -180,9 +176,7 @@
   color: var(--text-body, #594d46);
 }
 
-/* ==========================================================================
-    Table Styles
-    ========================================================================== */
+/* Table styles */
 
 .dashboard-section-card {
   background-color: var(--card-bg, #ffffff);
@@ -198,7 +192,7 @@
   overflow-x: auto;
 }
 
-/* Table scrollbar: slim, no arrow buttons, light track, brown thumb on hover */
+/* Table scrollbar */
 .item-request-container .table-responsive-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -351,7 +345,7 @@
   color: #0f766e;
 }
 
-/* "Ready for release" pill shown in the Actions column for Approved slips */
+/* Ready for release pill */
 .locked-badge-pill.ready-pill {
   background-color: #ccfbf1;
   color: #0f766e;
@@ -367,7 +361,7 @@
   color: #991b1b;
 }
 
-/* Action Buttons & Badges */
+/* Action buttons and badges */
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -436,7 +430,7 @@
   color: #ffffff;
 }
 
-/* Table Footer Bar */
+/* Table footer bar */
 .table-footer-bar {
   padding: 16px 32px;
   background-color: var(--bg-color, #faf7f2);
@@ -460,7 +454,7 @@
   padding: 0 4px;
 }
 
-/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+/* Responsive footer */
 @media (max-width: 900px) {
   .table-footer-bar {
     flex-direction: column;
@@ -475,7 +469,7 @@
   }
 }
 
-/* Empty State Styling */
+/* Empty state */
 .custom-table td.empty-state-cell {
   height: auto;
   text-align: center;
@@ -523,9 +517,7 @@
   color: #6c757d;
 }
 
-/* ==========================================================================
-    Responsive
-    ========================================================================== */
+/* Responsive */
 
 @media (max-width: 900px) {
   .hub-header-card {

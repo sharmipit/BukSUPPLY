@@ -1,6 +1,4 @@
-/* ==========================================================================
-    BukSUPPLY - Requisition Details Modal Styles
-    ========================================================================== */
+/* Requisition Details Modal */
 
 .details-modal-overlay {
   position: fixed;
@@ -178,9 +176,7 @@
   overflow-wrap: anywhere;
 }
 
-/* ==========================================================================
-    Item lists (stock items and purchase items)
-    ========================================================================== */
+/* Item lists */
 
 .details-item-list {
   list-style: none;
@@ -254,9 +250,7 @@
   overflow-wrap: anywhere;
 }
 
-/* ==========================================================================
-    Footer buttons
-    ========================================================================== */
+/* Footer buttons */
 
 .details-modal-footer {
   padding: 16px 32px;
@@ -270,7 +264,6 @@
   flex-shrink: 0;
 }
 
-/* Same height for all three buttons, so they line up when the screen is resized */
 .details-modal-footer .btn-modal-cancel,
 .details-btn-slip,
 .details-btn-feedback {
@@ -290,7 +283,7 @@
   transition: all 0.2s ease;
 }
 
-/* Request & Issuance Slip button (same look as the primary buttons in System Reports & Logs) */
+/* Issuance slip button */
 .details-btn-slip {
   background: var(--btn-dark, #2c1a14);
   color: #fff;
@@ -334,7 +327,7 @@
   outline-offset: 2px;
 }
 
-/* After the feedback is received: green, disabled, no hover change */
+/* Submitted feedback state */
 .details-btn-feedback.sent,
 .details-btn-feedback.sent:disabled {
   background: #d1fae5;
@@ -349,9 +342,7 @@
   line-height: 1;
 }
 
-/* ==========================================================================
-    Message under the details (waiting for / after the feedback)
-    ========================================================================== */
+/* Feedback status message */
 
 .details-feedback-note {
   display: flex;
@@ -392,11 +383,8 @@
   }
 }
 
-/* ==========================================================================
-    Responsive
-    ========================================================================== */
+/* Responsive */
 
-/* Small tablets and large phones: the three buttons share the row evenly */
 @media (max-width: 640px) {
   .details-modal-overlay {
     padding: 12px;
@@ -432,7 +420,6 @@
   }
 }
 
-/* Phones: stack the buttons, main action on top, Close at the bottom */
 @media (max-width: 480px) {
   .details-modal-footer {
     flex-direction: column-reverse;

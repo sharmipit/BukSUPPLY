@@ -1,12 +1,10 @@
-/* ==========================================================================
-   BukSUPPLY - Notifications Popup (top bar bell)
-   ========================================================================== */
+/* Notifications Popup */
 
 .np-wrap {
   position: relative;
 }
 
-/* Bell + unread badge */
+/* Bell icon and unread badge */
 .np-bell {
   position: relative;
 }
@@ -105,14 +103,12 @@
   color: #ffffff;
 }
 
-/* ==========================================================================
-   Scrollbar
-   ========================================================================== */
+/* Scrollbar */
 .np-list {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0; /* lets the list shrink and scroll when the screen is short */
+  min-height: 0;
   max-height: 380px;
   overflow-y: auto;
 }

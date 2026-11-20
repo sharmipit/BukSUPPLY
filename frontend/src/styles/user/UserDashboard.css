@@ -1,6 +1,4 @@
-/* ==========================================================================
-    BukSUPPLY - Regular User Dashboard Styles
-    ========================================================================== */
+/* User Dashboard */
 
 .user-dashboard-container {
   padding: 32px 40px;
@@ -10,7 +8,7 @@
   box-sizing: border-box;
 }
 
-/* 1. Welcome Card */
+/* Welcome card */
 .welcome-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -46,7 +44,7 @@
   margin-bottom: 28px;
 }
 
-/* 2. Indicator Cards Grid */
+/* Indicator cards grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -117,7 +115,7 @@
   background-color: #72462c;
 }
 
-/* 3. Dashboard Section Cards & Tables */
+/* Dashboard section cards and tables */
 .dashboard-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -169,14 +167,13 @@
   transform: translateY(-2px);
 }
 
-/* Custom Table Design */
+/* Custom table design */
 .table-responsive-wrapper {
   width: 100%;
   overflow-x: auto;
 }
 
-/* Table scrollbar (same as the admin and moderator dashboards):
-   slim, no arrow buttons, light track, brown thumb on hover */
+/* Table scrollbar */
 .user-dashboard-container .table-responsive-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -198,8 +195,6 @@
   background-color: #8c5839;
 }
 
-/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
-   standard scrollbar properties are set, so reset them there */
 @supports selector(::-webkit-scrollbar) {
   .user-dashboard-container .table-responsive-wrapper {
     scrollbar-width: auto;
@@ -207,7 +202,7 @@
   }
 }
 
-/* Firefox: no hover-on-thumb support, so the brown shows when hovering the table */
+/* Firefox scrollbar styles */
 @supports not selector(::-webkit-scrollbar) {
   .user-dashboard-container .table-responsive-wrapper {
     scrollbar-width: thin;
@@ -250,7 +245,7 @@
   background-color: rgba(250, 247, 242, 0.6);
 }
 
-/* Clean tables */
+/* Table layout */
 .user-dashboard-container .ud-table {
   table-layout: fixed;
   min-width: 900px;
@@ -403,7 +398,7 @@
   color: #ffffff;
 }
 
-/* Empty State Styling */
+/* Empty state */
 .empty-state-cell {
   text-align: center;
   padding: 48px 24px !important;
@@ -444,7 +439,7 @@
   line-height: 1.5;
 }
 
-/* Table Footer Bar & Pagination Spacing */
+/* Table footer bar */
 .table-footer-bar {
   padding: 16px 32px;
   background-color: var(--bg-color, #faf7f2);
@@ -482,7 +477,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* Responsive queries */
+/* Responsive */
 @media (max-width: 1200px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

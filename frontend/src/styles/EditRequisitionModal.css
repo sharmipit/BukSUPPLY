@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Edit Requisition Modal Styles
-   ========================================================================== */
+/* Edit Requisition Modal */
 
 .req-modal-overlay {
   position: fixed;
@@ -58,7 +56,7 @@
   font-size: 1.1rem;
 }
 
-/* One size for all three modals */
+/* Modal sizing */
 .req-modal-card {
   background-color: #FFFFFF;
   border-radius: 24px;
@@ -169,7 +167,7 @@
   color: #8C7A70;
 }
 
-/* Shared input style. Other pages (Inventory, Reports) also use this class. */
+/* Shared input style */
 .custom-input {
   width: 100%;
   box-sizing: border-box;
@@ -196,7 +194,7 @@ textarea.custom-input {
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
-/* Item rows (used by the purchase modal) */
+/* Item rows */
 .item-row-card {
   background-color: #FAF7F2;
   border: 1px solid #DFD8CC;
@@ -295,7 +293,7 @@ textarea.custom-input {
   background-color: #FAF7F2;
 }
 
-/* Footer of the slip form */
+/* Slip form footer */
 .req-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -377,9 +375,7 @@ textarea.custom-input {
   font-size: 0.82rem;
 }
 
-/* ==========================================================================
-   Slip form sections (requisition details, items, notes, etc.)
-   ========================================================================== */
+/* Slip form sections */
 .req-section {
   display: flex;
   flex-direction: column;
@@ -512,9 +508,7 @@ textarea.custom-input {
   height: 34px;
 }
 
-/* ==========================================================================
-   Item modals
-   ========================================================================== */
+/* Item modals */
 .req-modal-overlay--top {
   z-index: 100001;
 }
@@ -576,7 +570,7 @@ textarea.custom-input {
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.15);
 }
 
-/* The list that is always visible */
+/* Pick list */
 .req-pick-list {
   list-style: none;
   margin: 0;
@@ -744,7 +738,7 @@ textarea.custom-input {
   gap: 8px;
 }
 
-/* "No match" call to action */
+/* Empty state call to action */
 .req-cta {
   display: flex;
   flex-direction: column;
@@ -812,7 +806,7 @@ textarea.custom-input {
   flex-shrink: 0;
 }
 
-/* Footer of the item modals */
+/* Item modal footer */
 .req-picker-footer {
   display: flex;
   justify-content: space-between;

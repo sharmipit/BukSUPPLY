@@ -1,13 +1,10 @@
-/* ==========================================================================
-   BukSUPPLY - System Settings
-   Builds on Dashboard.css (header card, section cards, buttons, toast).
-   ========================================================================== */
+/* System Settings */
 
 .ss-page {
   padding-bottom: 40px;
 }
 
-/* ---------- Setting cards ---------- */
+/* Setting cards */
 .ss-card {
   margin-bottom: 24px;
 }
@@ -49,7 +46,7 @@
   padding: 24px 32px 28px;
 }
 
-/* ---------- Card footer (per-card Save / Discard) ---------- */
+/* Card footer */
 .ss-card-foot {
   display: flex;
   align-items: center;
@@ -73,7 +70,7 @@
   margin: 0 32px 20px;
 }
 
-/* ---------- Fields ---------- */
+/* Form fields */
 .ss-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -139,7 +136,7 @@
   color: #a89d94;
 }
 
-/* Room for the Change / Cancel button inside the input */
+/* Action input container */
 .ss-input-wrap .ss-input {
   padding-right: 84px;
 }
@@ -154,7 +151,7 @@
   pointer-events: none;
 }
 
-/* Secret inputs (password with eye icon) */
+/* Password input */
 .ss-input-wrap .ss-input.ss-input-secret {
   padding-right: 48px;
 }
@@ -184,7 +181,7 @@
   outline: 2px solid var(--text-light-brown, #8c5839);
 }
 
-/* Saved public ID/key shown as "12345**************" (locked) */
+/* Masked credentials */
 .ss-input.ss-input-locked {
   cursor: default;
   user-select: none;
@@ -234,7 +231,7 @@
   appearance: none;
 }
 
-/* ---------- Status badges ---------- */
+/* Status badges */
 .ss-status {
   flex-shrink: 0;
 }
@@ -249,7 +246,7 @@
   color: #5b6573;
 }
 
-/* ---------- Toggle rows ---------- */
+/* Toggle rows */
 .ss-row {
   display: flex;
   align-items: center;
@@ -320,7 +317,7 @@
   margin: 40px auto 0;
 }
 
-/* ---------- Confirm modal ---------- */
+/* Confirmation modal */
 .ss-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -366,7 +363,7 @@
   color: #b3261e;
 }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width: 900px) {
   .ss-grid,
   .ss-grid-2,

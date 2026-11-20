@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - System Reports & Logs Styles
-   ========================================================================== */
+/* System Reports & Logs */
 
 .reports-container {
   padding: 32px 40px;
@@ -22,9 +20,7 @@
   box-sizing: border-box;
 }
 
-/* ==========================================================================
-   Header
-   ========================================================================== */
+/* Header */
 .rl-header-card {
   background: var(--card-bg, #fff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -47,9 +43,7 @@
   line-height: 1.5;
 }
 
-/* ==========================================================================
-   Report cards
-   ========================================================================== */
+/* Report cards */
 .rl-cards {
   display: flex;
   flex-direction: column;
@@ -253,9 +247,7 @@
   }
 }
 
-/* ==========================================================================
-   Section cards (Recent downloads, Verify a report)
-   ========================================================================== */
+/* Section cards */
 .rl-history {
   background: var(--card-bg, #fff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -294,9 +286,7 @@
   text-align: center;
 }
 
-/* ==========================================================================
-   Recent downloads
-   ========================================================================== */
+/* Recent downloads */
 .rl-hist {
   container: rl-hist / inline-size;
 }
@@ -453,9 +443,7 @@
   }
 }
 
-/* ==========================================================================
-   Verify a report
-   ========================================================================== */
+/* Verify a report */
 .rl-verify-form {
   display: flex;
   flex-wrap: wrap;
@@ -485,9 +473,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* ==========================================================================
-   Toast (above the preview modal)
-   ========================================================================== */
+/* Toast notice */
 .rl-toast {
   position: fixed;
   right: 24px;
@@ -519,9 +505,7 @@
   padding: 2px;
 }
 
-/* ==========================================================================
-   Preview modal
-   ========================================================================== */
+/* Preview modal */
 .rl-overlay {
   position: fixed;
   inset: 0;
@@ -589,7 +573,7 @@
   margin: 8px 0 16px;
 }
 
-/* ---------- Scrollbars ---------- */
+/* Scrollbars */
 .rl-paper-wrap::-webkit-scrollbar,
 .rl-sheet-scroll::-webkit-scrollbar {
   width: 14px;
@@ -854,9 +838,7 @@
   justify-content: flex-end;
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 900px) {
   .reports-container {
     padding: 20px 16px;
@@ -874,7 +856,7 @@
     min-width: 0;
   }
 
-  /* Verify a report: field and button both go full width */
+  /* Full-width verify form */
   .rl-verify-form .rl-input {
     flex: 1 1 100%;
     max-width: none;

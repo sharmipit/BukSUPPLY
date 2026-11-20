@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Profile Page Styles 
-   ========================================================================== */
+/* Profile Page */
 
 .profile-page {
   --p-brown: #8c5839;
@@ -17,7 +15,7 @@
   font-family: "Poppins", sans-serif;
 }
 
-/* ---------- Banner ---------- */
+/* Banner */
 .profile-banner {
   height: 295px;
   background-color: #4a2c1c;
@@ -36,7 +34,7 @@
   gap: 26px;
 }
 
-/* ---------- Cards ---------- */
+/* Cards */
 .profile-card {
   background: #fff;
   border: 1px solid var(--p-border);
@@ -44,7 +42,7 @@
   box-shadow: 0 4px 20px rgba(44, 26, 20, 0.03);
 }
 
-/* ---------- Identity card ---------- */
+/* Identity card */
 .profile-main {
   position: relative;
   padding: 96px 32px 32px;
@@ -97,7 +95,7 @@
   color: var(--p-text);
 }
 
-/* ---------- Sections ---------- */
+/* Sections */
 .profile-section {
   display: flex;
   flex-direction: column;
@@ -113,7 +111,7 @@
   padding-left: 4px;
 }
 
-/* ---------- Personal information form ---------- */
+/* Personal information form */
 .profile-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -134,7 +132,7 @@
   color: var(--p-ink);
 }
 
-/* Input field default styling */
+/* Input field styles */
 .pf-input {
   width: 100%;
   height: 48px;
@@ -154,8 +152,7 @@
   color: #8c7a70;
 }
 
-/* View mode (and the email, always): looks like plain text. No I-beam pointer,
-   no blinking text cursor, nothing to select. */
+/* Readonly view mode */
 .pf-input[readonly] {
   cursor: default;
   caret-color: transparent;
@@ -167,7 +164,7 @@
   background: transparent;
 }
 
-/* Edit mode: the I-beam pointer appears only here */
+/* Editable input mode */
 .pf-input:not([readonly]):not(:disabled) {
   cursor: text;
 }
@@ -190,7 +187,7 @@
   box-shadow: none;
 }
 
-/* Shown only while a rule is being broken (or after a field is checked) */
+/* Validation error message */
 .pf-error {
   font-size: 0.8rem;
   line-height: 1.4;
@@ -243,7 +240,7 @@
   background: var(--p-cream);
 }
 
-/* ---------- More settings ---------- */
+/* Additional settings */
 .profile-settings {
   display: flex;
   justify-content: center;
@@ -288,7 +285,7 @@
   background: #dc2626;
 }
 
-/* ---------- Legal Links ---------- */
+/* Legal links */
 .profile-legal-links {
   display: flex;
   justify-content: center;
@@ -317,7 +314,7 @@
   text-decoration: underline;
 }
 
-/* ---------- Toast ---------- */
+/* Toast notification */
 .profile-notice {
   position: fixed;
   right: 24px;
@@ -375,7 +372,7 @@
   border: 1px solid #f3c6c1;
 }
 
-/* ---------- Modals & Legal Items ---------- */
+/* Modals */
 .pf-overlay {
   position: fixed;
   inset: 0;
@@ -413,7 +410,7 @@
   margin: 0;
 }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width: 768px) {
   .profile-banner {
     height: 240px;

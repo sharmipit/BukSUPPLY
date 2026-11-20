@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Moderator Dashboard Styles
-   ========================================================================== */
+/* Moderator Dashboard */
 
 .dashboard {
   font-family: 'Poppins', sans-serif;
@@ -12,7 +10,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* ---------- Header card ---------- */
+/* Header card */
 .db-header-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -62,7 +60,7 @@
   margin: 4px 0;
 }
 
-/* ---------- Stat cards ---------- */
+/* Stat cards */
 .db-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -135,7 +133,7 @@
   background-color: #72462c;
 }
 
-/* ---------- Quick actions ---------- */
+/* Quick actions */
 .db-actions-block {
   display: flex;
   flex-direction: column;
@@ -177,7 +175,7 @@
   transform: scale(0.98);
 }
 
-/* ---------- Table card ---------- */
+/* Table card */
 .db-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -210,8 +208,7 @@
   color: var(--text-body, #594d46);
 }
 
-/* Table scrollbars (Requests, Inventory and Users tables look the same):
-   slim, no arrow buttons, light track, brown thumb on hover */
+/* Table scrollbars */
 .db-table-wrapper,
 .dashboard .rq-table-wrapper {
   width: 100%;
@@ -243,8 +240,6 @@
   background-color: #8c5839;
 }
 
-/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
-   standard scrollbar properties are set, so reset them there */
 @supports selector(::-webkit-scrollbar) {
   .dashboard .db-table-wrapper,
   .dashboard .rq-table-wrapper {
@@ -253,7 +248,7 @@
   }
 }
 
-/* Firefox: no hover-on-thumb support, so the brown shows when hovering the table */
+/* Firefox scrollbar styles */
 @supports not selector(::-webkit-scrollbar) {
   .dashboard .db-table-wrapper,
   .dashboard .rq-table-wrapper {
@@ -465,7 +460,7 @@
   border-color: var(--text-light-brown, #8c5839);
 }
 
-/* Footer bar (same look as the user dashboard table footer) */
+/* Footer bar */
 .db-footer-bar {
   padding: 16px 32px;
   background-color: var(--bg-color, #faf7f2);
@@ -556,7 +551,7 @@
   margin: 0;
 }
 
-/* ---------- Inventory summary table ---------- */
+/* Inventory summary table */
 /* Two summary tables sit side by side */
 .db-split-row {
   display: grid;
@@ -761,9 +756,7 @@
   font-weight: 700;
 }
 
-/* ==========================================================================
-   Toast notice
-   ========================================================================== */
+/* Toast notice */
 .db-notice-toast {
   position: fixed;
   bottom: 24px;
@@ -816,9 +809,7 @@
   background-color: rgba(0, 0, 0, 0.06);
 }
 
-/* ==========================================================================
-   Add Item modal (same look as the Inventory page modal)
-   ========================================================================== */
+/* Add Item modal */
 .db-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -958,7 +949,7 @@
   cursor: not-allowed;
 }
 
-/* Form bits */
+/* Form fields */
 .db-field {
   display: flex;
   flex-direction: column;
@@ -1078,9 +1069,7 @@
   }
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 1200px) {
   .db-split-row {
     grid-template-columns: 1fr;
@@ -1189,9 +1178,7 @@
 }
 
 
-/* ==========================================================================
-   Inventory form controls inside the dashboard modals
-   ========================================================================== */
+/* Inventory form controls */
 .dashboard .inv-dd {
   position: relative;
 }
@@ -1220,7 +1207,7 @@
   box-shadow: 0 0 0 3px rgba(140, 88, 57, 0.12);
 }
 
-/* Fields with a problem */
+/* Validation error states */
 .dashboard .custom-input.inv-input-invalid,
 .dashboard .db-input.inv-input-invalid {
   border-color: #dc2626;
@@ -1235,7 +1222,7 @@
   background-color: #fef2f2;
 }
 
-/* Message under a field in the Add / Edit form */
+/* Field error message */
 .db-field-error {
   font-size: 0.8rem;
   color: #991b1b;
