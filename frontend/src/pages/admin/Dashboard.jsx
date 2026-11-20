@@ -15,6 +15,7 @@ import {
   apiFetch,
   DEACTIVATE_SUGGESTIONS,
   DECLINE_SUGGESTIONS,
+  REACTIVATE_SUGGESTIONS,
 } from '../../components/UserAccountModals';
 
 import '../../styles/admin/Dashboard.css';
@@ -530,6 +531,8 @@ const Dashboard = ({
   const displayName = [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ');
   // Only used for the "recorded by" note. The server records the real user.
   const actorName = displayName || user?.email || 'Unknown user';
+  // Greeting card: first word + last word of the name (see utils/formatName.js)
+  const greetingName = displayName ? shortName(displayName) : '';
 
   // Live inventory (same hook and methods as the Inventory page)
   const {
@@ -1286,20 +1289,16 @@ const Dashboard = ({
     setNotice({ type: 'success', text: `The request of ${target.name} (${target.id}) was declined.` });
   };
 
-  const handleConfirmReactivate = async () => {
-    if (reactivateTarget) {
-      try {
-        await apiFetch(`/${reactivateTarget._id}/reactivate`, { method: 'PATCH' });
-        setUsersRefreshKey((k) => k + 1);
-        setNotice({
-          type: 'success',
-          text: `${reactivateTarget.name} (${reactivateTarget.id}) was reactivated.`,
-        });
-      } catch (err) {
-        setUsersError(err.message);
-      }
-    }
+  // Throws on error; the pop-up shows the message
+  const handleConfirmReactivate = async (reason) => {
+    const target = reactivateTarget;
+    await apiFetch(`/${target._id}/reactivate`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    });
     setReactivateTarget(null);
+    setUsersRefreshKey((k) => k + 1);
+    setNotice({ type: 'success', text: `${target.name} (${target.id}) was reactivated.` });
   };
 
   // Archive hides a deactivated account from the normal lists (it is never deleted)
@@ -1410,7 +1409,7 @@ const Dashboard = ({
         <div className="db-header-text">
           <h1 className="db-title">Dashboard</h1>
           <p className="db-subtitle">
-            Good day, <span className="db-name">{displayName || 'there'}</span>! Here is your daily
+            Good day, <span className="db-name">{greetingName || 'there'}</span>! Here is your daily
             operational summary for <strong>BukSU Supply &amp; Property Management</strong>. Review
             pending departmental slips, coordinate physical window issuances, or manage asset
             inventory below.
@@ -3142,19 +3141,26 @@ const Dashboard = ({
         onClose={() => setDeclineTarget(null)}
       />
 
-      <ConfirmModal
+      <ReasonModal
         isOpen={!!reactivateTarget}
         title="Reactivate account?"
         message={
           reactivateTarget ? (
             <>
               <strong>{reactivateTarget.name}</strong> ({reactivateTarget.id}) will regain access
-              to the system.
+              to the system. The reason you choose or write is sent to their email.
             </>
           ) : (
             ''
           )
         }
+        label="Reason for reactivation"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={REACTIVATE_SUGGESTIONS}
+        hint="The user will see this reason."
+        required
+        minLength={5}
+        maxLength={300}
         confirmLabel="Reactivate"
         onConfirm={handleConfirmReactivate}
         onClose={() => setReactivateTarget(null)}

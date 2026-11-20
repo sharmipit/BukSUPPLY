@@ -503,6 +503,8 @@ const Dashboard = ({
   }, []);
   const displayName = [user?.firstName, user?.lastName].filter((n) => n && n !== '-').join(' ');
   const actorName = displayName || user?.email || 'Unknown user';
+  // Greeting card: first word + last word of the name (see utils/formatName.js)
+  const greetingName = displayName ? shortName(displayName) : '';
 
   const {
     items,
@@ -1232,7 +1234,7 @@ const Dashboard = ({
         <div className="db-header-text">
           <h1 className="db-title">Dashboard</h1>
           <p className="db-subtitle">
-            Good day, <span className="db-name">{displayName || 'there'}</span>! Here is your daily
+            Good day, <span className="db-name">{greetingName || 'there'}</span>! Here is your daily
             operational summary for <strong>BukSU Supply &amp; Property Management</strong>. Review
             pending departmental slips, coordinate physical window issuances, or manage asset
             inventory below.

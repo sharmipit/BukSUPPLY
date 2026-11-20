@@ -231,16 +231,6 @@ body {
   color: var(--text-dark);
 }
 
-/* Small hint under the password field */
-.field-hint {
-  display: block;
-  margin-top: 3px;
-  padding-left: 12px;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--text-body);
-}
-
 /* Error Messages & Input Error States */
 .error-msg {
   font-size: 0.76rem;

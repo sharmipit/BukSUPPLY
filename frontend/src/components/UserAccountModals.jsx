@@ -13,6 +13,14 @@ export const DEACTIVATE_SUGGESTIONS = [
   "The account is no longer needed (graduated or separated from the university).",
 ];
 
+export const REACTIVATE_SUGGESTIONS = [
+  "The user explained the situation and the issue has been resolved.",
+  "The deactivation was made by mistake.",
+  "The user settled the matter at the Property Window.",
+  "The account is still needed for official university work.",
+  "The user agreed to follow the Terms and Conditions.",
+];
+
 export const DECLINE_SUGGESTIONS = [
   "Your account was deactivated for violating the Terms and Conditions.",
   "Please visit the Property Window to settle this matter first.",
@@ -115,7 +123,7 @@ export function ConfirmModal({
 }
 
 /**
- * Asks for a written reason / note before an action (deactivate, decline a request).
+ * Asks for a written reason / note before an action (deactivate, reactivate, decline a request).
  * onConfirm(text) may throw: the message is shown inside the pop-up.
  * `message` can be plain text or JSX (so the user's name can be bold).
  */
@@ -148,6 +156,9 @@ export function ReasonModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // A required reason must be chosen or typed before the button works
+  const reasonMissing = required && text.trim().length < minLength;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -250,7 +261,12 @@ export function ReasonModal({
             <button
               type="submit"
               className={danger ? "um-btn-danger" : "um-btn-primary"}
-              disabled={busy}
+              disabled={busy || reasonMissing}
+              title={
+                reasonMissing
+                  ? "Choose a suggestion or write a reason first"
+                  : undefined
+              }
             >
               {busy ? "Please wait..." : confirmLabel}
             </button>

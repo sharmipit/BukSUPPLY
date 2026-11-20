@@ -2,6 +2,7 @@ const { logActivity } = require('../services/activityLog');
 const Deactivation = require('../models/Deactivation');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const { formatName, nameProblem, contactProblem } = require('../utils/validators');
 
 const publicUser = (u) => ({
   id: u._id,
@@ -25,18 +26,37 @@ const FIELD_LABELS = {
   contactNumber: 'contact number',
 };
 
+// Same rules as the Profile page (shared with Sign Up and User Management)
+const FIELD_RULES = {
+  firstName: (v) => ({ value: formatName(v), problem: nameProblem(v, 'First name') }),
+  lastName: (v) => ({ value: formatName(v), problem: nameProblem(v, 'Last name') }),
+  contactNumber: (v) => ({ value: String(v ?? '').trim(), problem: contactProblem(v) }),
+};
+
 exports.updateProfile = async (req, res) => {
   try {
     const user = req.user;
     const changed = [];
 
-    // whitelist only
+    // whitelist only, and every value must follow the shared field rules
+    const problems = {};
     for (const field of Object.keys(FIELD_LABELS)) {
-      const value = req.body[field];
-      if (value !== undefined && value !== user[field]) {
+      const raw = req.body[field];
+      if (raw === undefined) continue;
+
+      const { value, problem } = FIELD_RULES[field](raw);
+      if (problem) {
+        problems[field] = problem;
+        continue;
+      }
+      if (value !== user[field]) {
         user[field] = value;
         changed.push(FIELD_LABELS[field]);
       }
+    }
+
+    if (Object.keys(problems).length) {
+      return res.status(400).json({ message: 'Validation failed.', errors: problems });
     }
 
     await user.save();

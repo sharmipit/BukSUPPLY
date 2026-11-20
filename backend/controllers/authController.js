@@ -9,13 +9,19 @@ const ReactivationRequest = require('../models/ReactivationRequest');
 const settings = require('../services/settings');
 const { logActivity } = require('../services/activityLog');
 const asyncHandler = require('../middleware/asyncHandler');
+const {
+  formatName,
+  nameProblem,
+  emailShapeProblem,
+  idProblem,
+  passwordProblem,
+} = require('../utils/validators');
 
 // TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
 const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
 const OTP_MAX_ATTEMPTS = 5;
-const MIN_PASSWORD_LENGTH = 8;
 
 const googleClient = new OAuth2Client();
 
@@ -191,14 +197,13 @@ exports.signUp = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({
-        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-      });
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      return res.status(400).json({ message: pwProblem, field: 'password' });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match.' });
+      return res.status(400).json({ message: 'Passwords do not match.', field: 'confirmPassword' });
     }
 
     if (termsAgreement !== true) {
@@ -211,8 +216,22 @@ exports.signUp = async (req, res) => {
     if (!role) {
       return res.status(400).json({
         message: 'Please use a valid BukSU institutional email address.',
+        field: 'email',
       });
     }
+
+    // Same rules as the Sign Up page: email shape, names, and the ID format for this role
+    const emailErr = emailShapeProblem(cleanEmail);
+    if (emailErr) return res.status(400).json({ message: emailErr, field: 'email' });
+
+    const firstErr = nameProblem(firstName, 'First name');
+    if (firstErr) return res.status(400).json({ message: firstErr, field: 'firstName' });
+    const lastErr = nameProblem(lastName, 'Last name');
+    if (lastErr) return res.status(400).json({ message: lastErr, field: 'lastName' });
+
+    const cleanId = idNumber.trim().toUpperCase();
+    const idErr = idProblem(role, cleanId);
+    if (idErr) return res.status(400).json({ message: idErr, field: 'idNumber' });
 
     const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
@@ -220,10 +239,10 @@ exports.signUp = async (req, res) => {
     }
 
     const user = new User({
-      firstName,
-      lastName,
+      firstName: formatName(firstName),
+      lastName: formatName(lastName),
       email: cleanEmail,
-      idNumber,
+      idNumber: cleanId,
       password,
       role,
       authProvider: 'local',
@@ -361,12 +380,10 @@ exports.googleSignIn = async (req, res) => {
         });
       }
 
-      const cleanId = isString(idNumber) ? idNumber.trim() : '';
-      if (!cleanId) {
-        return res.status(400).json({ message: 'ID number is required.', field: 'idNumber' });
-      }
-      if (cleanId.length > 30) {
-        return res.status(400).json({ message: 'ID number is too long.', field: 'idNumber' });
+      const cleanId = isString(idNumber) ? idNumber.trim().toUpperCase() : '';
+      const idErr = idProblem(role, cleanId);
+      if (idErr) {
+        return res.status(400).json({ message: idErr, field: 'idNumber' });
       }
 
       user = new User({
@@ -497,10 +514,9 @@ exports.resetPassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'All fields are required.' });
   }
 
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    return res.status(400).json({
-      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-    });
+  const pwProblem = passwordProblem(newPassword);
+  if (pwProblem) {
+    return res.status(400).json({ message: pwProblem });
   }
 
   if (newPassword !== confirmPassword) {
