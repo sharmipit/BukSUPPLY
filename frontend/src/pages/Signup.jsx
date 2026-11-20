@@ -5,48 +5,81 @@ import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
 import GoogleAuthButton from '../components/GoogleAuthButton';
+import {
+  ID_KIND,
+  typeName,
+  formatName,
+  nameProblem,
+  typeEmail,
+  emailProblem as emailRuleProblem,
+  typeId,
+  idProblem,
+  typePassword,
+  passwordProblem,
+  confirmProblem,
+} from '../utils/fieldRules';
 import css from '../styles/signup.css?raw';
 
 // TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
-// ID formats (based on the placeholders shown in the form).
-// CONFIRM these match your backend rule, and change them here if they do not.
-const STUDENT_ID_PATTERN = /^\d{10}$/; // e.g. 2400000000
-const STAFF_ID_PATTERN = /^P-\d{3,6}$/i; // e.g. P-0000
+const TEMP_ADMIN_EMAIL = 'sharmagnegamboa11@gmail.com'; // TEMPORARY, see above
+
+// Which email addresses can sign up (the format rules themselves are in utils/fieldRules.js)
+const EMAIL_OPTIONS = {
+  domains: ['student.buksu.edu.ph', 'buksu.edu.ph'],
+  allowEmails: [TEMP_ADMIN_EMAIL],
+  domainMessage: 'Use your BukSU email (@student.buksu.edu.ph or @buksu.edu.ph).',
+};
 
 // Mirrors the backend rule: returns 'Student', 'Regular Staff' or null
 const emailType = (email) => {
   const clean = email.trim().toLowerCase();
   if (!EMAIL_PATTERN.test(clean)) return null;
-  return clean.endsWith('@student.buksu.edu.ph') ? 'Student' : 'Regular Staff';
+  return clean.endsWith('@student.buksu.edu.ph') ? ID_KIND.student : ID_KIND.staff;
 };
 
-const emailProblem = (email) => {
-  if (!email.trim()) return 'Institutional email is required';
-  if (!emailType(email))
-    return 'Please use a valid BukSU institutional email (@student.buksu.edu.ph or @buksu.edu.ph).';
-  return '';
+// Typing: cleaned value + a message ONLY when the user just broke a rule
+const typeField = (name, raw, vals) => {
+  switch (name) {
+    case 'firstName':
+      return typeName(raw, 'First name');
+    case 'lastName':
+      return typeName(raw, 'Last name');
+    case 'email':
+      return typeEmail(raw, EMAIL_OPTIONS);
+    case 'idNumber':
+      return typeId(raw, emailType(vals.email));
+    case 'password':
+      return typePassword(raw);
+    case 'confirmPassword': {
+      const { value, notice } = typePassword(raw);
+      // As many characters as the password, but different: already a mismatch
+      const mismatch = value.length >= vals.password.length && value !== vals.password;
+      return { value, notice: notice || (mismatch ? 'Passwords do not match.' : '') };
+    }
+    default:
+      return { value: raw, notice: '' };
+  }
 };
 
-// kind = 'Student' | 'Regular Staff' | null (email not valid yet)
-const idProblem = (kind, raw) => {
-  const id = raw.trim();
-  if (!id) return 'This field is required';
-  if (kind === 'Student')
-    return STUDENT_ID_PATTERN.test(id) ? '' : 'Student ID must be 10 digits, e.g. 2400000000.';
-  if (kind === 'Regular Staff')
-    return STAFF_ID_PATTERN.test(id) ? '' : 'Employee ID must look like P-0000.';
-  return STUDENT_ID_PATTERN.test(id) || STAFF_ID_PATTERN.test(id)
-    ? ''
-    : 'Enter a valid Student ID (10 digits) or Employee ID (e.g. P-0000).';
-};
-
-const passwordProblem = (pw) => {
-  if (!pw) return 'Password is required';
-  if (pw.length < 8) return 'Password must be at least 8 characters';
-  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw))
-    return 'Password must include at least one letter and one number';
-  return '';
+// Completeness check (on blur and on submit)
+const problemOf = (name, value, vals) => {
+  switch (name) {
+    case 'firstName':
+      return nameProblem(value, 'First name');
+    case 'lastName':
+      return nameProblem(value, 'Last name');
+    case 'email':
+      return emailRuleProblem(value, EMAIL_OPTIONS);
+    case 'idNumber':
+      return idProblem(emailType(vals.email), value);
+    case 'password':
+      return passwordProblem(value);
+    case 'confirmPassword':
+      return confirmProblem(vals.password, value);
+    default:
+      return '';
+  }
 };
 
 const INITIAL = {
@@ -135,15 +168,16 @@ const idTexts = (kind) => ({
 });
 
 // Defined outside Signup so inputs keep focus while typing
-function Field({ id, label, icon, full, error, hint, children }) {
+function Field({ id, label, icon, full, error, children }) {
   return (
     <div className={`input-group${full ? ' full-width' : ''}${error ? ' has-error' : ''}`}>
       <label htmlFor={id} className="form-label">
         {icon && <i className={`bi ${icon}`}></i>} {label} <span className="required">*</span>
       </label>
       {children}
-      {hint && !error && <span className="field-hint">{hint}</span>}
-      <span className="error-msg">{error}</span>
+      <span className="error-msg" role="alert">
+        {error}
+      </span>
     </div>
   );
 }
@@ -155,7 +189,8 @@ export default function Signup() {
   const config = usePublicConfig(); // keys and on/off switches from System Settings
 
   const [values, setValues] = useState(INITIAL);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({}); // problems found on blur / submit
+  const [notices, setNotices] = useState({}); // rule just broken while typing
   // A message passed from the Sign In page (e.g. "no account yet for that Google account")
   const [formError, setFormError] = useState(location.state?.notice || '');
   const [busy, setBusy] = useState(false);
@@ -190,11 +225,7 @@ export default function Signup() {
     if (pendingGoogle) {
       const problem = idProblem(emailType(googleEmail), googleIdNumber);
       if (problem) {
-        setGoogleIdError(
-          problem === 'This field is required'
-            ? 'Please enter your ID number to continue.'
-            : problem
-        );
+        setGoogleIdError(problem);
         return;
       }
       const credential = pendingGoogle;
@@ -231,46 +262,58 @@ export default function Signup() {
   const googleId = idTexts(emailType(googleEmail));
 
   const onChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setValues((v) => ({ ...v, [name]: type === 'checkbox' ? checked : value }));
-    // Changing the email can change which ID format applies, so clear that error too
-    setErrors((er) => ({
-      ...er,
-      [name]: undefined,
-      ...(name === 'email' ? { idNumber: undefined } : {}),
+    const { name, value: raw, type, checked } = e.target;
+
+    if (type === 'checkbox') {
+      setValues((v) => ({ ...v, [name]: checked }));
+      setErrors((er) => ({ ...er, [name]: undefined }));
+      setFormError('');
+      return;
+    }
+
+    const { value, notice } = typeField(name, raw, values);
+    const next = { ...values, [name]: value };
+    setValues(next);
+
+    // A message shows only while the user is breaking a rule
+    setNotices((n) => ({
+      ...n,
+      [name]: notice,
+      // Changing the email can change which ID format applies
+      ...(name === 'email' ? { idNumber: '' } : {}),
     }));
+
+    // A problem already on screen is re-checked live, so it disappears once fixed
+    setErrors((er) => {
+      const out = { ...er };
+      if (er[name]) out[name] = problemOf(name, value, next) || undefined;
+      if (name === 'email') out.idNumber = undefined;
+      if (name === 'password' && er.confirmPassword) {
+        out.confirmPassword = problemOf('confirmPassword', next.confirmPassword, next) || undefined;
+      }
+      return out;
+    });
     setFormError('');
   };
 
-  // Check a field when the user leaves it (only if something was typed)
+  // Leaving a field: check it (only if something was typed)
   const onBlur = (e) => {
     const { name } = e.target;
+    setNotices((n) => ({ ...n, [name]: '' }));
     if (!values[name]) return;
-    let message = '';
-    if (name === 'email') message = emailProblem(values.email);
-    if (name === 'idNumber') message = idProblem(emailType(values.email), values.idNumber);
-    if (name === 'password') message = passwordProblem(values.password);
-    if (message) setErrors((er) => ({ ...er, [name]: message }));
+    const message = problemOf(name, values[name], values);
+    setErrors((er) => ({ ...er, [name]: message || undefined }));
   };
+
+  // What is shown under a field: a typing notice first, otherwise a saved problem
+  const shown = (name) => notices[name] || errors[name];
 
   const validate = () => {
     const found = {};
-    ['firstName', 'lastName'].forEach((k) => {
-      if (!values[k].trim()) found[k] = 'This field is required';
+    ['firstName', 'lastName', 'email', 'idNumber', 'password', 'confirmPassword'].forEach((k) => {
+      const message = problemOf(k, values[k], values);
+      if (message) found[k] = message;
     });
-
-    const emailMsg = emailProblem(values.email);
-    if (emailMsg) found.email = emailMsg;
-
-    const idMsg = idProblem(emailType(values.email), values.idNumber);
-    if (idMsg) found.idNumber = idMsg;
-
-    const passwordMsg = passwordProblem(values.password);
-    if (passwordMsg) found.password = passwordMsg;
-
-    if (!values.confirmPassword) found.confirmPassword = 'Please confirm your password';
-    else if (values.password !== values.confirmPassword)
-      found.confirmPassword = 'Passwords do not match';
 
     if (!values.termsAgreement)
       found.termsAgreement = 'You must agree to the terms to complete registration';
@@ -283,10 +326,10 @@ export default function Signup() {
     setBusy(true);
     try {
       await api.post('/auth/signup', {
-        firstName: values.firstName.trim(),
-        lastName: values.lastName.trim(),
+        firstName: formatName(values.firstName),
+        lastName: formatName(values.lastName),
         email: values.email.trim().toLowerCase(),
-        idNumber: values.idNumber.trim(),
+        idNumber: values.idNumber.trim().toUpperCase(),
         password: values.password,
         confirmPassword: values.confirmPassword,
         termsAgreement: values.termsAgreement,
@@ -315,6 +358,7 @@ export default function Signup() {
     setFormError('');
 
     const found = validate();
+    setNotices({});
     setErrors(found);
     if (Object.keys(found).length) return;
 
@@ -405,7 +449,7 @@ export default function Signup() {
 
           <form id="signupForm" className="signup-form" onSubmit={onSubmit} noValidate>
             <div className="form-grid">
-              <Field id="firstName" label="First Name" error={errors.firstName}>
+              <Field id="firstName" label="First Name" error={shown('firstName')}>
                 <input
                   type="text"
                   id="firstName"
@@ -413,13 +457,13 @@ export default function Signup() {
                   className="form-input"
                   placeholder="e.g. Juan"
                   autoComplete="given-name"
-                  maxLength={60}
                   value={values.firstName}
                   onChange={onChange}
+                  onBlur={onBlur}
                 />
               </Field>
 
-              <Field id="lastName" label="Last Name" error={errors.lastName}>
+              <Field id="lastName" label="Last Name" error={shown('lastName')}>
                 <input
                   type="text"
                   id="lastName"
@@ -427,14 +471,14 @@ export default function Signup() {
                   className="form-input"
                   placeholder="e.g. Dela Cruz"
                   autoComplete="family-name"
-                  maxLength={60}
                   value={values.lastName}
                   onChange={onChange}
+                  onBlur={onBlur}
                 />
               </Field>
 
               {/* Email and ID sit side by side on wide screens (saves a whole row of height) */}
-              <Field id="email" label="Institutional Email" error={errors.email}>
+              <Field id="email" label="Institutional Email" error={shown('email')}>
                 <input
                   type="email"
                   id="email"
@@ -448,7 +492,7 @@ export default function Signup() {
                 />
               </Field>
 
-              <Field id="idNumber" label={idLabel} error={errors.idNumber}>
+              <Field id="idNumber" label={idLabel} error={shown('idNumber')}>
                 <input
                   type="text"
                   id="idNumber"
@@ -466,8 +510,7 @@ export default function Signup() {
                 id="password"
                 label="Password"
                 icon="bi-lock"
-                error={errors.password}
-                hint="At least 8 characters, with a letter and a number."
+                error={shown('password')}
               >
                 <div className="input-icon-wrapper">
                   <input
@@ -475,7 +518,7 @@ export default function Signup() {
                     id="password"
                     name="password"
                     className="form-input with-suffix"
-                    placeholder="••••••••"
+                    placeholder="8+ characters, letter & number"
                     autoComplete="new-password"
                     value={values.password}
                     onChange={onChange}
@@ -489,7 +532,7 @@ export default function Signup() {
                 id="confirmPassword"
                 label="Confirm Password"
                 icon="bi-lock"
-                error={errors.confirmPassword}
+                error={shown('confirmPassword')}
               >
                 <div className="input-icon-wrapper">
                   <input
@@ -497,10 +540,11 @@ export default function Signup() {
                     id="confirmPassword"
                     name="confirmPassword"
                     className="form-input with-suffix"
-                    placeholder="••••••••"
+                    placeholder="Re-enter password"
                     autoComplete="new-password"
                     value={values.confirmPassword}
                     onChange={onChange}
+                    onBlur={onBlur}
                   />
                   {eyeToggle('confirmPassword')}
                 </div>
@@ -688,11 +732,18 @@ export default function Signup() {
                   autoComplete="off"
                   value={googleIdNumber}
                   onChange={(e) => {
-                    setGoogleIdNumber(e.target.value);
-                    setGoogleIdError('');
+                    const { value, notice } = typeId(e.target.value, emailType(googleEmail));
+                    setGoogleIdNumber(value);
+                    setGoogleIdError(notice);
+                  }}
+                  onBlur={() => {
+                    if (googleIdNumber)
+                      setGoogleIdError(idProblem(emailType(googleEmail), googleIdNumber));
                   }}
                 />
-                <span className="error-msg">{googleIdError}</span>
+                <span className="error-msg" role="alert">
+                  {googleIdError}
+                </span>
               </div>
             )}
 

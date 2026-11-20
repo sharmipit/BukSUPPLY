@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from "react";
 import FilterDropdown from "../../components/FilterDropdown";
+import {
+  ID_KIND,
+  LIMITS,
+  typeName,
+  formatName,
+  nameProblem,
+  typeEmail,
+  emailProblem,
+  typeId,
+  idProblem,
+  typePassword,
+  passwordProblem,
+  confirmProblem,
+  typeReason,
+  reasonProblem,
+  typeSearch,
+} from "../../utils/fieldRules";
 import "../../styles/admin/UserManagement.css";
 
 const ITEMS_PER_PAGE = 5;
@@ -11,6 +28,14 @@ const DEACTIVATE_SUGGESTIONS = [
   "Sharing the account with another person.",
   "Providing false or misleading information.",
   "The account is no longer needed (graduated or separated from the university).",
+];
+
+const REACTIVATE_SUGGESTIONS = [
+  "The user explained the situation and the issue has been resolved.",
+  "The deactivation was made by mistake.",
+  "The user settled the matter at the Property Window.",
+  "The account is still needed for official university work.",
+  "The user agreed to follow the Terms and Conditions.",
 ];
 
 const DECLINE_SUGGESTIONS = [
@@ -115,7 +140,7 @@ function ConfirmModal({
 }
 
 /**
- * Asks for a written reason / note before an action (deactivate, decline a request).
+ * Asks for a written reason / note before an action (deactivate, reactivate, decline a request).
  * onConfirm(text) may throw: the message is shown inside the pop-up.
  * `message` can be plain text or JSX (so the user's name can be bold).
  */
@@ -126,38 +151,64 @@ function ReasonModal({
   label,
   placeholder,
   required,
-  minLength = 5,
-  maxLength = 300,
+  minLength = LIMITS.reason.min,
+  maxLength = LIMITS.reason.max,
   confirmLabel,
   danger,
   suggestions = [],
-  hint,
   onConfirm,
   onClose,
 }) {
   const [text, setText] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // problem found on blur / submit, or from the server
+  const [notice, setNotice] = useState(""); // rule just broken while typing
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setText("");
       setError("");
+      setNotice("");
       setBusy(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  // A required reason must be chosen or typed before the button works
+  const reasonMissing = required && text.trim().length < minLength;
+
+  const check = (value) =>
+    reasonProblem(value, { required, min: minLength, max: maxLength, label: label || "This field" });
+
+  const handleChange = (e) => {
+    const { value, notice: typed } = typeReason(e.target.value, maxLength);
+    setText(value);
+    setNotice(typed);
+    setError("");
+  };
+
+  // Leaving the box: check it (only if something was typed)
+  const handleBlur = () => {
+    setNotice("");
+    if (text.trim()) setError(check(text));
+  };
+
+  // Counter only appears when the limit is close
+  const showCount = text.length >= Math.floor(maxLength * 0.8);
+  const fieldMessage = notice || error;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const value = text.trim();
-    if (required && value.length < minLength) {
-      setError(`Please enter at least ${minLength} characters.`);
+    const problem = check(value);
+    if (problem) {
+      setError(problem);
       return;
     }
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await onConfirm(value);
     } catch (err) {
@@ -219,23 +270,32 @@ function ReasonModal({
               )}
               <textarea
                 id="um-reason"
-                className="um-input um-textarea"
+                className={`um-input um-textarea${fieldMessage ? " invalid" : ""}`}
                 rows={4}
-                maxLength={maxLength}
                 placeholder={placeholder}
                 value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  setError("");
-                }}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                aria-invalid={Boolean(fieldMessage)}
               />
-              <div className="um-field-meta">
-                {hint ? <span className="um-hint">{hint}</span> : <span />}
-                <span className="um-char-count">
-                  {text.length}/{maxLength}
-                </span>
-              </div>
-              {error && <span className="um-field-error">{error}</span>}
+              {(fieldMessage || showCount) && (
+                <div className="um-field-meta">
+                  {fieldMessage ? (
+                    <span className="um-field-error" role="alert">
+                      {fieldMessage}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  {showCount && (
+                    <span
+                      className={`um-char-count${text.length >= maxLength ? " at-limit" : ""}`}
+                    >
+                      {text.length}/{maxLength}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -250,7 +310,12 @@ function ReasonModal({
             <button
               type="submit"
               className={danger ? "um-btn-danger" : "um-btn-primary"}
-              disabled={busy}
+              disabled={busy || reasonMissing}
+              title={
+                reasonMissing
+                  ? "Choose a suggestion or write a reason first"
+                  : undefined
+              }
             >
               {busy ? "Please wait..." : confirmLabel}
             </button>
@@ -517,32 +582,56 @@ function UserDetailsModal({
   );
 }
 
-/* ---- Create moderator: input limits and formats ---- */
-const LIMITS = {
-  idNumber: { min: 3, max: 15 },
-  name: { min: 2, max: 50 },
-  email: { max: 100 },
-  password: { min: 8, max: 64 },
+/* ---- Create moderator: the rules are shared (utils/fieldRules.js) ---- */
+// Moderators sign in with the staff address, so they use the same ID format as staff (P-0000)
+const MODERATOR_ID_KIND = ID_KIND.staff;
+const MODERATOR_EMAIL = {
+  domains: ["buksu.edu.ph"],
+  domainMessage: "Moderators must use an @buksu.edu.ph email.",
 };
 
-// Typing filters: characters that are not allowed are dropped as the admin types
-const FILTERS_BY_FIELD = {
-  // letters, numbers and hyphens only, always uppercase (e.g. P-1234)
-  idNumber: (v) => v.replace(/[^A-Za-z0-9-]/g, "").toUpperCase(),
-  // letters (any language), spaces, hyphens, apostrophes and periods only
-  firstName: (v) => v.replace(/[^\p{L}\s.'’-]/gu, "").replace(/\s{2,}/g, " "),
-  lastName: (v) => v.replace(/[^\p{L}\s.'’-]/gu, "").replace(/\s{2,}/g, " "),
-  // no spaces in an email address
-  email: (v) => v.replace(/\s/g, ""),
-  // no spaces in a password
-  password: (v) => v.replace(/\s/g, ""),
-  confirmPassword: (v) => v.replace(/\s/g, ""),
+// Typing: cleaned value + a message ONLY when the admin just broke a rule
+const typeField = (name, raw, form) => {
+  switch (name) {
+    case "idNumber":
+      return typeId(raw, MODERATOR_ID_KIND);
+    case "firstName":
+      return typeName(raw, "First name");
+    case "lastName":
+      return typeName(raw, "Last name");
+    case "email":
+      return typeEmail(raw, MODERATOR_EMAIL);
+    case "password":
+      return typePassword(raw);
+    case "confirmPassword": {
+      const { value, notice } = typePassword(raw);
+      const mismatch = value.length >= form.password.length && value !== form.password;
+      return { value, notice: notice || (mismatch ? "Passwords do not match." : "") };
+    }
+    default:
+      return { value: raw, notice: "" };
+  }
 };
 
-const NAME_PATTERN = /^\p{L}+(?:[ .'’-]\p{L}+)*\.?$/u; // starts with a letter, no doubled symbols
-const ID_PATTERN = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/; // e.g. P-1234 (no leading, trailing or double hyphens)
-// Moderators use the staff address of the university
-const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@buksu\.edu\.ph$/i;
+// Completeness check (on blur and on submit)
+const problemOf = (name, value, form) => {
+  switch (name) {
+    case "idNumber":
+      return idProblem(MODERATOR_ID_KIND, value);
+    case "firstName":
+      return nameProblem(value, "First name");
+    case "lastName":
+      return nameProblem(value, "Last name");
+    case "email":
+      return emailProblem(value, MODERATOR_EMAIL);
+    case "password":
+      return passwordProblem(value);
+    case "confirmPassword":
+      return confirmProblem(form.password, value);
+    default:
+      return "";
+  }
+};
 
 const EMPTY_FORM = {
   idNumber: "",
@@ -556,7 +645,8 @@ const EMPTY_FORM = {
 
 function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({}); // problems found on blur / submit
+  const [notices, setNotices] = useState({}); // rule just broken while typing
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -566,6 +656,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
     if (isOpen) {
       setForm(EMPTY_FORM);
       setErrors({});
+      setNotices({});
       setShowPassword(false);
       setShowConfirm(false);
       setServerError("");
@@ -576,68 +667,50 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    const { name } = e.target;
-    const filter = FILTERS_BY_FIELD[name];
-    const value = filter ? filter(e.target.value) : e.target.value;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
+    const { name, value: raw } = e.target;
+    const { value, notice } = typeField(name, raw, form);
+    const next = { ...form, [name]: value };
+    setForm(next);
+
+    // A message shows only while the admin is breaking a rule
+    setNotices((prev) => ({ ...prev, [name]: notice }));
+    // A problem already on screen is re-checked live, so it disappears once fixed
+    setErrors((prev) => {
+      const out = { ...prev };
+      if (prev[name]) out[name] = problemOf(name, value, next) || "";
+      if (name === "password" && prev.confirmPassword)
+        out.confirmPassword = problemOf("confirmPassword", next.confirmPassword, next) || "";
+      return out;
+    });
     setServerError("");
   };
 
-  const validateName = (value, label) => {
-    const v = value.trim();
-    if (!v) return `${label} is required.`;
-    if (v.length < LIMITS.name.min)
-      return `${label} must be at least ${LIMITS.name.min} letters.`;
-    if (v.length > LIMITS.name.max)
-      return `${label} must be ${LIMITS.name.max} characters or fewer.`;
-    if (!NAME_PATTERN.test(v))
-      return `${label} may only have letters, spaces, hyphens, apostrophes and periods.`;
-    return "";
+  // Leaving a field: check it (only if something was typed)
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setNotices((prev) => ({ ...prev, [name]: "" }));
+    if (!form[name]) return;
+    setErrors((prev) => ({ ...prev, [name]: problemOf(name, form[name], form) }));
   };
+
+  // What is shown under a field: a typing notice first, otherwise a saved problem
+  const shown = (name) => notices[name] || errors[name];
 
   const validate = () => {
     const next = {};
-
-    const id = form.idNumber.trim();
-    if (!id) next.idNumber = "ID number is required.";
-    else if (id.length < LIMITS.idNumber.min || id.length > LIMITS.idNumber.max)
-      next.idNumber = `Use ${LIMITS.idNumber.min}-${LIMITS.idNumber.max} characters.`;
-    else if (!ID_PATTERN.test(id))
-      next.idNumber = "Use only letters, numbers and single hyphens (e.g. P-1234).";
-
-    const firstErr = validateName(form.firstName, "First name");
-    if (firstErr) next.firstName = firstErr;
-    const lastErr = validateName(form.lastName, "Last name");
-    if (lastErr) next.lastName = lastErr;
-
-    const mail = form.email.trim();
-    if (!mail) next.email = "Email address is required.";
-    else if (mail.length > LIMITS.email.max)
-      next.email = `Email must be ${LIMITS.email.max} characters or fewer.`;
-    else if (!EMAIL_PATTERN.test(mail))
-      next.email = "Use a BukSU staff email ending in @buksu.edu.ph.";
-
-    // if (!form.contact.trim()) next.contact = "Contact number is required.";
-    // else if (!/^09\d{9}$/.test(form.contact))
-    //   next.contact = "Use an 11-digit number starting with 09.";
-
-    const pw = form.password;
-    if (pw.length < LIMITS.password.min)
-      next.password = `Password must be at least ${LIMITS.password.min} characters.`;
-    else if (pw.length > LIMITS.password.max)
-      next.password = `Password must be ${LIMITS.password.max} characters or fewer.`;
-    else if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw))
-      next.password = "Password must include at least one letter and one number.";
-
-    if (form.confirmPassword !== form.password)
-      next.confirmPassword = "Passwords do not match.";
+    ["idNumber", "firstName", "lastName", "email", "password", "confirmPassword"].forEach(
+      (k) => {
+        const problem = problemOf(k, form[k], form);
+        if (problem) next[k] = problem;
+      }
+    );
     return next;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const found = validate();
+    setNotices({});
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
@@ -647,8 +720,8 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
     try {
       await onCreate({
         idNumber: form.idNumber.trim().toUpperCase(),
-        firstName: form.firstName.trim().replace(/\s+/g, " "),
-        lastName: form.lastName.trim().replace(/\s+/g, " "),
+        firstName: formatName(form.firstName),
+        lastName: formatName(form.lastName),
         email: form.email.trim().toLowerCase(),
         // contact: form.contact.trim(),
         password: form.password, // sent over HTTPS only; the server hashes it
@@ -697,15 +770,18 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                 id="um-id-number"
                 name="idNumber"
                 type="text"
-                className="um-input"
+                className={`um-input${shown("idNumber") ? " invalid" : ""}`}
                 placeholder="e.g. P-1234"
-                maxLength={LIMITS.idNumber.max}
                 autoComplete="off"
                 value={form.idNumber}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                aria-invalid={Boolean(shown("idNumber"))}
               />
-              {errors.idNumber && (
-                <span className="um-field-error">{errors.idNumber}</span>
+              {shown("idNumber") && (
+                <span className="um-field-error" role="alert">
+                  {shown("idNumber")}
+                </span>
               )}
             </div>
 
@@ -716,15 +792,18 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                   id="um-first-name"
                   name="firstName"
                   type="text"
-                  className="um-input"
+                  className={`um-input${shown("firstName") ? " invalid" : ""}`}
                   placeholder="First name"
-                  maxLength={LIMITS.name.max}
                   autoComplete="off"
                   value={form.firstName}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  aria-invalid={Boolean(shown("firstName"))}
                 />
-                {errors.firstName && (
-                  <span className="um-field-error">{errors.firstName}</span>
+                {shown("firstName") && (
+                  <span className="um-field-error" role="alert">
+                    {shown("firstName")}
+                  </span>
                 )}
               </div>
               <div className="um-field">
@@ -733,15 +812,18 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                   id="um-last-name"
                   name="lastName"
                   type="text"
-                  className="um-input"
+                  className={`um-input${shown("lastName") ? " invalid" : ""}`}
                   placeholder="Last name"
-                  maxLength={LIMITS.name.max}
                   autoComplete="off"
                   value={form.lastName}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  aria-invalid={Boolean(shown("lastName"))}
                 />
-                {errors.lastName && (
-                  <span className="um-field-error">{errors.lastName}</span>
+                {shown("lastName") && (
+                  <span className="um-field-error" role="alert">
+                    {shown("lastName")}
+                  </span>
                 )}
               </div>
             </div>
@@ -752,15 +834,18 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                 id="um-email"
                 name="email"
                 type="email"
-                className="um-input"
+                className={`um-input${shown("email") ? " invalid" : ""}`}
                 placeholder="moderator@buksu.edu.ph"
-                maxLength={LIMITS.email.max}
                 autoComplete="off"
                 value={form.email}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                aria-invalid={Boolean(shown("email"))}
               />
-              {errors.email && (
-                <span className="um-field-error">{errors.email}</span>
+              {shown("email") && (
+                <span className="um-field-error" role="alert">
+                  {shown("email")}
+                </span>
               )}
             </div>
 
@@ -791,12 +876,13 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     id="um-password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    className="um-input"
+                    className={`um-input${shown("password") ? " invalid" : ""}`}
                     placeholder="8+ characters, letter & number"
-                    maxLength={LIMITS.password.max}
                     autoComplete="new-password"
                     value={form.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(shown("password"))}
                   />
                   <button
                     type="button"
@@ -811,8 +897,10 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     ></i>
                   </button>
                 </div>
-                {errors.password && (
-                  <span className="um-field-error">{errors.password}</span>
+                {shown("password") && (
+                  <span className="um-field-error" role="alert">
+                    {shown("password")}
+                  </span>
                 )}
               </div>
               <div className="um-field">
@@ -822,12 +910,13 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     id="um-confirm"
                     name="confirmPassword"
                     type={showConfirm ? "text" : "password"}
-                    className="um-input"
+                    className={`um-input${shown("confirmPassword") ? " invalid" : ""}`}
                     placeholder="Re-enter password"
-                    maxLength={LIMITS.password.max}
                     autoComplete="new-password"
                     value={form.confirmPassword}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(shown("confirmPassword"))}
                   />
                   <button
                     type="button"
@@ -840,9 +929,9 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     ></i>
                   </button>
                 </div>
-                {errors.confirmPassword && (
-                  <span className="um-field-error">
-                    {errors.confirmPassword}
+                {shown("confirmPassword") && (
+                  <span className="um-field-error" role="alert">
+                    {shown("confirmPassword")}
                   </span>
                 )}
               </div>
@@ -1024,7 +1113,7 @@ export default function UserManagement() {
   };
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    setSearchTerm(typeSearch(e.target.value));
     setCurrentPage(1);
   };
 
@@ -1076,22 +1165,19 @@ export default function UserManagement() {
     });
   };
 
-  const handleConfirmReactivate = async () => {
-    if (reactivateTarget) {
-      try {
-        await apiFetch(`/${reactivateTarget._id}/reactivate`, {
-          method: "PATCH",
-        });
-        setRefreshKey((k) => k + 1);
-        setNotice({
-          type: "success",
-          text: `${reactivateTarget.name} (${reactivateTarget.id}) was reactivated.`,
-        });
-      } catch (err) {
-        setLoadError(err.message);
-      }
-    }
+  // Throws on error; the pop-up shows the message
+  const handleConfirmReactivate = async (reason) => {
+    const target = reactivateTarget;
+    await apiFetch(`/${target._id}/reactivate`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    });
     setReactivateTarget(null);
+    setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `${target.name} (${target.id}) was reactivated.`,
+    });
   };
 
   // Archive: hides a deactivated account from the normal lists (it is never deleted)
@@ -1448,7 +1534,6 @@ export default function UserManagement() {
         label="Reason for deactivation"
         placeholder="Pick a suggestion above or write your own"
         suggestions={DEACTIVATE_SUGGESTIONS}
-        hint="The user will see this reason."
         required
         minLength={5}
         maxLength={300}
@@ -1475,26 +1560,32 @@ export default function UserManagement() {
         label="Note to the user"
         placeholder="Pick a suggestion above or write your own"
         suggestions={DECLINE_SUGGESTIONS}
-        hint="The user will see this note."
         maxLength={300}
         confirmLabel="Decline request"
         onConfirm={handleConfirmDecline}
         onClose={() => setDeclineTarget(null)}
       />
 
-      <ConfirmModal
+      <ReasonModal
         isOpen={!!reactivateTarget}
         title="Reactivate account?"
         message={
           reactivateTarget ? (
             <>
               <strong>{reactivateTarget.name}</strong> ({reactivateTarget.id})
-              will regain access to the system.
+              will regain access to the system. The reason you choose or write
+              is sent to their email.
             </>
           ) : (
             ""
           )
         }
+        label="Reason for reactivation"
+        placeholder="Pick a suggestion above or write your own"
+        suggestions={REACTIVATE_SUGGESTIONS}
+        required
+        minLength={5}
+        maxLength={300}
         confirmLabel="Reactivate"
         onConfirm={handleConfirmReactivate}
         onClose={() => setReactivateTarget(null)}

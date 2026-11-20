@@ -738,6 +738,17 @@
   color: #991b1b;
 }
 
+/* Red border while a rule is being broken (or a checked field has a problem) */
+.um-input.invalid {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.um-input.invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
 .um-error-box {
   padding: 14px 18px;
   border: 1px solid #fca5a5;
@@ -919,6 +930,11 @@
   white-space: nowrap;
 }
 
+.um-char-count.at-limit {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .um-optional {
   font-weight: 400;
   color: #8c7a70;
@@ -1064,11 +1080,6 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-}
-
-.um-hint {
-  font-size: 0.8rem;
-  color: var(--text-body, #594d46);
 }
 
 /* ==========================================================================

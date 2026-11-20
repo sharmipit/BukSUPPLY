@@ -21,7 +21,8 @@ export default function UserDashboard() {
   const { requisitions, loading, error, create, update, cancel } = useRequisitions();
 
   // Google accounts without a surname are stored with "-", so skip that
-  const displayName = user?.firstName || '';
+  // Greeting card: only the first word of the first name ("Juan Miguel" -> "Juan")
+  const displayName = (user?.firstName || '').trim().split(/\s+/)[0] || '';
 
   const count = (...s) => requisitions.filter((r) => s.includes(r.status)).length;
 

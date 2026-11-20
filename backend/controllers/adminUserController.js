@@ -7,6 +7,16 @@ const { logActivity } = require('../services/activityLog');
 const { sendEmail } = require('../utils/sendEmail');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+  LIMITS,
+  squash,
+  formatName,
+  nameProblem,
+  emailShapeProblem,
+  idProblem,
+  passwordProblem,
+  reasonProblem,
+} = require('../utils/validators');
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const escapeHtml = (s) =>
@@ -61,7 +71,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 50);
   const filter = req.query.filter || 'All';
-  const search = (req.query.search || '').trim();
+  const search = String(req.query.search || '').trim().slice(0, LIMITS.search.max);
 
   const query = { role: { $in: MANAGED_ROLES } };
 
@@ -185,30 +195,34 @@ exports.getUserDetails = asyncHandler(async (req, res) => {
 // POST /api/admin/users/moderators
 exports.createModerator = async (req, res) => {
   try {
-    const idNumber = (req.body.idNumber || '').trim().toUpperCase();
-    const firstName = (req.body.firstName || '').trim();
-    const lastName = (req.body.lastName || '').trim();
-    const email = (req.body.email || '').trim().toLowerCase();
-    const password = req.body.password || '';
+    const idNumber = String(req.body.idNumber ?? '').trim().toUpperCase();
+    const firstNameRaw = String(req.body.firstName ?? '');
+    const lastNameRaw = String(req.body.lastName ?? '');
+    const email = String(req.body.email ?? '').trim().toLowerCase();
+    const password = String(req.body.password ?? '');
 
-    if (!idNumber)
-      return res.status(400).json({ message: 'ID number is required.', field: 'idNumber' });
-    if (!/^[A-Z0-9-]{3,20}$/.test(idNumber))
-      return res
-        .status(400)
-        .json({ message: 'Use 3-20 letters, numbers, or hyphens.', field: 'idNumber' });
-    if (!firstName)
-      return res.status(400).json({ message: 'First name is required.', field: 'firstName' });
-    if (!lastName)
-      return res.status(400).json({ message: 'Last name is required.', field: 'lastName' });
-    if (!/^[^@\s]+@buksu\.edu\.ph$/.test(email))
+    // Same rules as the Create Moderator form (shared with Sign Up and Profile).
+    // Moderators use the staff ID format (P-0000) and an @buksu.edu.ph email.
+    const idErr = idProblem('Regular Staff', idNumber);
+    if (idErr) return res.status(400).json({ message: idErr, field: 'idNumber' });
+
+    const firstErr = nameProblem(firstNameRaw, 'First name');
+    if (firstErr) return res.status(400).json({ message: firstErr, field: 'firstName' });
+    const lastErr = nameProblem(lastNameRaw, 'Last name');
+    if (lastErr) return res.status(400).json({ message: lastErr, field: 'lastName' });
+
+    const emailErr = emailShapeProblem(email);
+    if (emailErr) return res.status(400).json({ message: emailErr, field: 'email' });
+    if (!/@buksu\.edu\.ph$/.test(email))
       return res
         .status(400)
         .json({ message: 'Moderators must use an @buksu.edu.ph email.', field: 'email' });
-    if (password.length < 8)
-      return res
-        .status(400)
-        .json({ message: 'Password must be at least 8 characters.', field: 'password' });
+
+    const pwErr = passwordProblem(password);
+    if (pwErr) return res.status(400).json({ message: pwErr, field: 'password' });
+
+    const firstName = formatName(firstNameRaw);
+    const lastName = formatName(lastNameRaw);
 
     const user = await User.create({
       firstName,
@@ -251,16 +265,14 @@ exports.deactivateUser = asyncHandler(async (req, res) => {
   if (String(id) === String(req.user._id))
     throw new AppError('You cannot deactivate your own account.', 400);
 
-  const reason = String(req.body.reason || '').trim();
-  if (reason.length < REASON_MIN)
-    return res.status(400).json({
-      message: `Please give a reason (at least ${REASON_MIN} characters).`,
-      field: 'reason',
-    });
-  if (reason.length > REASON_MAX)
-    return res
-      .status(400)
-      .json({ message: `The reason must be ${REASON_MAX} characters or fewer.`, field: 'reason' });
+  const reason = squash(req.body.reason);
+  const reasonErr = reasonProblem(reason, {
+    required: true,
+    min: REASON_MIN,
+    max: REASON_MAX,
+    label: 'The reason',
+  });
+  if (reasonErr) return res.status(400).json({ message: reasonErr, field: 'reason' });
 
   // Only an active, non-administrator account can be deactivated
   const user = await User.findOneAndUpdate(
@@ -373,11 +385,9 @@ exports.declineRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) throw new AppError('Invalid user ID.', 400);
 
-  const note = String(req.body.note || '').trim();
-  if (note.length > REASON_MAX)
-    return res
-      .status(400)
-      .json({ message: `The note must be ${REASON_MAX} characters or fewer.`, field: 'note' });
+  const note = squash(req.body.note);
+  const noteErr = reasonProblem(note, { required: false, max: REASON_MAX, label: 'The note' });
+  if (noteErr) return res.status(400).json({ message: noteErr, field: 'note' });
 
   const user = await User.findOne({ _id: id, role: { $in: MANAGED_ROLES } });
   if (!user) throw new AppError('User not found.', 404);

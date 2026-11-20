@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "../components/LogoutModal";
 import DeactivateModal from "../components/DeactivateModal";
@@ -8,9 +8,26 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/Profile.css";
 
 import { DEFAULT_AVATAR, getAvatar } from "../utils/avatar";
+import {
+  typeName,
+  formatName,
+  nameProblem,
+  typeContact,
+  contactProblem,
+} from "../utils/fieldRules";
 
-// Accepts 09XXXXXXXXX or +639XXXXXXXXX
-const PH_MOBILE = /^(09|\+639)\d{9}$/;
+// ---------- Field rules ----------
+// The rules (allowed characters, limits, formats) live in utils/fieldRules.js and are shared
+// with the Sign Up and User Management pages. The server enforces the same rules.
+const LABELS = { firstName: "First name", lastName: "Last name" };
+
+// Typing violations: the cleaned value plus a message ONLY when a rule was just broken
+const typeField = (field, raw) =>
+  field === "contactNumber" ? typeContact(raw) : typeName(raw, LABELS[field]);
+
+// Completeness check (on blur and on save)
+const problemFor = (field, value) =>
+  field === "contactNumber" ? contactProblem(value) : nameProblem(value, LABELS[field]);
 
 const LEGAL = {
   terms: {
@@ -145,7 +162,8 @@ export default function Profile() {
   // Saved values (what the page shows) and draft values (while editing)
   const [values, setValues] = useState(() => getInitialValues(user));
   const [draft, setDraft] = useState(values);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({}); // problems found on blur / save
+  const [notices, setNotices] = useState({}); // rule just broken while typing
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
@@ -154,6 +172,16 @@ export default function Profile() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(null); // 'terms' | 'privacy' | null
   const [notice, setNotice] = useState(null);
+
+  // The text cursor (and the I-beam) only exist while editing: focus the first field then
+  const firstNameRef = useRef(null);
+  useEffect(() => {
+    const el = firstNameRef.current;
+    if (editing && el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, [editing]);
 
   // Keep in sync if the user loads/changes (but never overwrite an edit in progress)
   useEffect(() => {
@@ -190,43 +218,57 @@ export default function Profile() {
   const startEdit = () => {
     setDraft(values);
     setErrors({});
+    setNotices({});
     setEditing(true);
   };
 
   const cancelEdit = () => {
     setDraft(values);
     setErrors({});
+    setNotices({});
     setEditing(false);
   };
 
   const handleChange = (field) => (e) => {
-    let value = e.target.value;
-    if (field === "contactNumber") value = value.replace(/[^\d+]/g, "");
+    if (!editing) return;
+    const { value, notice } = typeField(field, e.target.value);
     setDraft((d) => ({ ...d, [field]: value }));
-    if (errors[field]) setErrors((er) => ({ ...er, [field]: undefined }));
+    // A message shows only while the user is breaking a rule
+    setNotices((n) => ({ ...n, [field]: notice }));
+    // A problem already on screen is re-checked live, so it disappears once fixed
+    if (errors[field]) setErrors((er) => ({ ...er, [field]: problemFor(field, value) || undefined }));
+  };
+
+  // Leaving a field: check it (only if something was typed)
+  const handleBlur = (field) => () => {
+    if (!editing) return;
+    setNotices((n) => ({ ...n, [field]: "" }));
+    const value = draft[field];
+    if (!value) return;
+    setErrors((er) => ({ ...er, [field]: problemFor(field, value) || undefined }));
   };
 
   const validate = () => {
     const next = {};
-    if (!draft.firstName.trim()) next.firstName = "First name is required.";
-    if (!draft.lastName.trim()) next.lastName = "Last name is required.";
-    if (draft.contactNumber && !PH_MOBILE.test(draft.contactNumber)) {
-      next.contactNumber = "Use a valid PH number, e.g. 09123456789.";
-    }
+    ["firstName", "lastName", "contactNumber"].forEach((field) => {
+      const problem = problemFor(field, draft[field]);
+      if (problem) next[field] = problem;
+    });
     return next;
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     const found = validate();
+    setNotices({});
     if (Object.keys(found).length) {
       setErrors(found);
       return;
     }
 
     const cleaned = {
-      firstName: draft.firstName.trim(),
-      lastName: draft.lastName.trim(),
+      firstName: formatName(draft.firstName),
+      lastName: formatName(draft.lastName),
       contactNumber: draft.contactNumber.trim(),
     };
 
@@ -276,26 +318,36 @@ export default function Profile() {
 
   const current = editing ? draft : values;
 
-  const field = (id, label, key, props = {}) => (
-    <div className="pf-field">
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        className={`pf-input${errors[key] ? " invalid" : ""}`}
-        value={current[key]}
-        onChange={handleChange(key)}
-        readOnly={!editing}
-        aria-invalid={Boolean(errors[key])}
-        aria-describedby={errors[key] ? `${id}-error` : undefined}
-        {...props}
-      />
-      {errors[key] && (
-        <span className="pf-error" id={`${id}-error`}>
-          {errors[key]}
-        </span>
-      )}
-    </div>
-  );
+  // The message under a field appears only when a rule is broken (no permanent help text)
+  const field = (id, label, key, { inputRef, ...props } = {}) => {
+    const message = editing ? notices[key] || errors[key] : "";
+    return (
+      <div className="pf-field">
+        <label htmlFor={id}>{label}</label>
+        <input
+          id={id}
+          ref={inputRef}
+          className={`pf-input${message ? " invalid" : ""}`}
+          value={current[key]}
+          onChange={handleChange(key)}
+          onBlur={handleBlur(key)}
+          readOnly={!editing}
+          // View mode: the field cannot be focused or clicked into, so no text cursor appears
+          tabIndex={editing ? 0 : -1}
+          onMouseDown={editing ? undefined : (e) => e.preventDefault()}
+          spellCheck={false}
+          aria-invalid={Boolean(message)}
+          aria-describedby={message ? `${id}-error` : undefined}
+          {...props}
+        />
+        {message && (
+          <span className="pf-error" id={`${id}-error`} role="alert">
+            {message}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="profile-page">
@@ -336,9 +388,12 @@ export default function Profile() {
           >
             {field("pf-first", "First Name", "firstName", {
               autoComplete: "given-name",
+              autoCapitalize: "words",
+              inputRef: firstNameRef,
             })}
             {field("pf-last", "Last Name", "lastName", {
               autoComplete: "family-name",
+              autoCapitalize: "words",
             })}
 
             <div className="pf-field">
@@ -352,13 +407,14 @@ export default function Profile() {
                 value={email}
                 disabled={editing}
                 readOnly
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
               />
             </div>
 
             {field("pf-contact", "Contact Number", "contactNumber", {
               type: "tel",
               inputMode: "tel",
-              maxLength: 13,
               placeholder: "09XXXXXXXXX",
               autoComplete: "tel",
             })}

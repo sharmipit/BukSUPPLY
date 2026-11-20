@@ -154,8 +154,22 @@
   color: #8c7a70;
 }
 
+/* View mode (and the email, always): looks like plain text. No I-beam pointer,
+   no blinking text cursor, nothing to select. */
 .pf-input[readonly] {
   cursor: default;
+  caret-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pf-input[readonly]::selection {
+  background: transparent;
+}
+
+/* Edit mode: the I-beam pointer appears only here */
+.pf-input:not([readonly]):not(:disabled) {
+  cursor: text;
 }
 
 .pf-input:not([readonly]):not(:disabled):focus {
@@ -176,8 +190,10 @@
   box-shadow: none;
 }
 
+/* Shown only while a rule is being broken (or after a field is checked) */
 .pf-error {
   font-size: 0.8rem;
+  line-height: 1.4;
   color: #dc2626;
   font-weight: 500;
 }
