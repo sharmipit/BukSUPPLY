@@ -33,6 +33,8 @@ const INITIAL = {
   smtpHost: '',
   smtpPort: 587,
   smtpUser: '',
+  smtpUserSet: false,
+  smtpUserMasked: '',
   smtpPassword: '',
   smtpPasswordSet: false,
   smtpFrom: '',
@@ -54,6 +56,21 @@ const INITIAL = {
   driveRefreshToken: '',
   driveRefreshTokenSet: false,
   driveFolderName: '',
+
+  formsEnabled: false,
+  formsFormId: '',
+  formsFormIdSet: false,
+  formsFormIdMasked: '',
+  formsCredentials: '',
+  formsCredentialsSet: false,
+  formsServiceEmail: '',
+  formsPrefillUrl: '',
+  formsQSlip: '',
+  formsQCode: '',
+  formsQRating: '',
+  formsQComment: '',
+  formsCodeSecret: '',
+  formsCodeSecretSet: false,
 };
 
 // Fields that belong to each card. Each card saves on its own.
@@ -70,6 +87,17 @@ const SECTION_FIELDS = {
     'driveRefreshToken',
     'driveFolderName',
   ],
+  forms: [
+    'formsEnabled',
+    'formsFormId',
+    'formsCredentials',
+    'formsPrefillUrl',
+    'formsQSlip',
+    'formsQCode',
+    'formsQRating',
+    'formsQComment',
+    'formsCodeSecret',
+  ],
 };
 
 const SECTION_TITLE = {
@@ -79,103 +107,282 @@ const SECTION_TITLE = {
   pdfshift: 'PDF reports',
   nutrient: 'Excel reports',
   drive: 'Google Drive',
+  forms: 'Google Forms feedback',
 };
 
 // Includes the server's "xxxSet" / "xxxMasked" helper keys
 const keysFor = (section) => SECTION_FIELDS[section].flatMap((f) => [f, `${f}Set`, `${f}Masked`]);
 
-// ---- validation (the server checks again, and also checks with the real provider) ----
+// ---- validation ----
+// The server checks everything again, and also asks Google whether the values really work.
+// Every check below returns a message, or '' when the value is fine. The page shows the
+// message right under the field, after the user leaves the field or tries to save.
 const RE = {
   googleClientId: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/i,
   recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
   host: /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i,
   from: /^(?:[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
   driveRefreshToken: /^1\/\/[A-Za-z0-9._-]{20,}$/,
+  formId: /^[A-Za-z0-9_-]{10,}$/,
+  slipPlaceholder: /(?:\{\{|%7B%7B)SLIP(?:\}\}|%7D%7D)/i,
+  codePlaceholder: /(?:\{\{|%7B%7B)CODE(?:\}\}|%7D%7D)/i,
 };
-const t = (v) => (v || '').toString().trim();
+
+// Same limits the inputs enforce while typing (maxLength) and the server enforces on save
+const LIMITS = {
+  host: 253,
+  smtpUser: 254,
+  smtpFrom: 200,
+  secret: 300,
+  folder: 100,
+  formId: 200,
+  key: 10000,
+  url: 2000,
+  question: 200,
+};
+
+const t = (v) => (v === undefined || v === null ? '' : String(v)).trim();
 const badSecret = (v, min) => v.length < min || /\s/.test(v);
 
-const VALIDATE = {
-  google: (f) => {
-    const id = t(f.googleClientId);
-    const secret = t(f.googleClientSecret);
-    if (id && !RE.googleClientId.test(id))
-      return 'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.';
-    if (secret && badSecret(secret, 20))
-      return 'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.';
-    if (f.googleEnabled && !(id || f.googleClientIdSet))
+// The service account key: the JSON file's text, or the same text as Base64.
+// Returns the parsed key, or null when it can't be read (same rule as the server).
+const parseServiceAccount = (raw) => {
+  const text = t(raw);
+  if (!text) return null;
+  try {
+    let json = text;
+    if (!text.startsWith('{')) {
+      const binary = atob(text.replace(/\s+/g, ''));
+      json = new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+    }
+    const key = JSON.parse(json);
+    return key && key.client_email && key.private_key ? key : null;
+  } catch {
+    return null;
+  }
+};
+
+// Accepts the bare Form ID or the form editor address (.../forms/d/<ID>/edit).
+// The published address (.../forms/d/e/...) is left alone so the checker can explain it.
+const extractFormId = (value) => {
+  const v = t(value);
+  const m = v.match(/\/forms\/d\/([A-Za-z0-9_-]+)/);
+  return m && m[1] !== 'e' ? m[1] : v;
+};
+
+const CLIENT_ID_MSG =
+  'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.';
+const CLIENT_SECRET_MSG =
+  'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.';
+
+const QUESTION_FIELDS = ['formsQSlip', 'formsQCode', 'formsQRating', 'formsQComment'];
+
+const questionProblem = (f, field) => {
+  const v = t(f[field]);
+  if (v.length > LIMITS.question) return `Keep it to ${LIMITS.question} characters or fewer.`;
+  const earlier = QUESTION_FIELDS.slice(0, QUESTION_FIELDS.indexOf(field));
+  if (v && earlier.some((o) => t(f[o]).toLowerCase() === v.toLowerCase()))
+    return 'Already used for another question. Each field needs a different question.';
+  return '';
+};
+
+// One check per field. `f` is the whole form, so a check can look at the toggle
+// ("required while turned on") and at saved values (a saved secret counts as filled).
+const FIELD_CHECK = {
+  // Google sign-in
+  googleClientId: (f) => {
+    const v = t(f.googleClientId);
+    if (v && !RE.googleClientId.test(v)) return CLIENT_ID_MSG;
+    if (f.googleEnabled && !v && !f.googleClientIdSet)
       return 'Add the Client ID, or turn Google sign-in off.';
-    if (f.googleEnabled && !(secret || f.googleClientSecretSet))
+    return '';
+  },
+  googleClientSecret: (f) => {
+    const v = t(f.googleClientSecret);
+    if (v && badSecret(v, 20)) return CLIENT_SECRET_MSG;
+    if (f.googleEnabled && !v && !f.googleClientSecretSet)
       return 'Add the client secret, or turn Google sign-in off.';
     return '';
   },
-  recaptcha: (f) => {
-    const site = t(f.recaptchaSiteKey);
-    const secret = t(f.recaptchaSecretKey);
-    if (site && !RE.recaptchaKey.test(site))
+
+  // reCAPTCHA
+  recaptchaSiteKey: (f) => {
+    const v = t(f.recaptchaSiteKey);
+    if (v && !RE.recaptchaKey.test(v))
       return 'That does not look like a reCAPTCHA site key. It should start with 6L and be 40 characters long.';
-    if (secret && !RE.recaptchaKey.test(secret))
-      return 'That does not look like a reCAPTCHA secret key. It should start with 6L and be 40 characters long.';
-    if (f.recaptchaEnabled && !(site || f.recaptchaSiteKeySet))
+    if (f.recaptchaEnabled && !v && !f.recaptchaSiteKeySet)
       return 'Add the reCAPTCHA site key, or turn reCAPTCHA off.';
-    if (f.recaptchaEnabled && !(secret || f.recaptchaSecretKeySet))
+    return '';
+  },
+  recaptchaSecretKey: (f) => {
+    const v = t(f.recaptchaSecretKey);
+    if (v && !RE.recaptchaKey.test(v))
+      return 'That does not look like a reCAPTCHA secret key. It should start with 6L and be 40 characters long.';
+    if (f.recaptchaEnabled && !v && !f.recaptchaSecretKeySet)
       return 'Add the reCAPTCHA secret key, or turn reCAPTCHA off.';
     return '';
   },
-  smtp: (f) => {
-    const host = t(f.smtpHost);
-    const port = Number(f.smtpPort);
-    if (!host) return 'Enter the SMTP host.';
-    if (!RE.host.test(host)) return 'The SMTP host is not a valid server address.';
-    if (!Number.isInteger(port) || port < 1 || port > 65535)
+
+  // Email (SMTP): always on, so every required field is always required
+  smtpHost: (f) => {
+    const v = t(f.smtpHost);
+    if (!v) return 'Enter the SMTP host.';
+    if (/^[a-z]+:\/\//i.test(v) || v.includes('/'))
+      return 'Enter only the server address, without http:// or a path.';
+    if (!RE.host.test(v)) return 'The SMTP host is not a valid server address.';
+    return '';
+  },
+  smtpPort: (f) => {
+    const raw = t(f.smtpPort);
+    const port = Number(raw);
+    if (!raw || !Number.isInteger(port) || port < 1 || port > 65535)
       return 'Enter an SMTP port between 1 and 65535.';
-    if (!t(f.smtpUser)) return 'Enter the SMTP username.';
-    if (!(t(f.smtpPassword) || f.smtpPasswordSet))
-      return 'Enter the SMTP password or app password.';
-    if (t(f.smtpFrom) && !RE.from.test(t(f.smtpFrom)))
+    return '';
+  },
+  smtpUser: (f) => {
+    const v = t(f.smtpUser);
+    if (!v && !f.smtpUserSet) return 'Enter the SMTP username.';
+    if (/\s/.test(v)) return 'The username cannot contain spaces.';
+    if (v.length > LIMITS.smtpUser) return `Keep it to ${LIMITS.smtpUser} characters or fewer.`;
+    return '';
+  },
+  smtpPassword: (f) => {
+    const v = t(f.smtpPassword);
+    if (!v && !f.smtpPasswordSet) return 'Enter the SMTP password or app password.';
+    return '';
+  },
+  smtpFrom: (f) => {
+    const v = t(f.smtpFrom);
+    if (v && !RE.from.test(v))
       return '"Send from" must be an email address or "Name <address@example.com>".';
     return '';
   },
-  pdfshift: (f) => {
-    const key = t(f.pdfshiftApiKey);
-    if (key && badSecret(key, 10))
-      return 'The PDFShift API key looks too short or contains spaces.';
-    if (key && !key.startsWith('sk_'))
+
+  // PDF and Excel services
+  pdfshiftApiKey: (f) => {
+    const v = t(f.pdfshiftApiKey);
+    if (v && badSecret(v, 10)) return 'The PDFShift API key looks too short or contains spaces.';
+    if (v && !v.startsWith('sk_'))
       return 'PDFShift API keys start with "sk_". Copy it again from your PDFShift dashboard.';
-    if (f.pdfshiftEnabled && !(key || f.pdfshiftApiKeySet))
+    if (f.pdfshiftEnabled && !v && !f.pdfshiftApiKeySet)
       return 'Add the PDFShift API key, or turn PDF downloads off.';
     return '';
   },
-  nutrient: (f) => {
-    const key = t(f.nutrientApiKey);
-    if (key && badSecret(key, 10))
-      return 'The Nutrient API key looks too short or contains spaces.';
-    if (key && !/^pdf_(live|test)_/.test(key))
+  nutrientApiKey: (f) => {
+    const v = t(f.nutrientApiKey);
+    if (v && badSecret(v, 10)) return 'The Nutrient API key looks too short or contains spaces.';
+    if (v && !/^pdf_(live|test)_/.test(v))
       return 'Nutrient API keys start with "pdf_live_". Copy it again from your Nutrient dashboard.';
-    if (f.nutrientEnabled && !(key || f.nutrientApiKeySet))
+    if (f.nutrientEnabled && !v && !f.nutrientApiKeySet)
       return 'Add the Nutrient API key, or turn Excel downloads off.';
     return '';
   },
-  drive: (f) => {
-    const id = t(f.driveClientId);
-    const secret = t(f.driveClientSecret);
-    const refresh = t(f.driveRefreshToken);
-    if (id && !RE.googleClientId.test(id))
-      return 'That does not look like a Google Client ID. It should look like 123456789-abc.apps.googleusercontent.com.';
-    if (secret && badSecret(secret, 20))
-      return 'The client secret looks too short or contains spaces. Copy it again from Google Cloud Console.';
-    if (refresh && !RE.driveRefreshToken.test(refresh))
-      return 'That does not look like a Google refresh token. It usually starts with 1//.';
-    if (t(f.driveFolderName).length > 100)
-      return 'The folder name must be 100 characters or fewer.';
-    if (f.driveEnabled && !(id || f.driveClientIdSet))
+
+  // Google Drive
+  driveClientId: (f) => {
+    const v = t(f.driveClientId);
+    if (v && !RE.googleClientId.test(v)) return CLIENT_ID_MSG;
+    if (f.driveEnabled && !v && !f.driveClientIdSet)
       return 'Add the Client ID, or turn Google Drive off.';
-    if (f.driveEnabled && !(secret || f.driveClientSecretSet))
+    return '';
+  },
+  driveClientSecret: (f) => {
+    const v = t(f.driveClientSecret);
+    if (v && badSecret(v, 20)) return CLIENT_SECRET_MSG;
+    if (f.driveEnabled && !v && !f.driveClientSecretSet)
       return 'Add the client secret, or turn Google Drive off.';
-    if (f.driveEnabled && !(refresh || f.driveRefreshTokenSet))
+    return '';
+  },
+  driveRefreshToken: (f) => {
+    const v = t(f.driveRefreshToken);
+    if (v && !RE.driveRefreshToken.test(v))
+      return 'That does not look like a Google refresh token. It usually starts with 1//.';
+    if (f.driveEnabled && !v && !f.driveRefreshTokenSet)
       return 'Add the refresh token, or turn Google Drive off.';
     return '';
   },
+  driveFolderName: (f) =>
+    t(f.driveFolderName).length > LIMITS.folder
+      ? `The folder name must be ${LIMITS.folder} characters or fewer.`
+      : '',
+
+  // Google Forms feedback
+  formsFormId: (f) => {
+    const v = extractFormId(f.formsFormId);
+    if (v && !RE.formId.test(v))
+      return /\/forms\/d\/e\//.test(v)
+        ? 'That is the published form link. Copy the ID from the form editor address instead.'
+        : 'That does not look like a Google Form ID. Copy the part between /d/ and /edit in the form editor address.';
+    if (f.formsEnabled && !v && !f.formsFormIdSet)
+      return 'Add the Form ID, or turn feedback off.';
+    return '';
+  },
+  formsCredentials: (f) => {
+    const v = t(f.formsCredentials);
+    if (v && !parseServiceAccount(v))
+      return 'The service account key could not be read. Paste the full JSON key file, or its Base64 text.';
+    if (f.formsEnabled && !v && !f.formsCredentialsSet)
+      return 'Add the service account key, or turn feedback off.';
+    return '';
+  },
+  formsPrefillUrl: (f) => {
+    const v = t(f.formsPrefillUrl);
+    if (v.length > LIMITS.url) return `The link must be ${LIMITS.url} characters or fewer.`;
+    if (v && !/^https:\/\/docs\.google\.com\/forms\//i.test(v))
+      return 'The pre-filled link must start with https://docs.google.com/forms/.';
+    if (v && !RE.slipPlaceholder.test(v))
+      return 'The pre-filled link must contain {{SLIP}} where the slip number goes.';
+    if (v && t(f.formsQCode) && !RE.codePlaceholder.test(v))
+      return 'A verification code question is set, so the link must also contain {{CODE}}.';
+    if (f.formsEnabled && !v) return 'Add the pre-filled link, or turn feedback off.';
+    return '';
+  },
+  formsQSlip: (f) => {
+    const problem = questionProblem(f, 'formsQSlip');
+    if (problem) return problem;
+    if (f.formsEnabled && !t(f.formsQSlip)) return 'Add the slip number question, or turn feedback off.';
+    return '';
+  },
+  formsQCode: (f) => questionProblem(f, 'formsQCode'),
+  formsQRating: (f) => questionProblem(f, 'formsQRating'),
+  formsQComment: (f) => questionProblem(f, 'formsQComment'),
+  formsCodeSecret: (f) => {
+    const v = t(f.formsCodeSecret);
+    if (v && badSecret(v, 8))
+      return 'The verification secret must be at least 8 characters long with no spaces.';
+    return '';
+  },
+};
+
+// Touching one field can change the message of another one
+const TOUCH_ALSO = { formsQCode: ['formsPrefillUrl'] };
+
+// Which card a field belongs to
+const FIELD_SECTION = Object.fromEntries(
+  Object.entries(SECTION_FIELDS).flatMap(([section, fields]) => fields.map((k) => [k, section]))
+);
+
+// { fieldName: 'message' } for the fields of one card (only the ones with a problem)
+const fieldProblems = (section, form) => {
+  const out = {};
+  SECTION_FIELDS[section].forEach((k) => {
+    const check = FIELD_CHECK[k];
+    const msg = check ? check(form) : '';
+    if (msg) out[k] = msg;
+  });
+  return out;
+};
+
+// Trim every text value and turn a pasted form editor link into the bare Form ID
+const tidyValue = (field, value) =>
+  typeof value !== 'string' ? value : field === 'formsFormId' ? extractFormId(value) : value.trim();
+
+const tidyForm = (form) => {
+  const next = { ...form };
+  Object.keys(FIELD_SECTION).forEach((k) => {
+    next[k] = tidyValue(k, form[k]);
+  });
+  return next;
 };
 
 // ---- Google reCAPTCHA script (loaded once, only when the admin confirms new keys) ----
@@ -199,7 +406,31 @@ const loadRecaptcha = () => {
 };
 
 // ---- small components ----
-const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
+// Plain text box. Field passes `invalid` and `describedBy` to it, so it turns red and is
+// linked to its message for screen readers.
+const TextInput = ({ invalid, describedBy, className = '', ...rest }) => (
+  <input
+    type="text"
+    autoComplete="off"
+    spellCheck={false}
+    className={`ss-input${invalid ? ' ss-input-invalid' : ''} ${className}`.trim()}
+    aria-invalid={invalid || undefined}
+    aria-describedby={describedBy}
+    {...rest}
+  />
+);
+
+const SecretInput = ({
+  id,
+  value,
+  isSet,
+  onChange,
+  onBlur,
+  placeholder,
+  invalid,
+  describedBy,
+  maxLength = LIMITS.secret,
+}) => {
   const [show, setShow] = useState(false);
   return (
     <div className="ss-input-wrap">
@@ -207,9 +438,14 @@ const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
         id={id}
         type={show ? 'text' : 'password'}
         autoComplete="new-password"
-        className="ss-input ss-input-secret"
+        spellCheck={false}
+        maxLength={maxLength}
+        className={`ss-input ss-input-secret${invalid ? ' ss-input-invalid' : ''}`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={isSet ? '•••••••• (saved)' : placeholder}
       />
       <button
@@ -224,11 +460,22 @@ const SecretInput = ({ id, value, isSet, onChange, placeholder }) => {
   );
 };
 
-// Public ID/key. When one is saved, only the first 5 characters are shown
+// Saved ID/key/username. When one is saved, only the first 5 characters are shown
 // (e.g. "6LcAb**************") as a locked value with a "Change" button.
 // Click "Change" to type a replacement. Parent remounts this (via `key`)
 // after every save/discard/reset so it always returns to the locked state.
-const MaskedInput = ({ id, value, isSet, masked, onChange, placeholder }) => {
+const MaskedInput = ({
+  id,
+  value,
+  isSet,
+  masked,
+  onChange,
+  onBlur,
+  placeholder,
+  invalid,
+  describedBy,
+  maxLength = LIMITS.secret,
+}) => {
   const [editing, setEditing] = useState(false);
 
   if (isSet && !editing) {
@@ -258,9 +505,13 @@ const MaskedInput = ({ id, value, isSet, masked, onChange, placeholder }) => {
         autoComplete="off"
         spellCheck={false}
         autoFocus={isSet}
-        className="ss-input"
+        maxLength={maxLength}
+        className={`ss-input${invalid ? ' ss-input-invalid' : ''}`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
       />
       {isSet && (
@@ -279,13 +530,41 @@ const MaskedInput = ({ id, value, isSet, masked, onChange, placeholder }) => {
   );
 };
 
-const Field = ({ id, label, hint, children }) => (
-  <div className="ss-field">
-    <label htmlFor={id}>{label}</label>
-    {children}
-    {hint && <span className="ss-hint">{hint}</span>}
-  </div>
-);
+// One labelled field.
+//  - A problem message replaces the hint and turns the box red.
+//  - A normal hint stays hidden until the box is focused (so the cards stay short and calm).
+//  - `persistent` keeps a hint visible all the time. Use it only for something people must
+//    know BEFORE they type (for example a warning).
+//  - `optional` adds a small "Optional" tag next to the label.
+const Field = ({ id, label, hint, error, optional, persistent, children }) => {
+  const messageId = `${id}-msg`;
+  const describedBy = error || hint ? messageId : undefined;
+  const control = React.isValidElement(children)
+    ? React.cloneElement(children, { invalid: Boolean(error), describedBy })
+    : children;
+
+  return (
+    <div className={`ss-field${error ? ' has-error' : ''}`}>
+      <label htmlFor={id}>
+        {label}
+        {optional && <span className="ss-optional">Optional</span>}
+      </label>
+      {control}
+      {error ? (
+        <span id={messageId} className="ss-error-text">
+          <i className="bi bi-exclamation-circle" aria-hidden="true"></i>
+          <span>{error}</span>
+        </span>
+      ) : hint ? (
+        <div className={`ss-hint-wrap${persistent ? ' persist' : ''}`}>
+          <span id={messageId} className="ss-hint">
+            {hint}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 // complete = turned on and all required values saved
 // setup    = turned on but something is missing
@@ -500,7 +779,7 @@ const SettingsCard = ({
       </div>
     )}
 
-    <div className="ss-card-foot">
+    <div className="ss-card-foot ss-card-actions">
       <span className="ss-card-foot-text" role="status">
         {dirty ? 'You have unsaved changes.' : 'All changes saved.'}
       </span>
@@ -543,6 +822,8 @@ function SystemSettingsContent({ token, onLock }) {
   const [notice, setNotice] = useState(null);
   const [resetSection, setResetSection] = useState(null); // card waiting for reset confirmation
   const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA key confirmation
+  const [touched, setTouched] = useState({}); // fields the user already left (show their problem)
+  const [attempted, setAttempted] = useState({}); // cards where Save was clicked (show all problems)
   const [leaveTarget, setLeaveTarget] = useState(null); // page the user tried to open (leave confirmation)
   const navigate = useNavigate();
   // Bumped after save/discard/reset so MaskedInput returns to its locked state
@@ -582,10 +863,56 @@ function SystemSettingsContent({ token, onLock }) {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
-  const onText = (field) => (e) => set(field)(e.target.value);
   const setError = (section, msg) => setErrors((prev) => ({ ...prev, [section]: msg }));
   const bump = (section) => setVersion((v) => ({ ...v, [section]: (v[section] || 0) + 1 }));
+
+  // Editing a field clears the card's old "could not save" message
+  const set = (field) => (value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    const section = FIELD_SECTION[field];
+    setErrors((prev) => (prev[section] ? { ...prev, [section]: '' } : prev));
+  };
+  const onText = (field) => (e) => set(field)(e.target.value);
+
+  // Leaving a field: remember it, and tidy the text (trim spaces, pasted form link -> Form ID)
+  const blur = (field) => () => {
+    setTouched((prev) => {
+      const next = { ...prev, [field]: true };
+      (TOUCH_ALSO[field] || []).forEach((k) => {
+        next[k] = true;
+      });
+      return next;
+    });
+    setForm((prev) => {
+      const current = prev[field];
+      const tidy = tidyValue(field, current);
+      return tidy === current ? prev : { ...prev, [field]: tidy };
+    });
+  };
+
+  // Props for plain inputs (they give an event) and for Secret/Masked inputs (they give a value)
+  const bindText = (field) => ({ value: form[field], onChange: onText(field), onBlur: blur(field) });
+  const bindValue = (field) => ({ value: form[field], onChange: set(field), onBlur: blur(field) });
+
+  // After a save, discard or reset the card starts clean again
+  const resetTouched = (section) => {
+    setTouched((prev) => {
+      const next = { ...prev };
+      SECTION_FIELDS[section].forEach((k) => {
+        delete next[k];
+      });
+      return next;
+    });
+    setAttempted((prev) => ({ ...prev, [section]: false }));
+  };
+
+  // A field shows its problem once the user left it, or after Save was clicked on its card
+  const problems = Object.keys(SECTION_FIELDS).reduce(
+    (all, section) => ({ ...all, ...fieldProblems(section, form) }),
+    {}
+  );
+  const err = (field) =>
+    touched[field] || attempted[FIELD_SECTION[field]] ? problems[field] || '' : '';
 
   const isDirty = (section) =>
     SECTION_FIELDS[section].some((k) => String(form[k]) !== String(saved[k]));
@@ -633,7 +960,7 @@ function SystemSettingsContent({ token, onLock }) {
     ),
     // Email has no on/off switch: it is either ready or it needs setup
     smtp:
-      saved.smtpHost.trim() && saved.smtpUser.trim() && saved.smtpPasswordSet
+      saved.smtpHost.trim() && saved.smtpUserSet && saved.smtpPasswordSet
         ? 'complete'
         : 'setup',
     pdfshift: getStatus(saved.pdfshiftEnabled, saved.pdfshiftApiKeySet),
@@ -641,6 +968,13 @@ function SystemSettingsContent({ token, onLock }) {
     drive: getStatus(
       saved.driveEnabled,
       saved.driveClientIdSet && saved.driveClientSecretSet && saved.driveRefreshTokenSet
+    ),
+    forms: getStatus(
+      saved.formsEnabled,
+      saved.formsFormIdSet &&
+        saved.formsCredentialsSet &&
+        saved.formsPrefillUrl.trim() &&
+        saved.formsQSlip.trim()
     ),
   };
 
@@ -656,6 +990,7 @@ function SystemSettingsContent({ token, onLock }) {
       return next;
     });
     bump(section);
+    resetTouched(section);
   };
 
   // The site key the confirmation box should use: the new one if typed, else the saved one
@@ -665,9 +1000,13 @@ function SystemSettingsContent({ token, onLock }) {
   const handleSave = async (section, extra = {}) => {
     if (!isDirty(section) || savingSection) return;
     setError(section, '');
+    setAttempted((prev) => ({ ...prev, [section]: true }));
 
-    const problem = VALIDATE[section](form);
-    if (problem) return setError(section, problem);
+    // Check the tidied values; every problem is shown under its own field
+    const clean = tidyForm(form);
+    if (Object.keys(fieldProblems(section, clean)).length) {
+      return setError(section, 'Please fix the highlighted fields, then save again.');
+    }
 
     // New reCAPTCHA keys must be confirmed with a real "I'm not a robot" check first
     if (
@@ -685,9 +1024,9 @@ function SystemSettingsContent({ token, onLock }) {
       // Send only this card's fields. Empty secret / public key = server keeps the saved one
       const body = {};
       SECTION_FIELDS[section].forEach((k) => {
-        body[k] = form[k];
+        body[k] = clean[k];
       });
-      if (section === 'smtp') body.smtpPort = Number(form.smtpPort) || 587;
+      if (section === 'smtp') body.smtpPort = Number(clean.smtpPort) || 587;
       if (extra.recaptchaToken) body.recaptchaToken = extra.recaptchaToken;
 
       const res = await fetch(`${API}/api/admin/settings/${section}`, {
@@ -750,6 +1089,7 @@ function SystemSettingsContent({ token, onLock }) {
       return next;
     });
     bump(section);
+    resetTouched(section);
   };
 
   // Shared props for each card
@@ -763,6 +1103,15 @@ function SystemSettingsContent({ token, onLock }) {
     onDiscard: () => handleDiscard(section),
     onReset: () => setResetSection(section),
   });
+
+  // The email address the form must be shared with: the one in the key being typed,
+  // otherwise the one from the saved key
+  const typedKey = parseServiceAccount(form.formsCredentials);
+  const serviceEmail = typedKey
+    ? String(typedKey.client_email)
+    : t(form.formsCredentials)
+      ? ''
+      : saved.formsServiceEmail || '';
 
   // Must come after all hooks
   if (loading) return <div className="dashboard ss-page">Loading…</div>;
@@ -810,29 +1159,29 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-g-id"
             label="Client ID"
-            hint={
-              form.googleClientIdSet
-                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
-                : 'Public. Shown to Google when users sign in.'
-            }
+            hint="Shown to Google when users sign in."
+            error={err('googleClientId')}
           >
             <MaskedInput
               key={`g-${version.google || 0}`}
               id="ss-g-id"
-              value={form.googleClientId}
               isSet={form.googleClientIdSet}
               masked={form.googleClientIdMasked}
-              onChange={set('googleClientId')}
               placeholder="123456789-abc.apps.googleusercontent.com"
+              {...bindValue('googleClientId')}
             />
           </Field>
-          <Field id="ss-g-secret" label="Client secret" hint="Private. Used by the server.">
+          <Field
+            id="ss-g-secret"
+            label="Client secret"
+            hint="Used by the server only."
+            error={err('googleClientSecret')}
+          >
             <SecretInput
               id="ss-g-secret"
-              value={form.googleClientSecret}
               isSet={form.googleClientSecretSet}
-              onChange={set('googleClientSecret')}
               placeholder="GOCSPX-..."
+              {...bindValue('googleClientSecret')}
             />
           </Field>
         </div>
@@ -859,33 +1208,29 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-rc-site"
             label="Site key"
-            hint={
-              form.recaptchaSiteKeySet
-                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
-                : 'Public. Used in the browser.'
-            }
+            hint="Used in the browser. It starts with 6L."
+            error={err('recaptchaSiteKey')}
           >
             <MaskedInput
               key={`rc-${version.recaptcha || 0}`}
               id="ss-rc-site"
-              value={form.recaptchaSiteKey}
               isSet={form.recaptchaSiteKeySet}
               masked={form.recaptchaSiteKeyMasked}
-              onChange={set('recaptchaSiteKey')}
               placeholder="6LcA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S"
+              {...bindValue('recaptchaSiteKey')}
             />
           </Field>
           <Field
             id="ss-rc-secret"
             label="Secret key"
-            hint="Private. New keys are confirmed with Google when you save."
+            hint="New keys are confirmed with Google when you save."
+            error={err('recaptchaSecretKey')}
           >
             <SecretInput
               id="ss-rc-secret"
-              value={form.recaptchaSecretKey}
               isSet={form.recaptchaSecretKeySet}
-              onChange={set('recaptchaSecretKey')}
               placeholder="6Lc..."
+              {...bindValue('recaptchaSecretKey')}
             />
           </Field>
         </div>
@@ -902,71 +1247,73 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-smtp-host"
             label="Host"
-            hint="Public. Your email provider's server address."
+            hint="Your email provider's server address."
+            error={err('smtpHost')}
           >
-            <input
+            <TextInput
               id="ss-smtp-host"
-              type="text"
-              className="ss-input"
-              value={form.smtpHost}
-              onChange={onText('smtpHost')}
+              maxLength={LIMITS.host}
               placeholder="smtp.gmail.com"
-              spellCheck={false}
+              {...bindText('smtpHost')}
             />
           </Field>
-          <Field id="ss-smtp-port" label="Port" hint="Public. Usually 587 (TLS) or 465 (SSL).">
-            <input
+          <Field
+            id="ss-smtp-port"
+            label="Port"
+            hint="Usually 587 (TLS) or 465 (SSL)."
+            error={err('smtpPort')}
+          >
+            <TextInput
               id="ss-smtp-port"
               type="number"
+              inputMode="numeric"
               min="1"
               max="65535"
-              className="ss-input"
-              value={form.smtpPort}
-              onChange={onText('smtpPort')}
               placeholder="587"
+              {...bindText('smtpPort')}
             />
           </Field>
           <Field
             id="ss-smtp-from"
             label="Send from"
-            hint="Public. Name and address recipients will see."
+            hint="The name and address recipients will see."
+            error={err('smtpFrom')}
+            optional
           >
-            <input
+            <TextInput
               id="ss-smtp-from"
-              type="text"
-              className="ss-input"
-              value={form.smtpFrom}
-              onChange={onText('smtpFrom')}
+              maxLength={LIMITS.smtpFrom}
               placeholder="BukSUPPLY Support <supply@buksu.edu.ph>"
+              {...bindText('smtpFrom')}
             />
           </Field>
           <Field
             id="ss-smtp-user"
             label="Username"
-            hint="Private. Usually your full email address."
+            hint="Usually your full email address."
+            error={err('smtpUser')}
           >
-            <input
+            <MaskedInput
+              key={`smtp-${version.smtp || 0}`}
               id="ss-smtp-user"
-              type="text"
-              autoComplete="off"
-              className="ss-input"
-              value={form.smtpUser}
-              onChange={onText('smtpUser')}
+              isSet={form.smtpUserSet}
+              masked={form.smtpUserMasked}
+              maxLength={LIMITS.smtpUser}
               placeholder="supply@buksu.edu.ph"
-              spellCheck={false}
+              {...bindValue('smtpUser')}
             />
           </Field>
           <Field
             id="ss-smtp-pass"
             label="Password or app password"
-            hint="Private. Use an app password if 2-step verification is on."
+            hint="Use an app password if 2-step verification is on."
+            error={err('smtpPassword')}
           >
             <SecretInput
               id="ss-smtp-pass"
-              value={form.smtpPassword}
               isSet={form.smtpPasswordSet}
-              onChange={set('smtpPassword')}
               placeholder="16-character app password"
+              {...bindValue('smtpPassword')}
             />
           </Field>
         </div>
@@ -993,14 +1340,14 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-pdf-key"
             label="API key"
-            hint="Private. Each PDF download uses one PDFShift credit."
+            hint="Each PDF download uses one PDFShift credit."
+            error={err('pdfshiftApiKey')}
           >
             <SecretInput
               id="ss-pdf-key"
-              value={form.pdfshiftApiKey}
               isSet={form.pdfshiftApiKeySet}
-              onChange={set('pdfshiftApiKey')}
               placeholder="sk_..."
+              {...bindValue('pdfshiftApiKey')}
             />
           </Field>
         </div>
@@ -1027,14 +1374,14 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-xlsx-key"
             label="API key"
-            hint="Private. Each Excel download uses Nutrient credits."
+            hint="Each Excel download uses Nutrient credits."
+            error={err('nutrientApiKey')}
           >
             <SecretInput
               id="ss-xlsx-key"
-              value={form.nutrientApiKey}
               isSet={form.nutrientApiKeySet}
-              onChange={set('nutrientApiKey')}
               placeholder="pdf_live_..."
+              {...bindValue('nutrientApiKey')}
             />
           </Field>
         </div>
@@ -1061,56 +1408,212 @@ function SystemSettingsContent({ token, onLock }) {
           <Field
             id="ss-drive-id"
             label="Client ID"
-            hint={
-              form.driveClientIdSet
-                ? 'Saved. Only the first 5 characters are shown. Click Change to replace it.'
-                : 'Public. From the OAuth credential used to authorize Drive.'
-            }
+            hint="From the OAuth credential used to authorize Drive."
+            error={err('driveClientId')}
           >
             <MaskedInput
               key={`drive-${version.drive || 0}`}
               id="ss-drive-id"
-              value={form.driveClientId}
               isSet={form.driveClientIdSet}
               masked={form.driveClientIdMasked}
-              onChange={set('driveClientId')}
               placeholder="123456789-abc.apps.googleusercontent.com"
+              {...bindValue('driveClientId')}
             />
           </Field>
-          <Field id="ss-drive-secret" label="Client secret" hint="Private. Used by the server.">
+          <Field
+            id="ss-drive-secret"
+            label="Client secret"
+            hint="Used by the server only."
+            error={err('driveClientSecret')}
+          >
             <SecretInput
               id="ss-drive-secret"
-              value={form.driveClientSecret}
               isSet={form.driveClientSecretSet}
-              onChange={set('driveClientSecret')}
               placeholder="GOCSPX-..."
+              {...bindValue('driveClientSecret')}
             />
           </Field>
           <Field
             id="ss-drive-refresh"
             label="Refresh token"
-            hint="Private. New credentials are checked with Google when you save."
+            hint="New credentials are checked with Google when you save."
+            error={err('driveRefreshToken')}
           >
             <SecretInput
               id="ss-drive-refresh"
-              value={form.driveRefreshToken}
               isSet={form.driveRefreshTokenSet}
-              onChange={set('driveRefreshToken')}
               placeholder="1//0g..."
+              {...bindValue('driveRefreshToken')}
             />
           </Field>
           <Field
             id="ss-drive-folder"
             label="Folder name"
-            hint="Public. Created in the connected Drive if it doesn't exist. Empty = BukSUPPLY Exports."
+            hint="Created in the connected Drive if it doesn't exist. Empty = BukSUPPLY Exports."
+            error={err('driveFolderName')}
+            optional
           >
-            <input
+            <TextInput
               id="ss-drive-folder"
-              type="text"
-              className="ss-input"
-              value={form.driveFolderName}
-              onChange={onText('driveFolderName')}
+              maxLength={LIMITS.folder}
               placeholder="BukSUPPLY Exports"
+              {...bindText('driveFolderName')}
+            />
+          </Field>
+        </div>
+      </SettingsCard>
+
+      {/* Google Forms feedback */}
+      <SettingsCard
+        icon="bi-chat-square-text"
+        title="Google Forms feedback"
+        sub="Lets requesters rate a received request through a Google Form."
+        {...cardProps('forms')}
+      >
+        <ToggleRow
+          id="ss-forms-on"
+          label="Turn on feedback"
+          hint="When off, the “Send Feedback” button is hidden in the requisition slip details."
+          checked={form.formsEnabled}
+          onChange={set('formsEnabled')}
+        />
+
+        <div className="ss-divider"></div>
+
+        <div className="ss-grid ss-grid-2">
+          <Field
+            id="ss-forms-id"
+            label="Form ID"
+            hint="The part between /d/ and /edit in the form editor address. Pasting the whole editor link also works."
+            error={err('formsFormId')}
+          >
+            <MaskedInput
+              key={`forms-id-${version.forms || 0}`}
+              id="ss-forms-id"
+              isSet={form.formsFormIdSet}
+              masked={form.formsFormIdMasked}
+              maxLength={LIMITS.formId}
+              placeholder="1AbCdEfGh..."
+              {...bindValue('formsFormId')}
+            />
+          </Field>
+          <Field
+            id="ss-forms-creds"
+            label="Service account key"
+            hint={
+              serviceEmail ? (
+                <>
+                  Share the form with <strong className="ss-key-email">{serviceEmail}</strong> as
+                  an Editor.
+                </>
+              ) : (
+                'Paste the JSON key file or its Base64 text. Then share the form with the key’s email address as an Editor.'
+              )
+            }
+            error={err('formsCredentials')}
+          >
+            <SecretInput
+              id="ss-forms-creds"
+              isSet={form.formsCredentialsSet}
+              maxLength={LIMITS.key}
+              placeholder="Paste the JSON key or its Base64 text"
+              {...bindValue('formsCredentials')}
+            />
+          </Field>
+
+          <Field
+            id="ss-forms-url"
+            label="Pre-filled link"
+            hint={
+              <>
+                Use <code>{'{{SLIP}}'}</code> where the slip number goes. Optional placeholders:{' '}
+                <code>{'{{CODE}}'}</code> <code>{'{{NAME}}'}</code> <code>{'{{EMAIL}}'}</code>{' '}
+                <code>{'{{ID}}'}</code> <code>{'{{ROLE}}'}</code> <code>{'{{DEPT}}'}</code>
+              </>
+            }
+            error={err('formsPrefillUrl')}
+          >
+            <TextInput
+              id="ss-forms-url"
+              maxLength={LIMITS.url}
+              placeholder="https://docs.google.com/forms/d/e/.../viewform?entry.123={{SLIP}}"
+              {...bindText('formsPrefillUrl')}
+            />
+          </Field>
+          <Field
+            id="ss-forms-q-slip"
+            label="Slip number question"
+            hint="The question's title, question ID or item ID."
+            error={err('formsQSlip')}
+          >
+            <TextInput
+              id="ss-forms-q-slip"
+              maxLength={LIMITS.question}
+              placeholder="Requisition slip number"
+              {...bindText('formsQSlip')}
+            />
+          </Field>
+
+          <Field
+            id="ss-forms-q-code"
+            label="Verification code question"
+            hint="When set, a response only counts if its code matches the slip. The link must then contain {{CODE}}."
+            error={err('formsQCode')}
+            optional
+          >
+            <TextInput
+              id="ss-forms-q-code"
+              maxLength={LIMITS.question}
+              placeholder="Verification code"
+              {...bindText('formsQCode')}
+            />
+          </Field>
+          <Field
+            id="ss-forms-secret"
+            label="Verification secret"
+            hint={
+              form.formsCodeSecretSet
+                ? 'Changing it makes the codes of earlier responses stop matching.'
+                : 'At least 8 characters. Leave empty to use the server secret.'
+            }
+            persistent={form.formsCodeSecretSet}
+            error={err('formsCodeSecret')}
+            optional
+          >
+            <SecretInput
+              id="ss-forms-secret"
+              isSet={form.formsCodeSecretSet}
+              placeholder="Leave empty to use the server secret"
+              {...bindValue('formsCodeSecret')}
+            />
+          </Field>
+
+          <Field
+            id="ss-forms-q-rating"
+            label="Rating question"
+            hint="Used for the average on the staff feedback summary."
+            error={err('formsQRating')}
+            optional
+          >
+            <TextInput
+              id="ss-forms-q-rating"
+              maxLength={LIMITS.question}
+              placeholder="Overall rating"
+              {...bindText('formsQRating')}
+            />
+          </Field>
+          <Field
+            id="ss-forms-q-comment"
+            label="Comment question"
+            hint="Shown under recent comments on the staff feedback summary."
+            error={err('formsQComment')}
+            optional
+          >
+            <TextInput
+              id="ss-forms-q-comment"
+              maxLength={LIMITS.question}
+              placeholder="Comments"
+              {...bindText('formsQComment')}
             />
           </Field>
         </div>
@@ -1138,6 +1641,12 @@ function SystemSettingsContent({ token, onLock }) {
           onCancel={() => setResetSection(null)}
         >
           <p>This replaces the saved values for this section with the default values.</p>
+          {resetSection === 'forms' && (
+            <p>
+              Feedback goes back to the server defaults. Unless the server configuration turns it
+              on, it will be off and the “Send Feedback” button will be hidden.
+            </p>
+          )}
           <p>Any unsaved changes in this card will also be discarded.</p>
         </ConfirmModal>
       )}

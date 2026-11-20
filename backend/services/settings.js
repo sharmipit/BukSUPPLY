@@ -19,10 +19,19 @@ const SECRETS = [
   'nutrientApiKey',
   'driveClientSecret',
   'driveRefreshToken',
+  'formsCredentials',
+  'formsCodeSecret',
 ];
 
-// Public values that are shown masked ("12345**************") and never sent in full
-const MASKED = ['googleClientId', 'recaptchaSiteKey', 'driveClientId'];
+// Values that are shown masked ("12345**************") and never sent in full.
+// A saved value is only replaced when the admin clicks "Change" and types a new one.
+const MASKED = [
+  'googleClientId',
+  'recaptchaSiteKey',
+  'driveClientId',
+  'smtpUser',
+  'formsFormId',
+];
 
 // Empty value on save = keep the saved one
 const KEEP_IF_EMPTY = [...SECRETS, ...MASKED];
@@ -39,6 +48,17 @@ const SECTIONS = {
     'driveClientSecret',
     'driveRefreshToken',
     'driveFolderName',
+  ],
+  forms: [
+    'formsEnabled',
+    'formsFormId',
+    'formsCredentials',
+    'formsPrefillUrl',
+    'formsQSlip',
+    'formsQCode',
+    'formsQRating',
+    'formsQComment',
+    'formsCodeSecret',
   ],
 };
 
@@ -64,6 +84,15 @@ const DEFAULTS = {
   driveClientSecret: '',
   driveRefreshToken: '',
   driveFolderName: '',
+  formsEnabled: false,
+  formsFormId: '',
+  formsCredentials: '',
+  formsPrefillUrl: '',
+  formsQSlip: '',
+  formsQCode: '',
+  formsQRating: '',
+  formsQComment: '',
+  formsCodeSecret: '',
 };
 
 // Which .env variable backs each setting
@@ -82,6 +111,14 @@ const ENV_KEYS = {
   driveClientSecret: 'GOOGLE_DRIVE_CLIENT_SECRET',
   driveRefreshToken: 'GOOGLE_DRIVE_REFRESH_TOKEN',
   driveFolderName: 'GOOGLE_DRIVE_FOLDER_NAME',
+  formsFormId: 'GFORMS_FORM_ID',
+  formsCredentials: 'GFORMS_CREDENTIALS_B64',
+  formsPrefillUrl: 'GFORMS_PREFILL_URL',
+  formsQSlip: 'GFORMS_Q_SLIP',
+  formsQCode: 'GFORMS_Q_CODE',
+  formsQRating: 'GFORMS_Q_RATING',
+  formsQComment: 'GFORMS_Q_COMMENT',
+  formsCodeSecret: 'GFORMS_CODE_SECRET',
 };
 
 // ---- encryption helpers ----
@@ -145,6 +182,11 @@ function get() {
     loaded.recaptchaEnabled = !!(loaded.recaptchaSecretKey && loaded.recaptchaSiteKey);
   }
 
+  // Until a setting is saved, Google Forms feedback follows GFORMS_ENABLED from .env
+  if (!('formsEnabled' in raw)) {
+    loaded.formsEnabled = process.env.GFORMS_ENABLED === 'true';
+  }
+
   cache = loaded;
   return cache;
 }
@@ -180,6 +222,11 @@ function publicView() {
   // The site key is public by design (it is in the login page's HTML). The browser needs
   // it to show the "I'm not a robot" check when the admin confirms new reCAPTCHA keys.
   out.recaptchaSiteKeyPublic = s.recaptchaSiteKey;
+
+  // The service account's email is not a secret. The admin needs it to share the form
+  // with the right account (Editor access).
+  const account = parseServiceAccount(s.formsCredentials);
+  out.formsServiceEmail = account ? String(account.client_email) : '';
   return out;
 }
 
@@ -197,6 +244,38 @@ const fail = (msg) => {
 };
 
 const badSecret = (v, min) => v.length < min || /\s/.test(v);
+
+// Accepts the service account JSON key, or the same JSON as Base64 text (GFORMS_CREDENTIALS_B64).
+// Returns the parsed key, or null when it can't be read.
+function parseServiceAccount(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  try {
+    const json = text.startsWith('{')
+      ? text
+      : Buffer.from(text.replace(/\s+/g, ''), 'base64').toString('utf8');
+    const key = JSON.parse(json);
+    return key && key.client_email && key.private_key ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+// Accepts the bare Form ID or the form editor address (.../forms/d/<ID>/edit).
+// The published address (.../forms/d/e/...) is left as it is, so the validator can explain it.
+function extractFormId(value) {
+  const v = String(value || '').trim();
+  const m = v.match(/\/forms\/d\/([A-Za-z0-9_-]+)/);
+  return m && m[1] !== 'e' ? m[1] : v;
+}
+
+const FORMS_QUESTIONS = {
+  formsQSlip: 'Slip number',
+  formsQCode: 'Verification code',
+  formsQRating: 'Rating',
+  formsQComment: 'Comment',
+};
+const formsPlaceholder = (name) => new RegExp(`(?:\\{\\{|%7B%7B)${name}(?:\\}\\}|%7D%7D)`, 'i');
 
 // next = merged settings, typed = only the values the admin just entered
 const VALIDATORS = {
@@ -292,6 +371,63 @@ const VALIDATORS = {
       (!next.driveClientId || !next.driveClientSecret || !next.driveRefreshToken)
     ) {
       fail('Add the Client ID, client secret and refresh token, or turn Google Drive off.');
+    }
+  },
+
+  forms(next, typed) {
+    if (typed.formsFormId && !/^[A-Za-z0-9_-]{10,}$/.test(typed.formsFormId)) {
+      fail(
+        /\/forms\/d\/e\//.test(typed.formsFormId)
+          ? 'That is the published form link. Open the form editor and copy the ID between /d/ and /edit.'
+          : 'That does not look like a Google Form ID. Copy the part between /d/ and /edit in the form editor address.'
+      );
+    }
+    if (typed.formsCredentials && !parseServiceAccount(typed.formsCredentials)) {
+      fail(
+        'The service account key could not be read. Paste the full JSON key file, or its Base64 text.'
+      );
+    }
+    if (typed.formsCodeSecret && badSecret(typed.formsCodeSecret, 8)) {
+      fail('The verification secret must be at least 8 characters long with no spaces.');
+    }
+    for (const [key, label] of Object.entries(FORMS_QUESTIONS)) {
+      if (String(typed[key] ?? '').length > 200) {
+        fail(`The ${label.toLowerCase()} question must be 200 characters or fewer.`);
+      }
+    }
+    if (typed.formsPrefillUrl) {
+      if (typed.formsPrefillUrl.length > 2000) {
+        fail('The pre-filled link must be 2000 characters or fewer.');
+      }
+      if (!/^https:\/\/docs\.google\.com\/forms\//i.test(typed.formsPrefillUrl)) {
+        fail('The pre-filled link must start with https://docs.google.com/forms/.');
+      }
+      if (!formsPlaceholder('SLIP').test(typed.formsPrefillUrl)) {
+        fail('The pre-filled link must contain {{SLIP}} where the slip number goes.');
+      }
+    }
+    const usedQuestions = Object.keys(FORMS_QUESTIONS)
+      .map((k) => String(next[k] || '').trim().toLowerCase())
+      .filter(Boolean);
+    if (new Set(usedQuestions).size !== usedQuestions.length) {
+      fail('Each question field must point to a different question.');
+    }
+    if (
+      ('formsPrefillUrl' in typed || 'formsQCode' in typed) &&
+      next.formsQCode &&
+      next.formsPrefillUrl &&
+      !formsPlaceholder('CODE').test(next.formsPrefillUrl)
+    ) {
+      fail('A verification code question is set, so the pre-filled link must contain {{CODE}}.');
+    }
+
+    if (next.formsEnabled) {
+      if (!next.formsFormId) fail('Add the Form ID, or turn feedback off.');
+      if (!parseServiceAccount(next.formsCredentials)) {
+        fail('Add the service account key, or turn feedback off.');
+      }
+      if (!next.formsPrefillUrl) fail('Add the pre-filled link, or turn feedback off.');
+      if (!next.formsQSlip) fail('Add the slip number question, or turn feedback off.');
     }
   },
 };
@@ -494,6 +630,72 @@ const LIVE = {
     }
     fail(`Google could not check these credentials (${data.error || res.status}). Try again.`);
   },
+
+  // Reads the form with the service account, so a wrong ID, a form that was not shared with the
+  // service account, or a mistyped question is caught before it is saved.
+  async forms(next, typed) {
+    // Turning feedback OFF must always work, even if the form or the key is already gone
+    if (!next.formsEnabled) return;
+    const watched = [
+      'formsEnabled',
+      'formsFormId',
+      'formsCredentials',
+      ...Object.keys(FORMS_QUESTIONS),
+    ];
+    if (!watched.some((k) => k in typed)) return;
+    if (!next.formsFormId || !next.formsCredentials) return;
+
+    const creds = parseServiceAccount(next.formsCredentials);
+    if (!creds) fail('The service account key could not be read. Paste it again.');
+
+    const { google } = require('googleapis');
+    let data;
+    try {
+      const auth = new google.auth.GoogleAuth({
+        credentials: creds,
+        scopes: ['https://www.googleapis.com/auth/forms.body.readonly'],
+      });
+      const res = await google
+        .forms({ version: 'v1', auth })
+        .forms.get({ formId: next.formsFormId }, { timeout: 10000 });
+      data = res.data;
+    } catch (e) {
+      const status = Number(e.response?.status || e.code) || 0;
+      debug('[forms check]', status, e.message);
+      if (status === 404) fail('Google could not find a form with that ID. Check the Form ID.');
+      if (status === 403) {
+        fail(
+          `Google refused access to the form. Share it with ${creds.client_email} as an Editor, and make sure the Google Forms API is enabled.`
+        );
+      }
+      if (status === 401 || /invalid_grant|invalid_client|unauthorized/i.test(e.message || '')) {
+        fail('Google rejected the service account key. Download a fresh key and paste it again.');
+      }
+      if (status === 400) fail('Google could not use that Form ID. Check the Form ID.');
+      if (/ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ECONNRESET|timeout/i.test(`${e.code} ${e.message}`)) {
+        fail('Could not reach Google to check the form. Try again in a moment.');
+      }
+      fail(`The Google Forms check failed: ${e.message}`);
+    }
+
+    // Each question may be its title, its question ID or its item ID (same rule as services/feedback.js)
+    const known = new Set();
+    (data.items || []).forEach((item) => {
+      const q = item.questionItem && item.questionItem.question;
+      if (!q || !q.questionId) return;
+      [item.title, item.itemId, q.questionId].forEach((v) => {
+        if (v) known.add(String(v).trim().toLowerCase());
+      });
+    });
+    for (const [key, label] of Object.entries(FORMS_QUESTIONS)) {
+      const value = String(next[key] || '').trim();
+      if (value && !known.has(value.toLowerCase())) {
+        fail(
+          `The ${label.toLowerCase()} question "${value}" was not found in the form. Use the question title, question ID or item ID.`
+        );
+      }
+    }
+  },
 };
 
 // ---- update / reset ----
@@ -510,6 +712,7 @@ async function update(section, patch = {}) {
     if (KEEP_IF_EMPTY.includes(k) && !v) continue; // empty = keep saved one
     if (k.endsWith('Enabled')) v = !!v;
     if (k === 'smtpPort') v = Number(v) || 587;
+    if (k === 'formsFormId') v = extractFormId(v);
     typed[k] = v;
   }
 
@@ -534,7 +737,9 @@ function reset(section) {
   const fields = SECTIONS[section];
   if (!fields) fail('Unknown settings section.');
 
-  const hasDefaults = fields.some((k) => ENV_KEYS[k] && process.env[ENV_KEYS[k]]);
+  // Google Forms feedback can always be reset: with no .env values its default is "off and empty"
+  const hasDefaults =
+    section === 'forms' || fields.some((k) => ENV_KEYS[k] && process.env[ENV_KEYS[k]]);
   if (!hasDefaults) fail('There are no default values for this section to reset to.');
 
   const raw = readRaw();
@@ -545,4 +750,4 @@ function reset(section) {
   return publicView();
 }
 
-module.exports = { get, publicView, update, reset, database };
+module.exports = { get, publicView, update, reset, database, parseServiceAccount };

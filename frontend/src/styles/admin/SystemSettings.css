@@ -75,6 +75,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
+  align-items: start; /* a field with a message never stretches its neighbour */
 }
 
 .ss-grid-2 {
@@ -93,16 +94,99 @@
 }
 
 .ss-field label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-dark, #2c1a14);
 }
 
+/* Small tag next to the label of a field that can stay empty */
+.ss-optional {
+  padding: 1px 8px;
+  border-radius: 50px;
+  background-color: #efe9df;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #7a6e66;
+}
+
 .ss-hint {
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text-body, #594d46);
+  overflow-wrap: anywhere;
+}
+
+/* Field hints stay hidden until the box is focused, so the cards stay short.
+   They are still in the page, so screen readers read them (aria-describedby).
+   .persist keeps one visible all the time (warnings people must see before typing). */
+.ss-hint-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -6px; /* cancels the gap above it while it is hidden */
+  opacity: 0;
+  transition:
+    grid-template-rows 0.2s ease,
+    margin-top 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.ss-hint-wrap > .ss-hint {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ss-hint-wrap.persist,
+.ss-field:focus-within .ss-hint-wrap {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  opacity: 1;
+}
+
+.ss-hint code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background-color: #efe9df;
+  font-size: 0.78rem;
+  color: var(--text-dark, #2c1a14);
+  white-space: nowrap;
+}
+
+.ss-key-email {
+  overflow-wrap: anywhere;
+  color: var(--text-dark, #2c1a14);
+}
+
+/* Problem under a field */
+.ss-error-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #b3261e;
+  overflow-wrap: anywhere;
+}
+
+.ss-error-text i {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ss-input.ss-input-invalid {
+  border-color: #b3261e;
+  background-color: #fdf6f5;
+}
+
+.ss-input.ss-input-invalid:focus {
+  border-color: #b3261e;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.15);
 }
 
 .ss-input-wrap {
@@ -183,6 +267,7 @@
 
 /* Masked credentials */
 .ss-input.ss-input-locked {
+  background-color: #efe9df;
   cursor: default;
   user-select: none;
   color: #a89d94;
@@ -286,6 +371,13 @@
   background-color: #8c5839;
 }
 
+/* Bigger tap area on phones without changing how the switch looks */
+.ss-switch::before {
+  content: '';
+  position: absolute;
+  inset: -9px -5px;
+}
+
 .ss-switch-knob {
   position: absolute;
   top: 3px;
@@ -331,6 +423,8 @@
 .ss-modal {
   width: 100%;
   max-width: 480px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   margin: 0;
   box-shadow: 0 20px 50px rgba(44, 26, 20, 0.25);
 }
@@ -364,13 +458,24 @@
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+
+/* Narrower screens: three columns become two */
+@media (max-width: 1100px) {
+  .ss-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tablets and phones: every grid becomes one column */
+@media (max-width: 700px) {
   .ss-grid,
   .ss-grid-2,
   .ss-grid-3 {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 900px) {
   .ss-card-head,
   .ss-card-body,
   .ss-card-foot,
@@ -396,9 +501,33 @@
 
   .ss-card-foot-text {
     flex: 1 0 100%;
+    margin-right: 0;
   }
 
   .ss-card-foot button {
     flex: 1 1 auto;
+  }
+
+  /* Card buttons: Discard and Save side by side, "Reset to default" on its own row below */
+  .ss-card-actions button:first-of-type {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .ss-card-actions button {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  /* 16px stops iPhones from zooming into a field when it is tapped */
+  .ss-input {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-hint-wrap,
+  .ss-switch-knob,
+  .ss-input {
+    transition: none;
   }
 }

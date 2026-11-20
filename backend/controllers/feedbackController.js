@@ -72,31 +72,38 @@ exports.link = asyncHandler(async (req, res) => {
   });
 });
 
-/** GET /api/feedback/status/:slip (owner only): has the feedback arrived? */
+/**
+ * GET /api/feedback/status/:slip (owner only): has the feedback arrived?
+ * Always says whether feedback is turned on, so the page can hide "Send Feedback" when it is off.
+ */
 exports.status = asyncHandler(async (req, res) => {
   const doc = await findOwnSlip(req);
   if (!doc) throw new AppError('Requisition not found.', 404);
 
+  const enabled = feedback.enabled();
+
+  if (!enabled) return res.json({ enabled: false, submitted: false });
+
   if (doc.feedbackSubmittedAt) {
-    return res.json({ submitted: true, at: doc.feedbackSubmittedAt });
+    return res.json({ enabled, submitted: true, at: doc.feedbackSubmittedAt });
   }
-  if (!feedback.enabled() || doc.status !== 'Accepted') {
-    return res.json({ submitted: false });
+  if (doc.status !== 'Accepted') {
+    return res.json({ enabled, submitted: false });
   }
 
   try {
     const at = await feedback.submittedAt(doc.slipNumber, { fresh: true });
     if (at) {
       const saved = await markSubmitted(doc, at, req);
-      return res.json({ submitted: true, at: saved });
+      return res.json({ enabled, submitted: true, at: saved });
     }
   } catch (err) {
     // Google hiccup: tell the page to keep waiting instead of showing an error
     console.error('feedback status error:', err.message);
-    return res.json({ submitted: false, checked: false });
+    return res.json({ enabled, submitted: false, checked: false });
   }
 
-  res.json({ submitted: false });
+  res.json({ enabled, submitted: false });
 });
 
 /** GET /api/feedback/summary (Moderator / Administrator) */

@@ -5,6 +5,7 @@ const InventoryItem = require('../models/InventoryItem');
 const User = require('../models/User');
 const { deductForRequisition, restoreForRequisition } = require('../services/stock');
 const { logActivity } = require('../services/activityLog');
+const feedback = require('../services/feedback');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
 
@@ -70,6 +71,8 @@ const toClient = (r) => {
     // Feedback: the "Send Feedback" button stays disabled once this is true
     feedbackSubmitted: !!r.feedbackSubmittedAt,
     feedbackSubmittedAt: r.feedbackSubmittedAt || undefined,
+    // Turned on/off in System Settings. When false, the page hides "Send Feedback".
+    feedbackEnabled: feedback.enabled(),
   };
 };
 
