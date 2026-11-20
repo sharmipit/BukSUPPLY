@@ -8,7 +8,6 @@ import UserLayout from "./components/UserLayout";
 
 // Shared pages
 import Profile from "./pages/Profile";
-// e change ni to "./pages/Notifications" once ma move na ang notif sa /pages
 import Notifications from "./pages/user/Notifications";
 import Requests from "./pages/Requests";
 import Inventory from "./pages/Inventory";

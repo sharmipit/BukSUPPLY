@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/Requests.css';
 import '../styles/IssuanceSlip.css';
 
-const ENTITY_NAME = 'BUKIDNON STATE UNIVERSITY'; // same as issuanceSlip.js on the server
+const ENTITY_NAME = 'BUKIDNON STATE UNIVERSITY';
 
 const fmtDate = (v) =>
   v
@@ -21,7 +21,7 @@ const fmtStamp = (d) =>
     minute: '2-digit',
   });
 
-// Approximate rows per page (the real PDF depends on how long descriptions wrap)
+// Approximate row limits per page for print preview pagination
 const SINGLE = 21;
 const FIRST = 30;
 const MIDDLE = 35;
@@ -54,7 +54,6 @@ export default function IssuanceSlipPreview({
   const anyBusy = Boolean(busy || excelBusy);
 
   const { user } = useAuth();
-  // ASSUMPTION: adjust `user?.role` if your auth context stores the role elsewhere
   const role = String(user?.role || '').toLowerCase();
   const canDownload = ['admin', 'administrator', 'moderator'].includes(role);
 

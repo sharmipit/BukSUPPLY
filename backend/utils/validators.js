@@ -1,6 +1,4 @@
-// Server-side copy of the input rules used by Profile, Sign Up and User Management.
-// Keep this file in sync with src/utils/fieldRules.js on the React side.
-// The pages block bad input while typing, but the server is the one that decides.
+// Server-side validation rules (matches frontend src/utils/fieldRules.js)
 
 const LIMITS = {
   name: { max: 50, maxWords: 4, minLetters: 2 },
@@ -14,8 +12,7 @@ const squash = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 const countWords = (v) => squash(v).split(' ').filter(Boolean).length;
 const countLetters = (v) => (String(v).match(/\p{L}/gu) || []).length;
 
-/* ---------- Names ---------- */
-// Letters (any language), spaces, . ' ’ - only.
+// Names
 const cleanName = (value) =>
   String(value ?? '')
     .replace(/[^\p{L}\p{M} .'’-]/gu, '')
@@ -50,8 +47,7 @@ const nameProblem = (value, label = 'Name') => {
   return '';
 };
 
-/* ---------- Email ---------- */
-// The domain rule stays with each route (students, staff, moderators); this is the shape and size.
+// Email
 const emailShapeProblem = (email) => {
   const v = String(email ?? '').trim().toLowerCase();
   if (!v) return 'Email address is required.';
@@ -60,8 +56,7 @@ const emailShapeProblem = (email) => {
   return '';
 };
 
-/* ---------- ID number ---------- */
-// Student: 10 digits. Regular Staff / Moderator: P- then 3-6 digits. Stored in capitals.
+// ID number (Student: 10 digits; Staff/Moderator: P- followed by 3-6 digits)
 const idProblem = (role, raw) => {
   const id = String(raw ?? '').trim().toUpperCase();
   if (!id) return 'ID number is required.';
@@ -72,7 +67,7 @@ const idProblem = (role, raw) => {
     : 'Employee ID must look like P-0000 (the letter P, a hyphen, then 3-6 digits).';
 };
 
-/* ---------- Password ---------- */
+// Password
 const passwordProblem = (pw) => {
   const v = String(pw ?? '');
   if (!v) return 'Password is required.';
@@ -86,15 +81,14 @@ const passwordProblem = (pw) => {
   return '';
 };
 
-/* ---------- Contact number (optional) ---------- */
+// Contact number (optional)
 const contactProblem = (value) => {
   const v = String(value ?? '').trim();
   if (!v) return '';
   return /^(09|\+639)\d{9}$/.test(v) ? '' : 'Use a valid PH number: 09XXXXXXXXX or +639XXXXXXXXX.';
 };
 
-/* ---------- Reasons, notes, messages ---------- */
-// Line breaks become spaces; < > { } ` \ and control characters are not allowed.
+// Reasons, notes, messages
 const TEXT_DISALLOWED = /[<>{}`\\\u0000-\u001F\u007F]/;
 
 const reasonProblem = (

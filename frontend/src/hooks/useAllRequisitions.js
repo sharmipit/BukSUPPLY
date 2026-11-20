@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api, { errMsg } from '../api/client';
 
-// Every slip from every requester (moderator / administrator pages)
+// Fetch all requisitions across users for moderator and admin roles
 export default function useAllRequisitions() {
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ export default function useAllRequisitions() {
     refresh();
   }, [refresh]);
 
-  // Throws on failure so the page can show the server's message
+  // Update requisition status
   const setStatus = async (id, status, remarks = '') => {
     const { data } = await api.patch(`/requisitions/${id}/status`, { status, remarks });
     setRequisitions((prev) =>
@@ -33,15 +33,14 @@ export default function useAllRequisitions() {
           : r
       )
     );
-    return data; // { requisition, stock }
+    return data;
   };
 
-  // Administrator only. Moves a slip one step back (Denied goes back to where it was).
-  // Reloads the list because cleared fields are missing from the response.
+  // Administrator only: reverts requisition status to the previous state
   const undo = async (id) => {
     const { data } = await api.post(`/requisitions/${id}/undo`);
     await refresh();
-    return data; // { requisition, stock }
+    return data;
   };
 
   return { requisitions, loading, error, refresh, setStatus, undo };

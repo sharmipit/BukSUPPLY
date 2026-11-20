@@ -1,19 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../styles/FilterDropdown.css';
 
-/*
-  Reusable pill dropdown for list filters.
-
-  options: [{ value, label, tone? }]
-    - tone (optional) adds a small coloured dot: pending, processing,
-      approved, cancelled, accepted, denied. Options without a tone get a neutral dot,
-      but only when at least one option has a tone.
-  value:     the currently selected option value
-  onChange:  (value) => void
-  allValue:  the value that means "no filter" (the trigger highlights otherwise)
-  icon:      Bootstrap icon class shown before the label. Pass null for no icon.
-  className: optional extra class on the wrapper (e.g. "fd--compact")
-*/
+// Reusable pill dropdown for list filters
+// Props: options ({ value, label, tone }), value, onChange, icon, ariaLabel, allValue, className
 export default function FilterDropdown({
   options,
   value,

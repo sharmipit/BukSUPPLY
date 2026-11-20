@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth, homeFor } from '../context/AuthContext';
 
-// Replaces requireAuth() from your old auth.js
+// Restrict route access by authentication status and user roles
 export default function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/signin" replace />;

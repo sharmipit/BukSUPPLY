@@ -40,15 +40,8 @@ const monthOf = (iso) => {
   return { year: now.getFullYear(), month: now.getMonth() };
 };
 
-/*
-  Custom date picker (same look as the Activity Log calendar).
-
-  value:    YYYY-MM-DD string, or '' for no date
-  onChange: (iso) => void   ('' when cleared)
-  min / max: optional YYYY-MM-DD limits. Pass the other end of a range here
-             (e.g. the "To" field gets min = from) and it is also highlighted.
-  align:    'left' | 'right'  which edge the popup lines up with
-*/
+// Custom date picker component (matches Activity Log calendar design)
+// Props: value (YYYY-MM-DD), onChange, min/max limits, align ('left' | 'right')
 export default function DateField({
   label,
   value = '',

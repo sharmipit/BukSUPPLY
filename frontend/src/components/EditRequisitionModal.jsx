@@ -7,12 +7,11 @@ const DEPARTMENT_MAX_LENGTH = 100;
 const TITLE_MAX_LENGTH = 100;
 const PURPOSE_MAX_LENGTH = 250;
 
-// Department and title: letters (any language, so names like "Peñafrancia" work),
-// numbers, spaces and . , - ' ( ) / & only. Titles may also use # and :
+// Allowed characters for department and title fields
 const DEPARTMENT_DISALLOWED = /[^\p{L}\p{N} .,\-'’()/&]/gu;
 const TITLE_DISALLOWED = /[^\p{L}\p{N} .,\-'’()/&#:]/gu;
 
-// Removes disallowed characters (also when pasted), leading spaces and repeated spaces
+// Clean text: strip disallowed characters and collapse spaces
 const cleanText = (value, disallowed) =>
   value.replace(disallowed, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' ');
 
@@ -25,24 +24,20 @@ export default function EditRequisitionModal({
 }) {
   const { items: inventory, refresh: refreshInventory } = useInventory();
 
-  // Slip details
   const [department, setDepartment] = useState('');
   const [title, setTitle] = useState('');
   const [purpose, setPurpose] = useState('');
 
-  // Items from stock, edited in their own modal
   const [stockLines, setStockLines] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Toasts and saving state
   const [showToast, setShowToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Synchronous lock: state updates are async, so two quick clicks could both pass a
-  // `saving` check. A ref changes immediately, so only the first click gets through.
+  // Prevent duplicate submissions while an async save is in progress
   const submitLock = useRef(false);
 
   // Load the slip into the form each time it opens
@@ -91,10 +86,9 @@ export default function EditRequisitionModal({
 
   const isOverLimit = (line) => Number(line.qty) > Number(line.maxNormal || 10);
 
-  // Waits for the server before showing success
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitLock.current) return; // one submission only
+    if (submitLock.current) return;
 
     const cleanDepartment = department.trim();
     const cleanTitle = title.trim();
@@ -110,7 +104,7 @@ export default function EditRequisitionModal({
       return;
     }
 
-    // Quick check against current stock. The server checks again.
+    // Client-side stock availability validation
     if (inventory.length > 0) {
       const problem = validateStockLines(stockLines, inventory);
       if (problem) {
@@ -141,14 +135,13 @@ export default function EditRequisitionModal({
     try {
       await onSave(payload);
     } catch (err) {
-      // Only a failed save unlocks the form, so the user can fix things and retry
+      // Unlock form on failure so the user can retry
       showError(err?.response?.data?.message || 'Could not save. Please try again.');
       submitLock.current = false;
       setSaving(false);
       return;
     }
 
-    // Success: stay locked until the modal closes (the toast is still showing)
     setSaving(false);
     setSaved(true);
     setShowToast(true);

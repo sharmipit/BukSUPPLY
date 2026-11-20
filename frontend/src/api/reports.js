@@ -18,9 +18,7 @@ async function throwBlobError(err) {
   throw err;
 }
 
-/**
- * Downloads a report file (PDF or Excel) from the backend server.
- */
+// Downloads a report file (PDF or Excel) from the backend server
 export async function downloadReport(type, format, filters) {
   const params = clean(filters);
 
@@ -37,10 +35,7 @@ export async function downloadReport(type, format, filters) {
   }
 }
 
-/**
- * Downloads the issuance slip for one requisition (same pipeline as the reports).
- * format: 'pdf' (default) or 'xlsx' (editable Excel).
- */
+// Downloads the issuance slip for one requisition (format: 'pdf' or 'xlsx')
 async function downloadSlip(id, format) {
   try {
     const response = await api.get(`/reports/issuance/${encodeURIComponent(id)}/export`, {
@@ -56,9 +51,7 @@ async function downloadSlip(id, format) {
 export const downloadIssuanceSlip = (id) => downloadSlip(id, 'pdf');
 export const downloadIssuanceSlipExcel = (id) => downloadSlip(id, 'xlsx');
 
-/**
- * Fetches the report rows as JSON (used for the preview before downloading).
- */
+// Fetches the report rows as JSON (used for the preview before downloading)
 export async function fetchReportRows(type, filters) {
   const res = await api.get(`/reports/${type}`, { params: clean(filters) });
   return res.data;
@@ -75,9 +68,7 @@ function saveBlob(blob, filename) {
   window.URL.revokeObjectURL(url);
 }
 
-/**
- * Fetches recent export logs from the backend.
- */
+// Fetches recent export logs from the backend
 export async function fetchExportHistory(limit = 15) {
   const res = await api.get('/reports/history', { params: { limit } });
   return res.data;

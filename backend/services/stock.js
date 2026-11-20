@@ -2,12 +2,7 @@ const mongoose = require('mongoose');
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition'); // adjust to your model path
 
-/**
- * Atomically add (delta > 0) or remove (delta < 0) stock and log the movement.
- * A withdrawal only matches if enough stock exists, so stock can never go negative
- * and two admins can't both spend the same units.
- * Returns null when the match failed (not found / not enough stock).
- */
+// Atomically adjust stock and record movement history (prevents negative quantity and race conditions)
 async function moveStock(match, delta, { by, reference = '', remark = '' }) {
   const filter = { ...match };
   if (delta < 0) filter.quantity = { $gte: -delta };
@@ -61,12 +56,7 @@ async function resolveItemId(line) {
   return found ? found._id : null;
 }
 
-/**
- * Called when a moderator marks a requisition as claimed (Accepted).
- * Deducts every in-stock line and every purchased line.
- * All-or-nothing: if any item is short, earlier deductions are rolled back and an error is thrown.
- * Safe to call twice: the stockDeducted flag makes the second call a no-op.
- */
+// Deduct stock for accepted requisition (atomic and idempotent via stockDeducted flag)
 async function deductForRequisition(requisitionId, by) {
   const reqDoc = await Requisition.findOneAndUpdate(
     { _id: requisitionId, stockDeducted: { $ne: true } },
@@ -133,13 +123,7 @@ async function deductForRequisition(requisitionId, by) {
   return { skipped: false, deducted: summary };
 }
 
-/**
- * Called when an administrator undoes an Accepted slip (Accepted -> Approved).
- * Puts back everything that was deducted and logs each return in the item's history.
- * Safe to call twice: only a slip with stockDeducted = true is restored, and the flag
- * is switched off first, so a second call is a no-op.
- * An item that was deleted from the inventory in the meantime is skipped and reported.
- */
+// Roll back stock deductions on requisition undo (restores inventory levels and records movements)
 async function restoreForRequisition(requisitionId, by) {
   const reqDoc = await Requisition.findOneAndUpdate(
     { _id: requisitionId, stockDeducted: true },

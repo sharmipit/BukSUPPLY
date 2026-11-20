@@ -15,15 +15,14 @@ exports.protect = async (req, res, next) => {
       return res.status(403).json({ message: 'This account has been deactivated.' });
     }
 
-    req.user = user; // full document, so controllers don't need to refetch
+    req.user = user;
     next();
   } catch {
     res.status(401).json({ message: 'Invalid or expired token.' });
   }
 };
 
-// Usage: router.use(protect, restrictTo("Administrator"))
-// Must run AFTER protect, since it reads req.user.
+// Role authorization middleware (must run after protect)
 exports.restrictTo =
   (...roles) =>
   (req, res, next) => {

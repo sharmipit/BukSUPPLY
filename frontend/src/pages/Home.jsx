@@ -62,7 +62,7 @@ export default function Home() {
   const navRef = useRef(null);
   const toggleRef = useRef(null);
 
-  // Phone menu: close on outside tap, Escape, or when the screen grows to desktop size
+  // Mobile menu: close on outside click, Escape, or viewport resize to desktop
   useEffect(() => {
     if (!menuOpen) return;
 
@@ -73,7 +73,7 @@ export default function Home() {
     };
     const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
 
-    // Keep this breakpoint in sync with the 768px media query in index.css
+    // Sync with mobile media query breakpoint (768px)
     const mql = window.matchMedia("(min-width: 769px)");
     const onChange = (e) => e.matches && setMenuOpen(false);
 
@@ -87,9 +87,7 @@ export default function Home() {
     };
   }, [menuOpen]);
 
-  // The "overview" link and the logo go to the very top of the page.
-  // (A plain #overview anchor stops at the hero's top edge, which sits just
-  // under the sticky navbar, so the page ends up slightly scrolled.)
+  // Smooth scroll to top when clicking overview anchor or logo
   const goTo = (e, id) => {
     setMenuOpen(false);
     if (id === "overview") {
@@ -98,7 +96,7 @@ export default function Home() {
     }
   };
 
-  // Scrollspy (highlights the nav link of the section on screen) + scroll reveal
+  // Scrollspy to highlight active section and trigger scroll animations
   useEffect(() => {
     const sectionObserver = new IntersectionObserver(
       (entries) => {

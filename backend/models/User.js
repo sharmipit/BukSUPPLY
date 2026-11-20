@@ -1,12 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-/**
- * BukSUPPLY User Schema
- * Covers: institutional sign up (Student / Regular Staff), sign in for all
- * roles (including Moderator / Administrator provisioned outside public
- * signup), and the 6-digit OTP forgot-password workflow.
- */
+// BukSUPPLY User Schema (covers institutional users, moderators, administrators)
 const UserSchema = new mongoose.Schema(
   {
     firstName: { type: String, required: [true, "First name is required"], trim: true },

@@ -16,16 +16,12 @@ import {
   contactProblem,
 } from "../utils/fieldRules";
 
-// ---------- Field rules ----------
-// The rules (allowed characters, limits, formats) live in utils/fieldRules.js and are shared
-// with the Sign Up and User Management pages. The server enforces the same rules.
+// Field validation rules (defined in utils/fieldRules.js and enforced on backend)
 const LABELS = { firstName: "First name", lastName: "Last name" };
 
-// Typing violations: the cleaned value plus a message ONLY when a rule was just broken
 const typeField = (field, raw) =>
   field === "contactNumber" ? typeContact(raw) : typeName(raw, LABELS[field]);
 
-// Completeness check (on blur and on save)
 const problemFor = (field, value) =>
   field === "contactNumber" ? contactProblem(value) : nameProblem(value, LABELS[field]);
 
@@ -214,7 +210,7 @@ export default function Profile() {
   const avatarSrc = getAvatar(user);
   const email = user?.email || "";
 
-  /* ---------- Edit profile ---------- */
+  // Edit profile actions
   const startEdit = () => {
     setDraft(values);
     setErrors({});
@@ -280,8 +276,7 @@ export default function Profile() {
       setValues(next);
       setDraft(next);
 
-      // Update the shared user so the sidebar footer, the top-bar dropdown
-      // and this page all show the new name right away.
+      // Synchronize updated user profile across application context
       if (typeof updateUser === "function") {
         updateUser(saved);
       } else if (typeof setUser === "function") {
@@ -299,7 +294,7 @@ export default function Profile() {
     }
   };
 
-  /* ---------- Other actions ---------- */
+  // Other profile actions
   const handleDeactivateConfirm = async () => {
     if (deactivating) return;
     setDeactivating(true);
@@ -307,7 +302,7 @@ export default function Profile() {
       await deactivateAccount();
       setDeactivateOpen(false);
       setNotice({ type: "error", text: "Your account has been deactivated." });
-      // Stays locked on success: the user is being logged out
+      // Lock interaction on successful deactivation before logout
       setTimeout(() => logout?.(), 1500);
     } catch (err) {
       setDeactivateOpen(false);

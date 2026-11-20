@@ -128,9 +128,7 @@ function useMediaQuery(query) {
   return matches;
 }
 
-/**
- * Dropdown shown when clicking a profile trigger.
- */
+// Profile dropdown menu component
 function ProfileMenu({ trigger, base, direction = 'down', onLogout, name, roleLabel }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({});
@@ -162,9 +160,7 @@ function ProfileMenu({ trigger, base, direction = 'down', onLogout, name, roleLa
       if (!inTrigger && !inMenu) close();
     };
     const onKey = (e) => e.key === 'Escape' && close();
-    // Clicking a link inside the menu closes it. This runs on the document (capture)
-    // so it still works when a page-level "leave this page?" guard stops the click,
-    // otherwise the menu would stay open on top of that confirmation.
+    // Close menu when clicking navigation links inside it
     const onLinkClick = (e) => {
       const inMenu = menuRef.current && menuRef.current.contains(e.target);
       const link = e.target instanceof Element ? e.target.closest('a[href]') : null;

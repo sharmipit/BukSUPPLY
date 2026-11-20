@@ -1,7 +1,6 @@
 import api, { errMsg } from "./client";
 
-// Wraps the shared client so Profile.jsx keeps working as written:
-// resolves with the response data, and throws an Error with .fieldErrors
+// Helper to unwrap response data and extract API field errors
 async function call(promise) {
   try {
     const { data } = await promise;

@@ -1,10 +1,7 @@
-/* ==========================================================================
-   BukSUPPLY - Shared user-account pop-ups (Admin)
-   ========================================================================== */
-   
+// Shared user-account modals (Admin)
 import React, { useState, useEffect } from "react";
 
-// Quick comments the administrator can pick instead of typing
+// Predefined reason suggestions for admin actions
 export const DEACTIVATE_SUGGESTIONS = [
   "Violated the rules stated in the Terms and Conditions.",
   "Misuse of the system or of requisition slips.",
@@ -29,12 +26,12 @@ export const DECLINE_SUGGESTIONS = [
   "Your account will stay deactivated for now. You may send a new request later.",
 ];
 
-// Works whether or not VITE_API_URL ends in "/api"
+// Normalize API base URL
 const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5001")
   .replace(/\/+$/, "")
   .replace(/\/api$/, "");
 
-// Dates are shown in Philippine time, like the rest of the system
+// Format date and time in Philippine time (Asia/Manila)
 const fmtDateTime = (v) =>
   v
     ? new Date(v).toLocaleString("en-PH", {
@@ -71,10 +68,7 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
-/* ------------------------------------------------------------------ */
-/* Modals                                                              */
-/* ------------------------------------------------------------------ */
-
+// Modals
 export function ConfirmModal({
   isOpen,
   title,
@@ -122,11 +116,7 @@ export function ConfirmModal({
   );
 }
 
-/**
- * Asks for a written reason / note before an action (deactivate, reactivate, decline a request).
- * onConfirm(text) may throw: the message is shown inside the pop-up.
- * `message` can be plain text or JSX (so the user's name can be bold).
- */
+// Reason input modal for administrative actions (deactivate, reactivate, decline)
 export function ReasonModal({
   isOpen,
   title,
@@ -277,8 +267,7 @@ export function ReasonModal({
   );
 }
 
-// One label + value pair inside a detail card
-// multiline = long free text that may wrap
+// Detail row component for key-value display
 function DetailRow({ label, children, multiline }) {
   return (
     <div className={`um-detail-row${multiline ? " multiline" : ""}`}>
@@ -290,7 +279,7 @@ function DetailRow({ label, children, multiline }) {
   );
 }
 
-/** Account details pop-up. Shows the row's data at once and loads the rest. */
+// Account details modal: displays comprehensive user information and management actions
 export function UserDetailsModal({
   user,
   onClose,

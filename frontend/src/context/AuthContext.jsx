@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from 'react';
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
-// Where each role lands after signing in (same rules as your old signin.js)
+// Default home route per user role
 export const ROLE_HOME = {
   Student: '/user',
   'Regular Staff': '/user',
@@ -37,9 +37,7 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  // Merge changes (e.g. after editing the profile) into the shared user,
-  // so the sidebar, top bar and Profile page update immediately and
-  // the new values survive a refresh.
+  // Update user state and synchronize changes to sessionStorage
   const updateUser = (patch) => {
     setUser((prev) => {
       if (!prev) return prev;

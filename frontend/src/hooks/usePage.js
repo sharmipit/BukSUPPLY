@@ -1,8 +1,6 @@
 import { useLayoutEffect } from 'react';
 
-// Applies one page's original CSS file while that page is on screen, and
-// removes it when you leave. This keeps index.css, signin.css and signup.css
-// from overriding each other (they all style <body> and share class names).
+// Injects scoped page CSS on mount and cleans it up on unmount to prevent stylesheet conflicts
 export default function usePage(css, title) {
   useLayoutEffect(() => {
     const style = document.createElement('style');

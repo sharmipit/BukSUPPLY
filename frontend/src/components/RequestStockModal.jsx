@@ -98,8 +98,8 @@ export default function RequestStockModal({ inventory, selected, onSave, onClose
     ]);
   };
 
+  // Keep empty string in state when input is cleared to allow typing
   const changeQty = (item, raw) => {
-    // If input is cleared (backspace / delete), keep empty string in state so user can type cleanly
     if (raw === '' || raw === null || raw === undefined) {
       patchLine(item._id, { qty: '' });
       return;

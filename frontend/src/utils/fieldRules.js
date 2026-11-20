@@ -1,12 +1,5 @@
-// Shared input rules for Profile, Sign Up and User Management.
-// One place decides: allowed characters, length and word limits, and formats.
-// The server has the same rules in server/utils/validators.js. Keep both in sync.
-//
-// Two kinds of helpers:
-//   type...()    runs on every keystroke / paste. Returns { value, notice }.
-//                value  = the cleaned text to store in the field
-//                notice = a message ONLY when the user just broke a rule ('' otherwise)
-//   ...Problem() runs on blur and on submit. Returns an error message or ''.
+// Shared input validation rules for Profile, Sign Up and User Management
+// Kept in sync with backend/utils/validators.js
 
 export const LIMITS = {
   name: { max: 50, maxWords: 4, minLetters: 2 },
@@ -26,8 +19,8 @@ const squash = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 const countWords = (v) => squash(v).split(' ').filter(Boolean).length;
 const countLetters = (v) => (String(v).match(/\p{L}/gu) || []).length;
 
-/* ------------------------------ Names ------------------------------ */
-// Letters (any language, so "Peñafrancia" works), spaces, . ' ’ - only.
+// Names
+// Letters, spaces, and standard name symbols
 const NAME_DISALLOWED = /[^\p{L}\p{M} .'’-]/gu;
 
 export function typeName(raw, label = 'Name') {
@@ -60,8 +53,7 @@ export function typeName(raw, label = 'Name') {
   return { value: v, notice };
 }
 
-// Final format when saving: trimmed, no dangling symbols, every word starts with a capital
-// (juan dela cruz -> Juan Dela Cruz, o'neil -> O'Neil). Other letters stay as typed.
+// Capitalize each word and trim trailing symbols
 export const formatName = (value) =>
   typeName(value)
     .value.trim()
@@ -84,8 +76,7 @@ export function nameProblem(value, label = 'Name') {
   return '';
 }
 
-/* ------------------------------ Email ------------------------------ */
-// opts = { domains: ['buksu.edu.ph', ...], allowEmails: ['exact@address'], domainMessage }
+// Email
 export function typeEmail(raw, opts = {}) {
   const { domains = [], allowEmails = [], domainMessage = 'Use your BukSU email address.' } = opts;
   const input = String(raw ?? '');
@@ -140,9 +131,8 @@ export function emailProblem(value, opts = {}) {
   return '';
 }
 
-/* ------------------------------ ID number ------------------------------ */
-// Student: 10 digits (2400000000). Employee / Moderator: P- then 3-6 digits (P-0000).
-// kind = ID_KIND.student | ID_KIND.staff | null (not known yet, either format is fine)
+// ID number
+// Student: 10 digits. Employee/Moderator: P- followed by 3-6 digits
 const STUDENT_ID = /^\d{10}$/;
 const STAFF_ID = /^P-\d{3,6}$/;
 const STUDENT_PREFIX = /^\d{0,10}$/;
@@ -193,7 +183,7 @@ export function idProblem(kind, raw) {
   return ok ? '' : idFormatMessage(kind);
 }
 
-/* ------------------------------ Password ------------------------------ */
+// Password
 export function typePassword(raw) {
   const input = String(raw ?? '');
   let notice = '';
@@ -225,8 +215,7 @@ export function confirmProblem(password, confirm) {
   return '';
 }
 
-/* ------------------------------ Contact number ------------------------------ */
-// Digits only, with one optional "+" at the very start: 09XXXXXXXXX or +639XXXXXXXXX
+// Contact number: 09XXXXXXXXX or +639XXXXXXXXX
 export function typeContact(raw) {
   const input = String(raw ?? '');
   let notice = '';
@@ -265,8 +254,7 @@ export function contactProblem(value) {
   return /^(09|\+639)\d{9}$/.test(v) ? '' : 'Use a valid PH number: 09XXXXXXXXX or +639XXXXXXXXX.';
 }
 
-/* ------------------------------ Reasons, notes, messages ------------------------------ */
-// Free text: line breaks become spaces; < > { } ` \ and control characters are not allowed.
+// Reason, notes, and messages
 const TEXT_DISALLOWED = /[<>{}`\\\u0000-\u001F\u007F]/g;
 
 export function typeReason(raw, max = LIMITS.reason.max) {
@@ -297,8 +285,7 @@ export function reasonProblem(
   return '';
 }
 
-/* ------------------------------ Search box ------------------------------ */
-// Enough for IDs ("P-1234") and names ("Dela Cruz, Juan"). Cleaned silently.
+// Search input
 export const typeSearch = (raw) =>
   String(raw ?? '')
     .replace(/[^\p{L}\p{M}\p{N} .,'’-]/gu, '')

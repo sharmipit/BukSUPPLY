@@ -36,9 +36,7 @@ const getTransporter = () => {
   return cachedTransporter;
 };
 
-/**
- * Generic mail sender.
- */
+// Generic email dispatcher
 const sendEmail = async ({ to, subject, html, text }) => {
   const transporter = getTransporter();
   const s = settings.get();
@@ -54,9 +52,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
   });
 };
 
-/**
- * Sends the 6-digit OTP used in the forgot-password flow.
- */
+// Send 6-digit OTP verification code for password reset
 const sendOtpEmail = async (to, otp) => {
   const subject = 'BukSUPPLY Password Reset Code';
   const text = `Your BukSUPPLY password reset code is ${otp}. This code expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
@@ -83,9 +79,7 @@ const escHtml = (s) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   );
 
-/**
- * Sends the Google Drive link for an exported report or issuance slip.
- */
+// Send Google Drive link for an exported report or issuance slip
 const sendDriveLinkEmail = async (to, { name, label, filename, link, code }) => {
   const subject = `Your BukSUPPLY ${label} is ready`;
   const text = `Hi ${name || ''}, your ${label} (${filename}) was saved to Google Drive: ${link}\nVerification code: ${code}\nOnly your account can open this link.`;
