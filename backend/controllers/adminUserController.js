@@ -321,10 +321,22 @@ exports.deactivateUser = asyncHandler(async (req, res) => {
   res.json({ user: toDTO(user) });
 });
 
-// PATCH /api/admin/users/:id/reactivate
+// PATCH /api/admin/users/:id/reactivate   body: { reason }
+// The reason is emailed to the user and shown once in a pop-up the next time they sign in.
 exports.reactivateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) throw new AppError('Invalid user ID.', 400);
+
+  const reason = squash(req.body.reason);
+  const reasonErr = reasonProblem(reason, {
+    required: true,
+    min: REASON_MIN,
+    max: REASON_MAX,
+    label: 'The reason',
+  });
+  if (reasonErr) return res.status(400).json({ message: reasonErr, field: 'reason' });
+
+  const now = new Date();
 
   const user = await User.findOneAndUpdate(
     {
@@ -333,7 +345,14 @@ exports.reactivateUser = asyncHandler(async (req, res) => {
       accountStatus: 'Deactivated',
       archived: { $ne: true },
     },
-    { accountStatus: 'Active' },
+    {
+      $set: {
+        accountStatus: 'Active',
+        'reactivationNotice.pending': true,
+        'reactivationNotice.reason': reason,
+        'reactivationNotice.date': now,
+      },
+    },
     { new: true }
   );
 
@@ -349,16 +368,15 @@ exports.reactivateUser = asyncHandler(async (req, res) => {
   }
 
   const by = fullName(req.user);
-  const now = new Date();
 
   // Close the deactivation and approve the user's waiting request (if any)
   await Deactivation.updateMany(
     { user: user._id, active: true },
-    { active: false, endedAt: now, endedByName: by }
+    { active: false, endedAt: now, endedByName: by, endReason: reason }
   );
   await ReactivationRequest.updateMany(
     { user: user._id, status: 'Pending' },
-    { status: 'Approved', resolvedAt: now, resolvedByName: by }
+    { status: 'Approved', resolvedAt: now, resolvedByName: by, adminNote: reason }
   );
 
   await logActivity(
@@ -374,6 +392,7 @@ exports.reactivateUser = asyncHandler(async (req, res) => {
 
   mailUser(user, 'Your BukSUPPLY account was reactivated', [
     `Hello ${user.firstName}, your BukSUPPLY account has been reactivated.`,
+    `Reason: ${reason}`,
     'You can now sign in again.',
   ]);
 

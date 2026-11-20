@@ -5,6 +5,7 @@ import api, { errMsg } from '../api/client';
 import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
 import GoogleAuthButton from '../components/GoogleAuthButton';
+import PasswordStrength from '../components/PasswordStrength';
 import {
   ID_KIND,
   typeName,
@@ -202,6 +203,7 @@ export default function Signup() {
   const [emailCode, setEmailCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   // Terms / Privacy modal
@@ -342,7 +344,6 @@ export default function Signup() {
     return found;
   };
 
-  // Sends the sign-up request. captchaToken is null when reCAPTCHA is turned off.
   // The same fields go to both requests
   const buildPayload = () => ({
     firstName: formatName(values.firstName),
@@ -398,7 +399,7 @@ export default function Signup() {
     try {
       await api.post('/auth/signup', { ...buildPayload(), emailCode });
       setCodeOpen(false);
-      setShowModal(true); // your existing success modal
+      setShowModal(true);
     } catch (err) {
       if (err.response?.status === 409) {
         // Email or ID taken in the meantime: back to the form
@@ -413,12 +414,16 @@ export default function Signup() {
   };
 
   const resendCode = async () => {
+    if (resendBusy || cooldown > 0) return;
     setCodeError('');
+    setResendBusy(true);
     try {
       await api.post('/auth/signup/resend-code', { email: values.email.trim().toLowerCase() });
       setCooldown(30);
     } catch (err) {
       setCodeError(errMsg(err));
+    } finally {
+      setResendBusy(false);
     }
   };
 
@@ -603,6 +608,7 @@ export default function Signup() {
                   />
                   {eyeToggle('password')}
                 </div>
+                <PasswordStrength password={values.password} />
               </Field>
 
               <Field
@@ -759,7 +765,6 @@ export default function Signup() {
               </button>
             </div>
 
-            {/* Original line separator with text links, kept as is */}
             <div className="lgl-tabs-wrap">
               <div className="legal-tabs">
                 <button
@@ -854,7 +859,7 @@ export default function Signup() {
 
             <header className="vc-header">
               <h2 className="modal-title" id="codeTitle">
-                Verify your <span>Email</span>
+                Verify your <span>email</span>
               </h2>
               <p className="modal-description">
                 We sent a 6-digit code to <strong>{values.email.trim().toLowerCase()}</strong>.
@@ -888,21 +893,21 @@ export default function Signup() {
               </div>
 
               <button type="submit" className="btn-submit modal-btn" disabled={codeBusy}>
-                {codeBusy ? 'Verifying...' : 'Verify and Create Account'}
+                {codeBusy ? 'Verifying...' : 'Verify & Create Account'}
               </button>
             </form>
 
             <div className="vc-actions">
+              <button type="button" className="captcha-cancel" onClick={closeCode}>
+                Back
+              </button>
               <button
                 type="button"
-                className="vc-link"
+                className="captcha-cancel"
                 onClick={resendCode}
-                disabled={cooldown > 0}
+                disabled={cooldown > 0 || resendBusy}
               >
-                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-              </button>
-              <button type="button" className="vc-link" onClick={closeCode}>
-                Back
+                {cooldown > 0 ? `Resend in ${cooldown}s` : resendBusy ? 'Sending...' : 'Resend code'}
               </button>
             </div>
           </div>

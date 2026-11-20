@@ -151,6 +151,14 @@ const publicUser = (user) => ({
   avatar: user.avatar || '',
 });
 
+const reactivationPayload = (user) =>
+  user.reactivationNotice && user.reactivationNotice.pending
+    ? {
+        reason: user.reactivationNotice.reason || '',
+        date: user.reactivationNotice.date || null,
+      }
+    : null;
+
 // --- Controllers ---------------------------------------------------------
 
 // Runs every sign-up check once, so "send code" and "create account" can't disagree.
@@ -380,6 +388,7 @@ exports.signIn = asyncHandler(async (req, res) => {
     message: 'Signed in successfully.',
     token: signToken(user),
     user: publicUser(user),
+    reactivation: reactivationPayload(user),
   });
 });
 
@@ -492,6 +501,7 @@ exports.googleSignIn = async (req, res) => {
       token: signToken(user),
       user: publicUser(user),
       isNewUser,
+      reactivation: reactivationPayload(user),
     });
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -723,4 +733,9 @@ exports.requestReactivation = asyncHandler(async (req, res) => {
     message: 'Request sent. The administrator will review it.',
     request: { status: 'Pending', date: request.createdAt },
   });
+});
+
+exports.dismissReactivationNotice = asyncHandler(async (req, res) => {
+  await User.updateOne({ _id: req.user._id }, { $set: { 'reactivationNotice.pending': false } });
+  return res.status(200).json({ message: 'Noted.' });
 });

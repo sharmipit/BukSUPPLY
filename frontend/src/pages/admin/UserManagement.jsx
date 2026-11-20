@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import FilterDropdown from "../../components/FilterDropdown";
+import PasswordStrength from "../../components/PasswordStrength";
 import {
   ID_KIND,
   LIMITS,
@@ -876,6 +877,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                     ></i>
                   </button>
                 </div>
+                <PasswordStrength password={form.password} />
                 {shown("password") && (
                   <span className="um-field-error" role="alert">
                     {shown("password")}

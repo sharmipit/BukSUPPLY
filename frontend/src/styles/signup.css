@@ -590,7 +590,7 @@ body {
   margin: 24px 0;
 }
 
-/* Cancel button */
+/* Outlined secondary button (Cancel, Back, Resend code) */
 .captcha-cancel {
   display: block;
   width: 100%;
@@ -603,15 +603,23 @@ body {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
 }
 
-.captcha-cancel:hover {
+.captcha-cancel:hover:not(:disabled) {
   background-color: #F5EFE6;
   border-color: var(--text-dark);
 }
 
-/* Scale reCAPTCHA on narrow screens */
+.captcha-cancel:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.captcha-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (max-width: 370px) {
   .captcha-body > div {
     transform: scale(0.85);
@@ -696,41 +704,21 @@ body {
 }
 
 .vc-form .btn-submit {
-  align-self: center;
-  width: min(100%, 320px);
+  width: 100%;
 }
 
-/* Verification action links */
+/* Back and Resend */
 .vc-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 18px;
-  font-size: 0.88rem;
-  color: var(--text-body);
+  margin-top: 12px;
 }
 
-.vc-link {
-  background: none;
-  border: none;
-  padding: 4px 2px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text-light-brown);
-  cursor: pointer;
-}
-
-.vc-link:hover:not(:disabled) {
-  color: var(--text-dark);
-  text-decoration: underline;
-}
-
-.vc-link:disabled {
-  color: #A3968C;
-  font-weight: 500;
-  cursor: not-allowed;
+.vc-actions .captcha-cancel {
+  font-size: 0.92rem;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 /* Terms & Privacy modal */
