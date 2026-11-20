@@ -55,6 +55,8 @@ export default function RequisitionDetailsModal({
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false); // feedback already received
   const [waiting, setWaiting] = useState(false); // form opened, waiting for the response
+  // Turned on/off in System Settings. Starts hidden until the server says it is on.
+  const [feedbackEnabled, setFeedbackEnabled] = useState(requisition?.feedbackEnabled === true);
   const { items = [] } = useInventory();
 
   // Keep the latest callback without restarting the polling effect
@@ -62,19 +64,23 @@ export default function RequisitionDetailsModal({
   onSubmittedRef.current = onFeedbackSubmitted;
 
   const slipId = requisition?.id;
-  const canSendFeedback = allowFeedback && requisition?.status === 'Accepted';
+  const feedbackApplies = allowFeedback && requisition?.status === 'Accepted';
+  const canSendFeedback = feedbackApplies && feedbackEnabled;
 
   // Initialize feedback state and reset when requisition changes
   useEffect(() => {
     setFeedbackSent(Boolean(requisition?.feedbackSubmitted));
     setWaiting(false);
-  }, [slipId, requisition?.feedbackSubmitted]);
+    setFeedbackEnabled(requisition?.feedbackEnabled === true);
+  }, [slipId, requisition?.feedbackSubmitted, requisition?.feedbackEnabled]);
 
   // Poll server to check if feedback was submitted
   const checkFeedback = useCallback(async () => {
     if (!slipId) return;
     try {
       const { data } = await api.get(`/feedback/status/${slipId}`);
+      // The server always says whether feedback is on, so the button follows System Settings
+      if (typeof data.enabled === 'boolean') setFeedbackEnabled(data.enabled);
       if (data.submitted) {
         setFeedbackSent(true);
         setWaiting(false);
@@ -87,12 +93,12 @@ export default function RequisitionDetailsModal({
 
   // Initial check on modal open if feedback might have been submitted previously
   useEffect(() => {
-    if (isOpen && canSendFeedback && !feedbackSent) checkFeedback();
-  }, [isOpen, canSendFeedback, feedbackSent, checkFeedback]);
+    if (isOpen && feedbackApplies) checkFeedback();
+  }, [isOpen, feedbackApplies, checkFeedback]);
 
   // Poll while waiting for feedback submission and on window focus
   useEffect(() => {
-    if (!isOpen || !waiting || feedbackSent) return undefined;
+    if (!isOpen || !waiting || feedbackSent || !feedbackEnabled) return undefined;
 
     const timer = setInterval(checkFeedback, POLL_EVERY_MS);
     const stop = setTimeout(() => setWaiting(false), POLL_MAX_MS);
@@ -108,7 +114,7 @@ export default function RequisitionDetailsModal({
       window.removeEventListener('focus', checkFeedback);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [isOpen, waiting, feedbackSent, checkFeedback]);
+  }, [isOpen, waiting, feedbackSent, feedbackEnabled, checkFeedback]);
 
   if (!isOpen || !requisition) return null;
 
@@ -176,6 +182,10 @@ export default function RequisitionDetailsModal({
         setFeedbackSent(true);
         setWaiting(false);
         onSubmittedRef.current?.(requisition.id);
+      } else if (err.response?.status === 403) {
+        // Feedback was turned off in System Settings
+        setFeedbackEnabled(false);
+        setWaiting(false);
       } else {
         alert(errMsg(err));
       }

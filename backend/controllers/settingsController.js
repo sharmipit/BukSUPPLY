@@ -12,6 +12,7 @@ const SECTION_TITLE = {
   pdfshift: 'PDF reports',
   nutrient: 'Excel reports',
   drive: 'Google Drive',
+  forms: 'Google Forms feedback',
 };
 
 const log = (req, action, description, reference = '') =>
@@ -52,7 +53,7 @@ exports.getSettings = asyncHandler(async (req, res) => {
   res.json(settings.publicView());
 });
 
-// One section at a time: google | recaptcha | smtp | pdfshift | nutrient | drive
+// One section at a time: google | recaptcha | smtp | pdfshift | nutrient | drive | forms
 exports.updateSection = asyncHandler(async (req, res) => {
   try {
     const result = await settings.update(req.params.section, req.body);
