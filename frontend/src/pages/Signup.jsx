@@ -198,6 +198,13 @@ export default function Signup() {
   const [visible, setVisible] = useState({ password: false, confirmPassword: false });
   const [captchaOpen, setCaptchaOpen] = useState(false); // reCAPTCHA pop-up
 
+  // Email verification step
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [emailCode, setEmailCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
   // Terms / Privacy modal
   const [legal, setLegal] = useState(null); // null | 'terms' | 'privacy'
   const [pendingGoogle, setPendingGoogle] = useState(null); // Google credential waiting for agreement
@@ -256,6 +263,21 @@ export default function Signup() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [captchaOpen]);
+
+  // Counts down the "resend code" wait
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // Close the verify-email pop-up with Escape
+  useEffect(() => {
+    if (!codeOpen) return undefined;
+    const onKey = (e) => e.key === 'Escape' && closeCode();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [codeOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The ID field label changes with the email domain
   const { label: idLabel, placeholder: idPlaceholder } = idTexts(emailType(values.email));
@@ -322,33 +344,89 @@ export default function Signup() {
   };
 
   // Sends the sign-up request. captchaToken is null when reCAPTCHA is turned off.
+  // The same fields go to both requests
+  const buildPayload = () => ({
+    firstName: formatName(values.firstName),
+    lastName: formatName(values.lastName),
+    email: values.email.trim().toLowerCase(),
+    idNumber: values.idNumber.trim().toUpperCase(),
+    password: values.password,
+    confirmPassword: values.confirmPassword,
+    termsAgreement: values.termsAgreement,
+  });
+
+  // Shows a duplicate under the right field (ID number vs email)
+  const showConflict = (data = {}) => {
+    const msg = data.message || 'An account with these details already exists.';
+    const isId = data.field === 'idNumber' || /id number/i.test(msg);
+    setErrors(isId ? { idNumber: msg } : { email: msg });
+  };
+
+  // Step A: the form is valid (and reCAPTCHA passed). Ask the server to email a code.
+  // captchaToken is null when reCAPTCHA is turned off.
   const signUp = async (captchaToken) => {
     setBusy(true);
     try {
-      await api.post('/auth/signup', {
-        firstName: formatName(values.firstName),
-        lastName: formatName(values.lastName),
-        email: values.email.trim().toLowerCase(),
-        idNumber: values.idNumber.trim().toUpperCase(),
-        password: values.password,
-        confirmPassword: values.confirmPassword,
-        termsAgreement: values.termsAgreement,
+      await api.post('/auth/signup/send-code', {
+        ...buildPayload(),
         recaptchaToken: captchaToken,
       });
-      setShowModal(true);
+      setEmailCode('');
+      setCodeError('');
+      setCooldown(30);
+      setCodeOpen(true);
     } catch (err) {
-      if (err.response?.status === 409) {
-        // Show the duplicate under the right field (ID number vs email)
-        const data = err.response.data || {};
-        const msg = data.message || 'An account with these details already exists.';
-        const isId = data.field === 'idNumber' || /id number/i.test(msg);
-        setErrors(isId ? { idNumber: msg } : { email: msg });
-      } else {
-        setFormError(errMsg(err));
-      }
+      if (err.response?.status === 409) showConflict(err.response.data);
+      else if (err.response?.data?.field) {
+        // A rule the server found (e.g. ID format): show it under that field
+        setErrors({ [err.response.data.field]: err.response.data.message });
+      } else setFormError(errMsg(err));
     } finally {
       setBusy(false);
     }
+  };
+
+  // Step B: the user typed the emailed code. Create the account.
+  const verifyAndCreate = async (e) => {
+    e.preventDefault();
+    if (codeBusy) return;
+    if (!/^\d{6}$/.test(emailCode)) {
+      setCodeError('Enter the 6-digit code.');
+      return;
+    }
+    setCodeBusy(true);
+    setCodeError('');
+    try {
+      await api.post('/auth/signup', { ...buildPayload(), emailCode });
+      setCodeOpen(false);
+      setShowModal(true); // your existing success modal
+    } catch (err) {
+      if (err.response?.status === 409) {
+        // Email or ID taken in the meantime: back to the form
+        setCodeOpen(false);
+        showConflict(err.response.data);
+      } else {
+        setCodeError(errMsg(err));
+      }
+    } finally {
+      setCodeBusy(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setCodeError('');
+    try {
+      await api.post('/auth/signup/resend-code', { email: values.email.trim().toLowerCase() });
+      setCooldown(30);
+    } catch (err) {
+      setCodeError(errMsg(err));
+    }
+  };
+
+  const closeCode = () => {
+    setCodeOpen(false);
+    setEmailCode('');
+    setCodeError('');
   };
 
   // Step 1: check the form. Step 2: reCAPTCHA pop-up (if on). Step 3: send.
@@ -587,7 +665,7 @@ export default function Signup() {
                 id="btnSubmit"
                 disabled={busy || !config.loaded}
               >
-                {busy ? 'Creating account...' : 'Create Account'}
+                {busy ? 'Sending code...' : 'Create Account'}
               </button>
             </div>
           </form>
@@ -753,6 +831,79 @@ export default function Signup() {
               </button>
               <button type="button" className="lgl-btn-primary" onClick={acceptLegal}>
                 {pendingGoogle ? 'I Agree & Continue' : 'I Agree'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VERIFY EMAIL (only mounted while open) */}
+      {codeOpen && (
+        <div
+          className="modal-overlay active"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="codeTitle"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCode();
+          }}
+        >
+          <div className="modal-card vc-card">
+            <button type="button" className="vc-close" onClick={closeCode} aria-label="Close">
+              <i className="bi bi-x-lg"></i>
+            </button>
+
+            <header className="vc-header">
+              <h2 className="modal-title" id="codeTitle">
+                Verify your <span>Email</span>
+              </h2>
+              <p className="modal-description">
+                We sent a 6-digit code to <strong>{values.email.trim().toLowerCase()}</strong>.
+                Enter it to finish creating your account.
+              </p>
+            </header>
+
+            <form onSubmit={verifyAndCreate} noValidate className="vc-form">
+              <div className="vc-field">
+                <label htmlFor="emailCode" className="form-label">
+                  <i className="bi bi-shield-lock-fill"></i> Verification Code
+                </label>
+                <input
+                  type="text"
+                  id="emailCode"
+                  className="form-input vc-code"
+                  placeholder="e.g. 123456"
+                  maxLength={6}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={emailCode}
+                  onChange={(e) => {
+                    setEmailCode(e.target.value.replace(/\D/g, ''));
+                    setCodeError('');
+                  }}
+                  autoFocus
+                />
+                <p className="form-error vc-error" role="alert">
+                  {codeError}
+                </p>
+              </div>
+
+              <button type="submit" className="btn-submit modal-btn" disabled={codeBusy}>
+                {codeBusy ? 'Verifying...' : 'Verify and Create Account'}
+              </button>
+            </form>
+
+            <div className="vc-actions">
+              <button
+                type="button"
+                className="vc-link"
+                onClick={resendCode}
+                disabled={cooldown > 0}
+              >
+                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+              </button>
+              <button type="button" className="vc-link" onClick={closeCode}>
+                Back
               </button>
             </div>
           </div>

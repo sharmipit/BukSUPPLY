@@ -7,6 +7,7 @@ const Notification = require('../models/Notification');
 const Deactivation = require('../models/Deactivation');
 const ReactivationRequest = require('../models/ReactivationRequest');
 const settings = require('../services/settings');
+const emailCodes = require('../services/emailVerification');
 const { logActivity } = require('../services/activityLog');
 const asyncHandler = require('../middleware/asyncHandler');
 const {
@@ -161,96 +162,170 @@ const publicUser = (user) => ({
 
 // --- Controllers ---------------------------------------------------------
 
-/** POST /api/auth/signup */
+// Runs every sign-up check once, so "send code" and "create account" can't disagree.
+// Returns { status, error, field } or the cleaned values.
+const checkSignupFields = async (body) => {
+  const { firstName, lastName, email, idNumber, password, confirmPassword, termsAgreement } = body;
+
+  if (![firstName, lastName, email, idNumber, password, confirmPassword].every(isString)) {
+    return { status: 400, error: 'All fields are required.' };
+  }
+  const cleanEmail = normalizeEmail(email);
+  if (
+    !firstName.trim() ||
+    !lastName.trim() ||
+    !cleanEmail ||
+    !idNumber.trim() ||
+    !password ||
+    !confirmPassword
+  ) {
+    return { status: 400, error: 'All fields are required.' };
+  }
+
+  const pwProblem = passwordProblem(password);
+  if (pwProblem) return { status: 400, error: pwProblem, field: 'password' };
+  if (password !== confirmPassword) {
+    return { status: 400, error: 'Passwords do not match.', field: 'confirmPassword' };
+  }
+  if (termsAgreement !== true) {
+    return { status: 400, error: 'You must agree to the Terms and Conditions and Privacy Policy.' };
+  }
+
+  const role = resolveRoleFromEmail(cleanEmail);
+  if (!role) {
+    return {
+      status: 400,
+      error: 'Please use a valid BukSU institutional email address.',
+      field: 'email',
+    };
+  }
+  const emailErr = emailShapeProblem(cleanEmail);
+  if (emailErr) return { status: 400, error: emailErr, field: 'email' };
+
+  const firstErr = nameProblem(firstName, 'First name');
+  if (firstErr) return { status: 400, error: firstErr, field: 'firstName' };
+  const lastErr = nameProblem(lastName, 'Last name');
+  if (lastErr) return { status: 400, error: lastErr, field: 'lastName' };
+
+  const cleanId = idNumber.trim().toUpperCase();
+  const idErr = idProblem(role, cleanId);
+  if (idErr) return { status: 400, error: idErr, field: 'idNumber' };
+
+  if (await User.findOne({ email: cleanEmail })) {
+    return { status: 409, error: 'An account with this email already exists.', field: 'email' };
+  }
+  if (await User.findOne({ idNumber: cleanId })) {
+    return { status: 409, error: 'This ID number is already registered.', field: 'idNumber' };
+  }
+
+  return {
+    cleanEmail,
+    role,
+    cleanId,
+    first: formatName(firstName),
+    last: formatName(lastName),
+  };
+};
+
+const CODE_MAIL = {
+  subject: 'BukSUPPLY Email Verification Code',
+  heading: 'Verify your email',
+  intro: 'Use this code to finish creating your BukSUPPLY account.',
+};
+
+/** POST /api/auth/signup/send-code (the sign-up form fields + recaptchaToken) */
+exports.sendSignupCode = asyncHandler(async (req, res) => {
+  // reCAPTCHA runs here, because this is the step that sends an email
+  if (!(await verifyRecaptcha(req.body.recaptchaToken, req.ip))) {
+    return res.status(400).json({ message: 'reCAPTCHA verification failed. Please try again.' });
+  }
+
+  const check = await checkSignupFields(req.body);
+  if (check.error) {
+    return res.status(check.status).json({ message: check.error, field: check.field });
+  }
+
+  const wait = await emailCodes.secondsUntilResend(check.cleanEmail, 'signup');
+  if (wait > 0) {
+    return res
+      .status(429)
+      .json({ message: `Please wait ${wait} seconds before requesting another code.` });
+  }
+
+  try {
+    await emailCodes.issueCode(check.cleanEmail, 'signup', CODE_MAIL);
+  } catch (err) {
+    console.error('signup code email error:', err.message);
+    return res
+      .status(500)
+      .json({ message: 'Could not send the code. Check the email address and try again.' });
+  }
+  return res.status(200).json({ message: `A 6-digit code was sent to ${check.cleanEmail}.` });
+});
+
+/** POST /api/auth/signup/resend-code { email } (only after a code was requested) */
+exports.resendSignupCode = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!isString(email) || !email.trim()) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  const cleanEmail = normalizeEmail(email);
+  if (!resolveRoleFromEmail(cleanEmail) || !(await emailCodes.hasPending(cleanEmail, 'signup'))) {
+    return res.status(400).json({ message: 'Please go back and submit the form again.' });
+  }
+  if (await User.findOne({ email: cleanEmail })) {
+    return res.status(409).json({ message: 'An account with this email already exists.' });
+  }
+
+  const wait = await emailCodes.secondsUntilResend(cleanEmail, 'signup');
+  if (wait > 0) {
+    return res
+      .status(429)
+      .json({ message: `Please wait ${wait} seconds before requesting another code.` });
+  }
+
+  try {
+    await emailCodes.issueCode(cleanEmail, 'signup', CODE_MAIL);
+  } catch (err) {
+    console.error('signup resend email error:', err.message);
+    return res.status(500).json({ message: 'Could not send the code. Please try again.' });
+  }
+  return res.status(200).json({ message: 'A new code was sent.' });
+});
+
+/** POST /api/auth/signup (+ emailCode) */
 exports.signUp = async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      email,
-      idNumber,
-      password,
-      confirmPassword,
-      termsAgreement,
-      recaptchaToken,
-    } = req.body;
-
-    // reCAPTCHA check (bots get stopped before touching the database)
-    if (!(await verifyRecaptcha(recaptchaToken, req.ip))) {
-      return res.status(400).json({ message: 'reCAPTCHA verification failed. Please try again.' });
+    const check = await checkSignupFields(req.body);
+    if (check.error) {
+      return res.status(check.status).json({ message: check.error, field: check.field });
     }
+    const { cleanEmail, role, cleanId, first, last } = check;
 
-    if (![firstName, lastName, email, idNumber, password, confirmPassword].every(isString)) {
-      return res.status(400).json({ message: 'All fields are required.' });
-    }
-
-    const cleanEmail = normalizeEmail(email);
-
-    if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !cleanEmail ||
-      !idNumber.trim() ||
-      !password ||
-      !confirmPassword
-    ) {
-      return res.status(400).json({ message: 'All fields are required.' });
-    }
-
-    const pwProblem = passwordProblem(password);
-    if (pwProblem) {
-      return res.status(400).json({ message: pwProblem, field: 'password' });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match.', field: 'confirmPassword' });
-    }
-
-    if (termsAgreement !== true) {
-      return res.status(400).json({
-        message: 'You must agree to the Terms and Conditions and Privacy Policy.',
-      });
-    }
-
-    const role = resolveRoleFromEmail(cleanEmail);
-    if (!role) {
-      return res.status(400).json({
-        message: 'Please use a valid BukSU institutional email address.',
-        field: 'email',
-      });
-    }
-
-    // Same rules as the Sign Up page: email shape, names, and the ID format for this role
-    const emailErr = emailShapeProblem(cleanEmail);
-    if (emailErr) return res.status(400).json({ message: emailErr, field: 'email' });
-
-    const firstErr = nameProblem(firstName, 'First name');
-    if (firstErr) return res.status(400).json({ message: firstErr, field: 'firstName' });
-    const lastErr = nameProblem(lastName, 'Last name');
-    if (lastErr) return res.status(400).json({ message: lastErr, field: 'lastName' });
-
-    const cleanId = idNumber.trim().toUpperCase();
-    const idErr = idProblem(role, cleanId);
-    if (idErr) return res.status(400).json({ message: idErr, field: 'idNumber' });
-
-    const existingUser = await User.findOne({ email: cleanEmail });
-    if (existingUser) {
-      return res.status(409).json({ message: 'An account with this email already exists.' });
+    // The emailed code replaces the reCAPTCHA check at this step
+    const codeResult = await emailCodes.checkCode(cleanEmail, 'signup', req.body.emailCode);
+    if (codeResult !== 'ok') {
+      return res
+        .status(400)
+        .json({ message: emailCodes.messageFor(codeResult), field: 'emailCode' });
     }
 
     const user = new User({
-      firstName: formatName(firstName),
-      lastName: formatName(lastName),
+      firstName: first,
+      lastName: last,
       email: cleanEmail,
       idNumber: cleanId,
-      password,
+      password: req.body.password,
       role,
       authProvider: 'local',
       accountStatus: 'Active',
       agreedToTerms: true,
     });
-
     await user.save();
+
+    // Only now, so a failed save lets the user retry with the same code
+    await emailCodes.consumeCode(cleanEmail, 'signup');
 
     await logActivity(
       user,
@@ -264,7 +339,6 @@ exports.signUp = async (req, res) => {
       return res.status(400).json({ message: Object.values(err.errors)[0].message });
     }
     if (err.code === 11000) {
-      // Duplicate ID number vs duplicate email
       if (err.keyPattern && err.keyPattern.idNumber) {
         return res.status(409).json({ message: 'This ID number is already registered.' });
       }
