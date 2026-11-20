@@ -3,14 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
-const settings = require('./services/settings'); // NEW
+const settings = require('./services/settings');
 
 const app = express();
 
-// --- Trust Proxy ---
+// Trust Proxy
 app.set('trust proxy', 1);
 
-// --- CORS Configuration ---
+// CORS Configuration
 const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
 const envOrigins = (process.env.CLIENT_URL || '')
@@ -40,23 +40,23 @@ app.use(
   })
 );
 
-// --- Core Middleware ---
+// Core Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// --- API Routes ---
+// API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/user', require('./routes/userRoutes'));
 app.use('/api/admin/users', require('./routes/adminUserRoutes'));
-app.use('/api/admin/settings', require('./routes/settings')); // NEW: system settings
+app.use('/api/admin/settings', require('./routes/settings'));
 app.use('/api/requisitions', require('./routes/requisitionRoutes'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
-app.use('/api/activity', require('./routes/activityLogRoutes')); // NEW: Activity log routes
-app.use('/api/feedback', require('./routes/feedbackRoutes')); // NEW: Feedback routes
+app.use('/api/activity', require('./routes/activityLogRoutes'));
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
-// NEW: public values the login page needs (no secrets)
+// Public configuration for client sign-in (non-sensitive values)
 app.get('/api/public-config', (req, res) => {
   const s = settings.get();
   res.json({

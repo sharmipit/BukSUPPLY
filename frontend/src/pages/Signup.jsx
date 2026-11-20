@@ -20,18 +20,17 @@ import {
 } from '../utils/fieldRules';
 import css from '../styles/signup.css?raw';
 
-// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
-const TEMP_ADMIN_EMAIL = 'sharmagnegamboa11@gmail.com'; // TEMPORARY, see above
+const TEMP_ADMIN_EMAIL = 'sharmagnegamboa11@gmail.com';
 
-// Which email addresses can sign up (the format rules themselves are in utils/fieldRules.js)
+// Allowed registration email domains and addresses
 const EMAIL_OPTIONS = {
   domains: ['student.buksu.edu.ph', 'buksu.edu.ph'],
   allowEmails: [TEMP_ADMIN_EMAIL],
   domainMessage: 'Use your BukSU email (@student.buksu.edu.ph or @buksu.edu.ph).',
 };
 
-// Mirrors the backend rule: returns 'Student', 'Regular Staff' or null
+// Derive account type from email domain ('Student' or 'Regular Staff')
 const emailType = (email) => {
   const clean = email.trim().toLowerCase();
   if (!EMAIL_PATTERN.test(clean)) return null;

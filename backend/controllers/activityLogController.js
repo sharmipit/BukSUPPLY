@@ -25,12 +25,7 @@ const toClient = (l, showIp) => ({
   createdAt: l.createdAt,
 });
 
-/**
- * GET /api/activity?scope=mine|all&category=&search=&from=&to=&page=&limit=
- * - Regular users: always their own entries (scope is ignored).
- * - Moderators: scope=all shows everyone except administrator activity.
- * - Administrators: scope=all shows everyone.
- */
+// GET /api/activity (filtered by scope, category, date range, search)
 exports.list = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
@@ -74,7 +69,7 @@ exports.list = asyncHandler(async (req, res) => {
   });
 });
 
-/** POST /api/activity/logout: the JWT is stateless, so the client tells us it is signing out */
+// POST /api/activity/logout (stateless JWT sign-out audit logging)
 exports.logout = asyncHandler(async (req, res) => {
   await logActivity(req.user, { category: 'Account', action: 'SIGN_OUT', description: 'Signed out' }, req);
   res.json({ message: 'Recorded.' });

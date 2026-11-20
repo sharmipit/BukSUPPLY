@@ -102,10 +102,7 @@ async function shareWithUser(token, fileId, email) {
   }
 }
 
-/**
- * Uploads the file, shares it with the downloader, emails the link and saves it in the
- * history record. Never throws: a Drive or email problem must not affect the download.
- */
+// Upload export to Google Drive, share with downloader, and send email link
 async function deliverToDrive({ buffer, filename, mimeType, user, label, historyId, code }) {
   if (!isConfigured()) {
     console.log('[drive] skipped: Google Drive is off or not set up in System Settings.');

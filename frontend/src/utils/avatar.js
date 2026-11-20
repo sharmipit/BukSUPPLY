@@ -14,7 +14,7 @@ export const getAvatar = (user) => {
     user?.avatar || user?.picture || user?.photoURL || user?.photo || user?.imageUrl;
   if (!url) return DEFAULT_AVATAR;
 
-  // Google serves a small size by default; ask for a sharper one
+  // Request high-resolution image for Google avatar URLs
   return url.includes("googleusercontent.com")
     ? url.replace(/=s\d+(-c)?$/, "=s256-c")
     : url;

@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
 
-// Replaces redirectIfLoggedIn() from your old auth.js
+// Redirect authenticated users to their corresponding role home
 export default function PublicRoute({ children }) {
   const { user } = useAuth();
   if (user && ROLE_HOME[user.role]) {

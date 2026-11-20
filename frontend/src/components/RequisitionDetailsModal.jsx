@@ -32,8 +32,7 @@ function ItemList({ items, noteLabel, showUnit = false }) {
 
 const SLIP_STATUSES = ['Approved', 'Accepted'];
 
-// After the form is opened, how often (ms) we ask the server whether the response arrived,
-// and when we stop asking (the next click on the button checks again anyway)
+// Polling interval and timeout to check for Google Form feedback submission
 const POLL_EVERY_MS = 8000;
 const POLL_MAX_MS = 10 * 60 * 1000;
 
@@ -65,13 +64,13 @@ export default function RequisitionDetailsModal({
   const slipId = requisition?.id;
   const canSendFeedback = allowFeedback && requisition?.status === 'Accepted';
 
-  // Start from what the server already knows, and reset when another slip is shown
+  // Initialize feedback state and reset when requisition changes
   useEffect(() => {
     setFeedbackSent(Boolean(requisition?.feedbackSubmitted));
     setWaiting(false);
   }, [slipId, requisition?.feedbackSubmitted]);
 
-  // Asks the server whether the feedback arrived
+  // Poll server to check if feedback was submitted
   const checkFeedback = useCallback(async () => {
     if (!slipId) return;
     try {
@@ -82,16 +81,16 @@ export default function RequisitionDetailsModal({
         onSubmittedRef.current?.(slipId);
       }
     } catch {
-      // quiet: the next check will try again
+      // Ignore polling errors; next interval will retry
     }
   }, [slipId]);
 
-  // One check when the details open, in case the user submitted earlier and never came back
+  // Initial check on modal open if feedback might have been submitted previously
   useEffect(() => {
     if (isOpen && canSendFeedback && !feedbackSent) checkFeedback();
   }, [isOpen, canSendFeedback, feedbackSent, checkFeedback]);
 
-  // While waiting: check every few seconds and whenever the user returns to this tab
+  // Poll while waiting for feedback submission and on window focus
   useEffect(() => {
     if (!isOpen || !waiting || feedbackSent) return undefined;
 
@@ -116,7 +115,7 @@ export default function RequisitionDetailsModal({
   const stockItems = Array.isArray(requisition.itemsList) ? requisition.itemsList : null;
   const canViewSlip = SLIP_STATUSES.includes(requisition.status);
 
-  // Map requestor's name and ensure dates/status are aligned with the requests page
+  // Normalize requisition fields and requester display name
   const slipReq = {
     ...requisition,
     date: requisition.date || requisition.dateFiled,
@@ -159,21 +158,20 @@ export default function RequisitionDetailsModal({
     }
   };
 
-  // Opens the Google Form. The server pre-fills the slip number, a verification code and the
-  // user's own details (name, email, ID number, account type, department).
+  // Open pre-filled Google Form for requisition feedback
   const handleFeedback = async () => {
     if (feedbackBusy || feedbackSent) return;
     setFeedbackBusy(true);
-    // Open the tab first, or the popup blocker stops it after the await
+    // Pre-open browser tab synchronously to prevent popup blocker from blocking async redirect
     const tab = window.open('', '_blank');
     try {
       const { data } = await api.get(`/feedback/link/${requisition.id}`);
       if (tab) tab.location.href = data.url;
       else window.location.href = data.url;
-      setWaiting(true); // start watching for the response
+      setWaiting(true);
     } catch (err) {
       if (tab) tab.close();
-      // The server says feedback was already received for this slip
+      // Handle already-submitted response
       if (err.response?.status === 409 && err.response?.data?.submitted) {
         setFeedbackSent(true);
         setWaiting(false);

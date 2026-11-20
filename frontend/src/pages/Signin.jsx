@@ -8,7 +8,6 @@ import usePublicConfig from '../hooks/usePublicConfig';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 import css from '../styles/signin.css?raw';
 
-// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const EMAIL_MESSAGE =
   'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
@@ -16,12 +15,11 @@ const NO_BANNER = { message: '', type: '' };
 const REACTIVATION_MIN = 10;
 const REACTIVATION_MAX = 500;
 
-// Dates are shown in Philippine time, like the rest of the system
+// Format date in Philippine time (Asia/Manila)
 const fmtDay = (v) =>
   v ? new Date(v).toLocaleDateString('en-PH', { dateStyle: 'medium', timeZone: 'Asia/Manila' }) : '';
 
-// Same rule as the Sign Up page. Only used when CHOOSING a new password,
-// never when logging in (older accounts may have weaker passwords).
+// Password validation rule for resetting password
 const passwordProblem = (pw) => {
   if (!pw) return 'Please enter a new password.';
   if (pw.length < 8) return 'Password must be at least 8 characters.';

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-// Used only if the server can't be reached
+// Fallback configuration if public config endpoint is unreachable
 const FALLBACK = {
   loaded: true,
   googleEnabled: !!import.meta.env.VITE_GOOGLE_CLIENT_ID,

@@ -638,7 +638,6 @@ const EMPTY_FORM = {
   firstName: "",
   lastName: "",
   email: "",
-  // contact: "",
   password: "",
   confirmPassword: "",
 };
@@ -723,8 +722,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
         firstName: formatName(form.firstName),
         lastName: formatName(form.lastName),
         email: form.email.trim().toLowerCase(),
-        // contact: form.contact.trim(),
-        password: form.password, // sent over HTTPS only; the server hashes it
+        password: form.password,
       });
     } catch (err) {
       if (err.field)
@@ -848,25 +846,6 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
                 </span>
               )}
             </div>
-
-            {/*
-            <div className="um-field">
-              <label htmlFor="um-contact">Contact number</label>
-              <input
-                id="um-contact"
-                name="contact"
-                type="tel"
-                className="um-input"
-                maxLength={11}
-                placeholder="09XXXXXXXXX"
-                value={form.contact}
-                onChange={handleChange}
-              />
-              {errors.contact && (
-                <span className="um-field-error">{errors.contact}</span>
-              )}
-            </div>
-            */}
 
             <div className="um-field-row">
               <div className="um-field">

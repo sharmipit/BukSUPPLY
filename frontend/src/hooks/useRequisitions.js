@@ -23,7 +23,6 @@ export default function useRequisitions() {
     load();
   }, [load]);
 
-  // These throw on failure so the modal can show the error
   const create = async (data) => {
     const res = await api.post('/requisitions', data);
     setRequisitions((prev) => [res.data.requisition, ...prev]);
@@ -34,7 +33,7 @@ export default function useRequisitions() {
     setRequisitions((prev) => prev.map((r) => (r.id === data.id ? res.data.requisition : r)));
   };
 
-  // Cancel keeps the slip in the database and marks it as Cancelled
+  // Mark requisition as Cancelled without deleting record
   const cancel = async (id) => {
     const res = await api.patch(`/requisitions/${id}/cancel`);
     setRequisitions((prev) => prev.map((r) => (r.id === id ? res.data.requisition : r)));

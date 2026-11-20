@@ -529,8 +529,7 @@ export default function Requests() {
     }
   };
 
-  // Downloads the editable Excel version of the issuance slip
-  // Replace your existing handleDownloadSlipExcel function with this:
+  // Download editable Excel issuance slip
   const handleDownloadSlipExcel = async () => {
     if (!slipReq || excelBusy) return;
     setExcelBusy(true);

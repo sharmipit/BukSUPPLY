@@ -5,7 +5,7 @@ import FilterDropdown from '../components/FilterDropdown';
 import api, { errMsg } from '../api/client';
 import '../styles/Inventory.css';
 
-// Starting categories. Any category typed into the form is added automatically.
+// Default inventory categories
 const DEFAULT_CATEGORIES = [
   'Paper Products',
   'Writing Supplies',
@@ -15,7 +15,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const NEW_CATEGORY = '__new__';
 
-// Starting units. Any unit typed into the form is added automatically.
+// Default inventory unit options
 const DEFAULT_UNITS = [
   'bottle',
   'box',
@@ -36,7 +36,7 @@ const DEFAULT_UNITS = [
 ];
 const NEW_UNIT = '__new__';
 
-// "tone" picks the colour of the dot in the shared FilterDropdown
+// Status filter options with tone indicators
 const STATUS_OPTIONS = [
   { value: 'All', label: 'All statuses' },
   { value: 'In Stock', label: 'In Stock', tone: 'accepted' },
@@ -45,7 +45,7 @@ const STATUS_OPTIONS = [
   { value: 'Archived', label: 'Archived', tone: 'cancelled' },
 ];
 
-// Nothing is pre-filled: the person has to choose or type every value.
+// Initial empty state for create/edit inventory form
 const EMPTY_FORM = {
   name: '',
   supplier: '',
@@ -56,8 +56,7 @@ const EMPTY_FORM = {
   maxNormal: '',
 };
 
-// ---------- Field rules ----------
-// Keep these in sync with the top of routes/inventory.js (the server has the final say).
+// Field validation limits (kept in sync with backend routes/inventory.js)
 const LIMITS = {
   name: 80,
   supplier: 120,
@@ -66,11 +65,10 @@ const LIMITS = {
   reference: 40,
   remark: 200,
   search: 60,
-  maxQty: 100000, // largest quantity / reorder level / limit allowed
+  maxQty: 100000,
 };
 
-// Characters that are NOT allowed. They are removed as the person types or pastes.
-// Units are letters, numbers, spaces and hyphens only (for example "pcs", "box of 10", "A4-pack").
+// Regex patterns to strip invalid characters during input
 const STRIP = {
   name: /[^\p{L}\p{N} .,'’"()\-/&#+%:]/gu,
   category: /[^\p{L}\p{N} .,'’()\-/&]/gu,
@@ -80,7 +78,7 @@ const STRIP = {
 };
 const isClean = (value, strip) => value.replace(strip, '') === value;
 
-// Shown only at the moment a disallowed character is typed or pasted
+// Character validation error messages
 const BLOCK_MSG = {
   name: 'Only letters, numbers and basic punctuation are allowed here.',
   category: 'Only letters, numbers and . , \' ( ) - / & are allowed here.',
@@ -89,13 +87,13 @@ const BLOCK_MSG = {
   remark: 'Symbols such as < > { } ` \\ are not allowed here.',
 };
 
-// Trim and collapse repeated spaces
+// Trim and collapse whitespace
 const squash = (v) =>
   String(v ?? '')
     .replace(/\s+/g, ' ')
     .trim();
 
-// While typing: drop disallowed characters, leading spaces and double spaces, and cap the length
+// Clean input value on typing
 const cleanTyping = (v, strip, max) =>
   String(v ?? '')
     .replace(strip, '')
@@ -116,7 +114,7 @@ const textProblem = (value, { label, max, strip, required = false, min = 1, need
   return '';
 };
 
-// Whole numbers only. Nothing is silently corrected: a bad value shows a message instead.
+// Whole number validation
 const numberProblem = (raw, { label, min, max }) => {
   const s = String(raw ?? '');
   if (s === '') return `${label} is required.`;
@@ -127,7 +125,7 @@ const numberProblem = (raw, { label, min, max }) => {
   return '';
 };
 
-// Returns { fieldName: 'message' } for every field that is not valid yet
+// Form validation helper
 const validateForm = (form, { isNewCategory, customCategory, isNewUnit, customUnit }) => {
   const e = {};
 
@@ -170,8 +168,7 @@ const validateForm = (form, { isNewCategory, customCategory, isNewUnit, customUn
   return e;
 };
 
-// Text box that only accepts digits (no minus sign, decimal point or "e"), so negatives,
-// decimals and scientific notation cannot even be typed or pasted.
+// Numeric text input component restricting input to whole digits
 function NumberInput({ value, onChange, invalid, className = '', ...rest }) {
   return (
     <input
@@ -190,8 +187,7 @@ function NumberInput({ value, onChange, invalid, className = '', ...rest }) {
   );
 }
 
-// Dropdown for the add / edit form. Same look and chevron animation as FilterDropdown,
-// but the list opens inside the form so the modal does not clip it.
+// Dropdown selector component for form modals
 function FormSelect({ id, value, options, placeholder, onChange, invalid }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);

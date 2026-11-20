@@ -1,9 +1,6 @@
 const mongoose = require('mongoose');
 
-/**
- * A notice sent by a deactivated user asking the administrator to reactivate the account.
- * Pending -> Approved (the administrator reactivated the account) or Declined.
- */
+// Reactivation request sent by deactivated users for administrator review
 const reactivationRequestSchema = new mongoose.Schema(
   {
     // No "index: true" here: the partial unique index on { user: 1 } below already covers it

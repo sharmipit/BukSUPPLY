@@ -1,7 +1,4 @@
-/**
- * Operational error with an HTTP status code.
- * Throw this from controllers/services; errorHandler will send the response.
- */
+// Operational error class with an HTTP status code
 class AppError extends Error {
   constructor(message, statusCode) {
     super(message);

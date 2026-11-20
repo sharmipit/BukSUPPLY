@@ -18,7 +18,6 @@ const {
   passwordProblem,
 } = require('../utils/validators');
 
-// TEMPORARY: lets one test admin sign in with a Gmail address. Remove before real use. const EMAIL_PATTERN = /^[^@\s]+@(student\.)?buksu\.edu\.ph$/;
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
 const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
@@ -81,11 +80,7 @@ const REACTIVATION_MAX = 500;
 const fullName = (u) =>
   [u.firstName, u.lastName].filter((n) => n && n !== '-').join(' ') || u.email || 'Unknown user';
 
-/**
- * The 403 body for a deactivated account. Only sent AFTER the person proved they own the
- * account (correct password, or a verified Google token), so the reason is not leaked.
- * The sign-in page uses `code` to show the "request reactivation" option.
- */
+// Deactivated account response payload with status and pending requests
 const deactivatedPayload = async (user) => {
   const [current, pending, declined] = await Promise.all([
     Deactivation.findOne({ user: user._id, active: true }).sort({ createdAt: -1 }).lean(),
@@ -114,11 +109,7 @@ const deactivatedPayload = async (user) => {
   };
 };
 
-/**
- * Checks an OTP against the stored hash. Counts failed attempts and locks
- * the code after OTP_MAX_ATTEMPTS. The user must have been loaded with
- * OTP_SELECT.
- */
+// Verify OTP hash against stored hash and track attempt limits
 const OTP_SELECT = '+resetPasswordOtp +resetPasswordOtpExpires +resetPasswordOtpAttempts';
 
 const checkOtp = async (user, otp) => {

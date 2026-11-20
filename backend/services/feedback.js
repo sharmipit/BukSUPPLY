@@ -164,11 +164,7 @@ function firstPerSlip(rows) {
   return bySlip;
 }
 
-/**
- * When did this slip's feedback arrive? Returns a Date, or null when there is none yet.
- * fresh = true uses a short cache (used right after the user comes back from the form).
- * Throws if Google cannot be reached.
- */
+// Check feedback submission timestamp for a requisition slip
 exports.submittedAt = async (slip, { fresh = false } = {}) => {
   const { rows } = await load(fresh ? 5000 : 60000);
   const hit = firstPerSlip(rows).get(normSlip(slip));
@@ -193,10 +189,7 @@ exports.summary = async () => {
   };
 };
 
-/**
- * Administrator-only health check. Shows what the server can and cannot see,
- * without exposing anybody's answers.
- */
+// Diagnostic health check for Google Forms integration
 exports.diagnose = async () => {
   if (!enabled()) return { enabled: false, hint: 'GFORMS_ENABLED is not "true" or GFORMS_FORM_ID is empty.' };
 

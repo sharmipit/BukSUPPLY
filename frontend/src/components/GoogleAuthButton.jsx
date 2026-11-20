@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
-// Google's real button is an iframe that cannot be styled, so we draw our own brown
-// button and put the real (invisible) Google button exactly on top of it.
-
+// Overlays an invisible Google login iframe over custom branded button styles
 const GOOGLE_HEIGHT = 40;
 const MIN_W = 200;
 const MAX_W = 400;

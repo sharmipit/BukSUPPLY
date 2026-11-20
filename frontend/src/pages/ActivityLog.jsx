@@ -7,12 +7,11 @@ import '../styles/ActivityLog.css';
 const STAFF_ROLES = ['Moderator', 'Administrator'];
 const PAGE_SIZE = 10;
 
-// Below these card widths (in px) the table switches to stacked rows.
-// This is based on the space the table actually has, so it also reacts to the sidebar opening/closing.
+// Responsive breakpoint widths (px) to switch table to stacked rows
 const STACK_BELOW = 840;
 const STACK_BELOW_WITH_USER = 1000;
 
-// How each action is labelled and coloured in the table
+// Action badge labels and tone styling
 const ACTION_META = {
   SIGN_IN: { label: 'Signed in', tone: 'info' },
   SIGN_OUT: { label: 'Signed out', tone: 'neutral' },
@@ -39,7 +38,7 @@ const STAFF_CATEGORIES = [
   { value: 'User Management', label: 'User management' },
 ];
 
-// Calendar helpers (dates are kept as YYYY-MM-DD strings)
+// Calendar date format helpers (YYYY-MM-DD)
 const MONTHS = [
   'January',
   'February',
@@ -71,8 +70,7 @@ const formatDate = (iso) => {
   });
 };
 
-// Short display name for the table: first word of the first name + last word of the name
-// e.g. "Maria Clara Santos" -> "Maria Santos"
+// Format user display name (First and Last name)
 const shortName = (fullName) => {
   const parts = String(fullName || '')
     .trim()

@@ -3,12 +3,7 @@ const ActivityLog = require('../models/ActivityLog');
 const fullName = (u) =>
   [u.firstName, u.lastName].filter((n) => n && n !== '-').join(' ') || u.email || 'Unknown user';
 
-/**
- * Records one activity. Logging must never break the real action,
- * so this swallows its own errors.
- *
- *   logActivity(req.user, { category, action, description, reference }, req)
- */
+// Record audit activity log (fails gracefully without interrupting primary action)
 exports.logActivity = async (user, { category, action, description, reference = '' }, req) => {
   try {
     if (!user || !user._id) return;

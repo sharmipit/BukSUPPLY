@@ -1,12 +1,4 @@
-/**
- * Centralized error handler — register last in server.js.
- *
- * Handles:
- *   - CORS rejections (from the cors() middleware)
- *   - Malformed JSON bodies (entity.parse.failed)
- *   - Operational AppError instances (thrown by controllers/services)
- *   - Unexpected errors (fallback 500)
- */
+// Centralized error handler middleware for Express
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
   if (res.headersSent) {

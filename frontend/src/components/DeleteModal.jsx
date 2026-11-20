@@ -20,8 +20,6 @@ export default function DeleteModal({
   const handleConfirmClick = () => {
 
     if (showToast) return;
-
-    // Show toast notification
     setShowToast(true);
 
     setTimeout(() => {
