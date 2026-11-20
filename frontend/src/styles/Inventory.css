@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Inventory (Admin / Moderator) Styles
-   ========================================================================== */
+/* Inventory (Admin / Moderator) */
 
 .inventory-container {
   padding: 32px 40px;
@@ -25,9 +23,7 @@
   box-sizing: border-box;
 }
 
-/* ==========================================================================
-   Header card (title, divider, stats)
-   ========================================================================== */
+/* Header card */
 .inv-header-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -170,9 +166,7 @@
   background-color: #72462c;
 }
 
-/* ==========================================================================
-   Toast notice
-   ========================================================================== */
+/* Toast notice */
 .inv-notice-toast {
   position: fixed;
   bottom: 24px;
@@ -231,9 +225,7 @@
   background-color: rgba(0, 0, 0, 0.06);
 }
 
-/* ==========================================================================
-   Slim horizontal scrollbar (table)
-   ========================================================================== */
+/* Table scrollbar */
 .inv-table-wrapper::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -266,9 +258,7 @@
   }
 }
 
-/* ==========================================================================
-   Filter bar
-   ========================================================================== */
+/* Filter bar */
 .inv-filter-bar {
   display: flex;
   align-items: center;
@@ -300,9 +290,7 @@
   padding-left: 44px;
 }
 
-/* ==========================================================================
-   Filters
-   ========================================================================== */
+/* Filters */
 .inv-filter-group {
   display: flex;
   align-items: center;
@@ -311,9 +299,7 @@
   flex: 0 0 auto;
 }
 
-/* ==========================================================================
-   Table card
-   ========================================================================== */
+/* Table card */
 .inv-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -329,8 +315,7 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* The minimum width is what keeps every column readable on smaller screens:
-   below it the table scrolls sideways instead of squeezing the columns. */
+/* Minimum width for horizontal scroll */
 .inv-table {
   width: 100% !important;
   min-width: 1140px;
@@ -343,7 +328,6 @@
   margin-bottom: 0 !important;
 }
 
-/* Guard */
 .inv-table thead {
   display: table-header-group !important;
 }
@@ -362,10 +346,7 @@
   box-sizing: border-box;
 }
 
-/* Column widths.
-   Item and Category use percentages so they grow together on wide screens
-   (Item is a little narrower than before, Category has more room).
-   The other columns keep a fixed width. */
+/* Column widths */
 .inv-table .inv-col-item {
   width: 23%;
 }
@@ -456,8 +437,7 @@
   color: #8c7a70;
 }
 
-/* One line of text. It is cut with "..." only when the text really does not fit
-   (the full text is also shown when hovering, through the title attribute). */
+/* Text truncation */
 .inv-clamp {
   display: block;
   max-width: 100%;
@@ -586,7 +566,7 @@
   cursor: not-allowed;
 }
 
-/* Icon-only buttons in the table (Adjust, Edit, Archive, Restore) */
+/* Icon buttons */
 .inv-btn-icon {
   width: 36px;
   height: 36px;
@@ -669,7 +649,7 @@
   white-space: nowrap;
 }
 
-/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+/* Responsive footer */
 @media (max-width: 900px) {
   .inv-footer-bar {
     flex-direction: column;
@@ -727,9 +707,7 @@
   margin: 0;
 }
 
-/* ==========================================================================
-   Modals (add / edit, adjust stock, history, archive)
-   ========================================================================== */
+/* Modals */
 .inv-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -919,7 +897,7 @@
   cursor: not-allowed;
 }
 
-/* Form bits */
+/* Form fields */
 .inv-field {
   display: flex;
   flex-direction: column;
@@ -1074,9 +1052,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* ==========================================================================
-   Audit trail: item details grid and stock history timeline
-   ========================================================================== */
+/* Item details and stock history */
 
 .inv-detail-card {
   padding: 16px 20px;
@@ -1235,9 +1211,7 @@
   color: var(--text-body, #594d46);
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 1200px) {
   .inv-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1357,11 +1331,9 @@
   }
 }
 
-/* ==========================================================================
-   Form dropdown (category), invalid fields, archive warning
-   ========================================================================== */
+/* Form dropdowns and validation */
 
-/* Dropdown that matches the FilterDropdown look (rotating chevron) */
+/* Custom dropdown trigger */
 .inv-dd {
   position: relative;
 }
@@ -1413,7 +1385,7 @@
   transform: rotate(180deg);
 }
 
-/* The list opens in the flow of the form, so the modal never clips it */
+/* Dropdown menu */
 .inv-dd-menu {
   margin: 8px 0 0;
   padding: 8px;
@@ -1502,7 +1474,7 @@
   }
 }
 
-/* Fields with a problem */
+/* Validation error states */
 .inventory-container .custom-input.inv-input-invalid {
   border-color: #dc2626;
   background-color: #fef2f2;
@@ -1517,7 +1489,7 @@
   text-align: right;
 }
 
-/* Archive blocked by open requests */
+/* Archive warning box */
 .inv-warn-box {
   padding: 14px 18px;
   border-radius: 14px;
@@ -1588,9 +1560,7 @@
   color: var(--text-body, #594d46);
 }
 
-/* ==========================================================================
-   Scrollbars inside the modals and dropdown lists (no arrow buttons at the ends)
-   ========================================================================== */
+/* Modal and dropdown scrollbars */
 .inv-modal-body,
 .inv-dd-menu,
 .inv-blocker-list,
@@ -1627,7 +1597,6 @@
   background-clip: padding-box;
 }
 
-/* This is what removes the little up / down arrows */
 .inv-modal-body::-webkit-scrollbar-button,
 .inv-dd-menu::-webkit-scrollbar-button,
 .inv-blocker-list::-webkit-scrollbar-button,
@@ -1644,7 +1613,7 @@
   background: transparent;
 }
 
-/* Firefox has no arrow buttons, so it only needs a slim, matching colour */
+/* Firefox scrollbar styles */
 @supports (-moz-appearance: none) {
   .inv-modal-body,
   .inv-dd-menu,
@@ -1655,9 +1624,7 @@
   }
 }
 
-/* ==========================================================================
-   Clear filters button (table footer), same look as the Activity Log page
-   ========================================================================== */
+/* Clear filters button */
 .inv-footer-info {
   display: flex;
   align-items: center;

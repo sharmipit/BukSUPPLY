@@ -1,6 +1,4 @@
-/* ==========================================================================
-    BukSUPPLY - Filter Dropdown 
-    ========================================================================== */
+/* Filter Dropdown */
 
 .fd {
   position: relative;
@@ -199,7 +197,7 @@
   background-color: #ef4444;
 }
 
-/* Compact variant for toolbars next to a search box (e.g. the item picker) */
+/* Compact variant for toolbars */
 .fd--compact .fd-trigger {
   min-width: 190px;
   min-height: 46px;

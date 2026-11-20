@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Request History Styles
-   ========================================================================== */
+/* Request History */
 
 .request-history-container {
   padding: 32px 40px;
@@ -115,7 +113,7 @@
   overflow-y: hidden;
 }
 
-/* Filter tabs scrollbar: same design as the table scrollbar, slimmer */
+/* Filter tabs scrollbar */
 .request-history-container .status-filter-tabs::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -136,8 +134,6 @@
   background-color: #8c5839;
 }
 
-/* Chrome and Edge ignore the ::-webkit-scrollbar rules above if the
-   standard scrollbar properties are set, so reset them there */
 @supports selector(::-webkit-scrollbar) {
   .request-history-container .status-filter-tabs {
     scrollbar-width: auto;
@@ -145,7 +141,7 @@
   }
 }
 
-/* Firefox: no hover-on-thumb support, so the brown shows when hovering the area */
+/* Firefox scrollbar styles */
 @supports not selector(::-webkit-scrollbar) {
   .request-history-container .status-filter-tabs {
     scrollbar-width: thin;
@@ -180,7 +176,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* Table layout consistency */
+/* Table layout */
 .dashboard-section-card {
   background-color: var(--card-bg, #ffffff);
   border: 1px solid var(--card-border, #dfd8cc);
@@ -195,7 +191,7 @@
   overflow-x: auto;
 }
 
-/* Table scrollbar: slim, no arrow buttons, light track, brown thumb on hover */
+/* Table scrollbar */
 .request-history-container .table-responsive-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -359,7 +355,7 @@
   padding: 0 4px;
 }
 
-/* Footer on narrow screens: the message (or link) sits on top, the pagination below it */
+/* Responsive footer */
 @media (max-width: 900px) {
   .table-footer-bar {
     flex-direction: column;

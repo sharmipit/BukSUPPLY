@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Help & Support Page Styles
-   ========================================================================== */
+/* Help & Support */
 
 :root {
   --brown-950: #2e1d12;
@@ -114,7 +112,7 @@ body {
   box-shadow: 0 0 0 3px var(--brown-300), 0 6px 16px rgba(46, 29, 18, 0.25);
 }
 
-/* ---------- Main ---------- */
+/* Main content */
 .faq-main {
   max-width: 56rem;
   margin: 2rem auto 0;
@@ -162,7 +160,7 @@ body {
   color: var(--brown-600);
 }
 
-/* ---------- Cards ---------- */
+/* Cards */
 .faq-card {
   background: #fff;
   border: 1px solid var(--border);
@@ -268,7 +266,7 @@ body {
   list-style: decimal;
 }
 
-/* ---------- Examples ---------- */
+/* Examples */
 .example {
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -300,7 +298,7 @@ body {
 
 .example-bad .example-label { color: #a8392b; }
 
-/* ---------- Empty state ---------- */
+/* Empty state */
 .faq-empty {
   text-align: center;
   padding: 3rem 1rem;

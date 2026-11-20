@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Menu Styles
-   ========================================================================== */
+/* Menu and Sidebar */
 
 :root {
   --sidebar-bg: #2b1610;
@@ -44,13 +42,13 @@ button {
   outline-offset: 2px;
 }
 
-/* ---------- Layout ---------- */
+/* Layout */
 .layout {
   display: flex;
   min-height: 100vh;
 }
 
-/* ---------- Sidebar ---------- */
+/* Sidebar */
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
@@ -66,14 +64,13 @@ button {
   flex-direction: column;
   justify-content: space-between;
 
-  /* Still scrollable (wheel / touch) on very short screens,
-     but never shows a scrollbar. */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* old Edge / IE */
+  /* Hide scrollbar while preserving scrolling */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .sidebar::-webkit-scrollbar {
-  display: none; /* Chrome, Edge, Safari */
+  display: none;
 }
 
 .sidebar-top {
@@ -223,7 +220,7 @@ button {
   font-size: 0;
 }
 
-/* ---------- Sidebar Footer ---------- */
+/* Sidebar footer */
 .sidebar-footer {
   padding: 16px 20px 24px;
 }
@@ -297,7 +294,7 @@ button {
   padding: 16px 12px 24px;
 }
 
-/* ---------- Main & Topbar ---------- */
+/* Main and topbar */
 .main {
   flex: 1;
   min-width: 0;
@@ -369,7 +366,7 @@ button {
   flex: 1;
 }
 
-/* ---------- Profile route only: no gap under the top bar ---------- */
+/* Profile view topbar adjustment */
 .main.profile-route .topbar {
   background: rgba(255, 255, 255, 0.25);
   border-bottom-color: rgba(255, 255, 255, 0.35);
@@ -379,7 +376,7 @@ button {
   margin-top: -78px;
 }
 
-/* ---------- Mobile dropdown navigation (small screens) ---------- */
+/* Mobile navigation */
 .mobile-nav {
   position: absolute;
   top: 100%;
@@ -461,7 +458,7 @@ button {
   transform: scaleX(1);
 }
 
-/* ---------- Profile Menu (dropdown) ---------- */
+/* Profile dropdown menu */
 .profile-menu-wrap {
   position: relative;
 }
@@ -562,7 +559,7 @@ button {
   background: rgba(220, 38, 38, 0.08);
 }
 
-/* ---------- Modal Styles ---------- */
+/* Modal styles */
 .lo-overlay {
   position: fixed;
   top: 0;
@@ -664,12 +661,7 @@ button {
   background-color: #1a0e0a;
 }
 
-/* ---------- Responsive: short screens (graduated sidebar spacing) ----------
-   The admin / moderator menus have ~10 links, so on laptops with a short
-   viewport (e.g. 125% display scaling) they would overflow. Spacing relaxes
-   gradually: each tier keeps the roomiest layout that still fits without a
-   scrollbar. Tall screens (over 920px) use the original roomy spacing above.
-   Tiers are ordered from tallest to shortest so later ones override. */
+/* Responsive sidebar height adjustments */
 
 /* Tier 1: 821px - 920px */
 @media (max-height: 920px) {
@@ -864,7 +856,7 @@ button {
   }
 }
 
-/* ---------- Responsive: small screens (dropdown menu) ---------- */
+/* Mobile responsiveness */
 
 @media (max-width: 768px) {
   .sidebar {

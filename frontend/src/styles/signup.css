@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Sign Up Page
-   ========================================================================== */
+/* Sign Up */
 
 :root {
   --bg-color: #FAF7F2;
@@ -20,20 +18,19 @@
   --error-bg: #FDF2F0;
   --success-color: #2e7d32;
 
-  /* "Density" values. Everything below uses these, so the whole card
-     shrinks together on short screens (see the max-height rules). */
+  /* Density variables */
   --page-pad-y: 28px;
   --card-pad-y: 38px;
   --card-pad-x: clamp(24px, 6vw, 52px);
   --section-gap: 24px;
   --grid-gap-y: 18px;
   --input-pad-y: 13px;
-  --btn-h: 50px;      /* Create Account and Google buttons share this size */
+  --btn-h: 50px;      /* Button dimensions */
   --btn-w: 360px;
   --title-size: clamp(1.6rem, 4.5vw, 2.1rem);
 }
 
-/* Short screens (most laptops): tighten a little so the card still fits */
+/* Laptop height adjustments */
 @media (max-height: 880px) {
   :root {
     --page-pad-y: 16px;
@@ -69,7 +66,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-dark);
   min-height: 100vh;
-  min-height: 100dvh; /* mobile browsers: ignores the collapsing address bar */
+  min-height: 100dvh; /* Viewport height fix for mobile */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -202,7 +199,7 @@ body {
   color: #A3968C;
 }
 
-/* Password Input & Icon Suffixed Inputs */
+/* Password and suffixed inputs */
 .input-icon-wrapper {
   position: relative;
   display: flex;
@@ -231,7 +228,7 @@ body {
   color: var(--text-dark);
 }
 
-/* Error Messages & Input Error States */
+/* Validation error states */
 .error-msg {
   font-size: 0.76rem;
   line-height: 1.35;
@@ -327,7 +324,7 @@ body {
   text-decoration: underline;
 }
 
-/* Center Submit Button */
+/* Submit button */
 .btn-wrapper {
   display: flex;
   justify-content: center;
@@ -362,7 +359,7 @@ body {
   cursor: not-allowed;
 }
 
-/* Form-level error text */
+/* Form error message */
 .form-error {
   color: var(--error-color);
   font-size: 0.84rem;
@@ -375,7 +372,7 @@ body {
   display: none;
 }
 
-/* SSO / Google Section */
+/* Google SSO */
 .social-section {
   margin-top: var(--section-gap);
   text-align: center;
@@ -402,14 +399,7 @@ body {
   font-weight: 500;
 }
 
-/* --------------------------------------------------------------------------
-   Google button
-   The visible brown button and the real (invisible) Google button sit on top of
-   each other. GoogleAuthButton.jsx sizes the invisible one to match this wrapper
-   exactly, so the WHOLE brown button is clickable.
-   The wrapper is the same size as the main submit button (--btn-w x --btn-h).
-   The JSX scales Google's 40px-tall button up to this height.
-   -------------------------------------------------------------------------- */
+/* Google button overlay */
 .google-sso-wrapper {
   position: relative;
   width: min(100%, var(--btn-w));
@@ -488,7 +478,7 @@ body {
   color: var(--text-light-brown);
 }
 
-/* Modal Overlay & Instant Success Screen */
+/* Modal overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -559,16 +549,14 @@ body {
   width: 100%;
 }
 
-/* ==========================================================================
-   reCAPTCHA pop-up
-   ========================================================================== */
+/* reCAPTCHA popup */
 .captcha-card {
   max-width: 440px;
   text-align: center;
   padding: clamp(28px, 5vh, 40px) clamp(22px, 5vw, 38px);
 }
 
-/* Round icon badge, same look as the Log out pop-up */
+/* Modal icon badge */
 .captcha-icon {
   width: 76px;
   height: 76px;
@@ -598,11 +586,11 @@ body {
 .captcha-body {
   display: flex;
   justify-content: center;
-  min-height: 78px; /* the checkbox is 78px tall, so nothing jumps while it loads */
+  min-height: 78px;
   margin: 24px 0;
 }
 
-/* Outlined pill, same as the Cancel button of the Log out pop-up (no underline) */
+/* Cancel button */
 .captcha-cancel {
   display: block;
   width: 100%;
@@ -623,7 +611,7 @@ body {
   border-color: var(--text-dark);
 }
 
-/* The reCAPTCHA checkbox is a fixed 304px wide: shrink it on very narrow phones */
+/* Scale reCAPTCHA on narrow screens */
 @media (max-width: 370px) {
   .captcha-body > div {
     transform: scale(0.85);
@@ -631,9 +619,7 @@ body {
   }
 }
 
-/* ==========================================================================
-   Verify email pop-up (matches the Reset Password pop-up)
-   ========================================================================== */
+/* Email verification popup */
 .vc-card {
   position: relative;
   max-width: 440px;
@@ -714,7 +700,7 @@ body {
   width: min(100%, 320px);
 }
 
-/* Resend and Change email: small text links on one centered row */
+/* Verification action links */
 .vc-actions {
   display: flex;
   justify-content: center;
@@ -747,9 +733,7 @@ body {
   cursor: not-allowed;
 }
 
-/* ==========================================================================
-   Terms & Privacy modal
-   ========================================================================== */
+/* Terms & Privacy modal */
 .lgl-card {
   background-color: var(--card-bg);
   border-radius: 24px;
@@ -939,18 +923,16 @@ body {
   background-color: #faf7f2;
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 
-/* Tablets and small laptops: keep two columns, a bit tighter */
+/* Tablet layout */
 @media (max-width: 760px) {
   .form-grid {
     column-gap: 14px;
   }
 }
 
-/* Phones: one column */
+/* Mobile layout */
 @media (max-width: 600px) {
   .signup-card {
     border-radius: 20px;
@@ -964,7 +946,7 @@ body {
     grid-column: span 1;
   }
 
-  /* 16px inputs stop iPhones from zooming in when a field is tapped */
+  /* Prevent iOS input zoom */
   .form-input {
     font-size: 1rem;
   }

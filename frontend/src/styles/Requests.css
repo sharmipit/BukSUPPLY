@@ -1,6 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Requests (Admin / Moderator) Styles
-   ========================================================================== */
+/* Requests (Admin / Moderator) */
 
 .requests-container {
   padding: 32px 40px;
@@ -503,7 +501,7 @@
   padding: 0 4px;
 }
 
-/* Footer on narrow screens */
+/* Responsive footer */
 @media (max-width: 900px) {
   .rq-footer-bar {
     flex-direction: column;
@@ -560,9 +558,7 @@
   line-height: 1.5;
 }
 
-/* ==========================================================================
-   Modals & Edit Requisition Modal Style 
-   ========================================================================== */
+/* Modals */
 .rq-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -802,9 +798,7 @@
   cursor: not-allowed;
 }
 
-/* ==========================================================================
-   Stepper (request progress trail)
-   ========================================================================== */
+/* Request progress stepper */
 .rq-stepper-card {
   background-color: #f5efe6;
   border: 1px solid var(--card-border, #dfd8cc);
@@ -897,7 +891,7 @@
   }
 }
 
-/* Form bits & Meta grid */
+/* Form fields and meta grid */
 .rq-field {
   display: flex;
   flex-direction: column;
@@ -1049,7 +1043,7 @@
   color: var(--text-dark, #2c1a14);
 }
 
-/* Denial and errors: red */
+/* Denial and error notices */
 .rq-deny-box {
   background-color: #fef2f2;
   border-color: #fecaca;
@@ -1104,7 +1098,7 @@
   border-bottom: none;
 }
 
-/* Reason for going over the usual limit */
+/* Over-limit reason */
 .rq-lines tbody tr.rq-has-reason td {
   border-bottom: none;
   padding-bottom: 6px;
@@ -1139,7 +1133,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Older markup that still uses this class gets the same plain look (no yellow box) */
 .rq-line-reason {
   margin-top: 8px;
   padding-top: 8px;
@@ -1278,7 +1271,7 @@
   font-weight: 600;
 }
 
-/* Category dropdown in the Add to inventory */
+/* Add to inventory category dropdown */
 select.rq-select {
   padding-right: 46px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%238c5839' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -1299,9 +1292,7 @@ select.rq-select {
   background-color: var(--bg-color, #faf7f2);
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 1200px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

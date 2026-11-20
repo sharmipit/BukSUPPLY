@@ -1,6 +1,4 @@
-/* ==========================================================================
-    BukSUPPLY - Sign In Page
-   ========================================================================== */
+/* Sign In */
 
 :root {
   --bg-color: #FAF7F2;
@@ -16,20 +14,19 @@
   --btn-hover: #1A0E0A;
   --font-family: 'Poppins', sans-serif;
 
-  /* "Density" values. Everything below uses these, so the whole card
-     shrinks together on short screens (see the max-height rules). */
+  /* Density variables */
   --page-pad-y: 28px;
   --card-pad-y: 40px;
   --card-pad-x: clamp(24px, 6vw, 52px);
   --section-gap: 26px;
   --field-gap: 18px;
   --input-pad-y: 13px;
-  --btn-h: 50px;      /* Log In and Google buttons share this size */
+  --btn-h: 50px;      /* Button dimensions */
   --btn-w: 320px;
   --title-size: clamp(1.6rem, 4.5vw, 2.1rem);
 }
 
-/* Short screens (most laptops): tighten a little so the card still fits */
+/* Laptop height adjustments */
 @media (max-height: 760px) {
   :root {
     --page-pad-y: 16px;
@@ -65,7 +62,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-dark);
   min-height: 100vh;
-  min-height: 100dvh; /* mobile browsers: ignores the collapsing address bar */
+  min-height: 100dvh; /* Viewport height fix for mobile */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,14 +311,7 @@ body {
   font-weight: 500;
 }
 
-/* --------------------------------------------------------------------------
-   Google button
-   The visible brown button and the real (invisible) Google button sit on top of
-   each other. GoogleAuthButton.jsx sizes the invisible one to match this wrapper
-   exactly, so the WHOLE brown button is clickable.
-   The wrapper is the same size as the main submit button (--btn-w x --btn-h).
-   The JSX scales Google's 40px-tall button up to this height.
-   -------------------------------------------------------------------------- */
+/* Google button overlay */
 .google-sso-wrapper {
   position: relative;
   width: min(100%, var(--btn-w));
@@ -406,7 +396,7 @@ body {
     border-radius: 20px;
   }
 
-  /* 16px inputs stop iPhones from zooming in when a field is tapped */
+  /* Prevent iOS input zoom */
   .form-input {
     font-size: 1rem;
   }
@@ -416,9 +406,7 @@ body {
   }
 }
 
-/* ==========================================================================
-   Forgot / Reset Password Modal Styles
-   ========================================================================== */
+/* Forgot / Reset Password Modal */
 
 /* Dark Backdrop Overlay */
 .modal-overlay {
@@ -441,7 +429,7 @@ body {
   pointer-events: none;
 }
 
-/* Modal Window Card (scrolls inside itself when the screen is too short) */
+/* Modal card */
 .modal-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -490,8 +478,7 @@ body {
 .modal-header {
   text-align: center;
   margin-bottom: 18px;
-  padding: 0 24px; /* keeps long titles away from the close button */
-}
+  padding: 0 24px; }
 
 .modal-title {
   font-size: clamp(1.4rem, 4.5vw, 1.7rem);
@@ -519,16 +506,14 @@ body {
 .alert-banner.error   { background: #FDF2F0; color: #C93B2B; border: 1px solid #F0C4BD; }
 .alert-banner.success { background: #E8F5E9; color: #2e7d32; border: 1px solid #B9DBBB; }
 
-/* ==========================================================================
-   reCAPTCHA pop-up
-   ========================================================================== */
+/* reCAPTCHA popup */
 .captcha-card {
   max-width: 440px;
   text-align: center;
   padding: clamp(28px, 5vh, 40px) clamp(22px, 5vw, 38px);
 }
 
-/* Round icon badge, same look as the Log out pop-up */
+/* Modal icon badge */
 .captcha-icon {
   width: 76px;
   height: 76px;
@@ -558,11 +543,11 @@ body {
 .captcha-body {
   display: flex;
   justify-content: center;
-  min-height: 78px; /* the checkbox is 78px tall, so nothing jumps while it loads */
+  min-height: 78px;
   margin: 24px 0;
 }
 
-/* Outlined pill, same as the Cancel button of the Log out pop-up (no underline) */
+/* Cancel button */
 .captcha-cancel {
   display: block;
   width: 100%;
@@ -583,7 +568,7 @@ body {
   border-color: var(--text-dark);
 }
 
-/* The reCAPTCHA checkbox is a fixed 304px wide: shrink it on very narrow phones */
+/* Scale reCAPTCHA on narrow screens */
 @media (max-width: 370px) {
   .captcha-body > div {
     transform: scale(0.85);
@@ -591,10 +576,7 @@ body {
   }
 }
 
-/* ==========================================================================
-   Deactivated account pop-up + "Request reactivation" pop-up
-   (the pop-ups reuse the reCAPTCHA pop-up look; everything new starts with deact-)
-   ========================================================================== */
+/* Deactivation and reactivation popups */
 .deact-card .modal-subtitle strong {
   color: var(--text-dark);
 }
@@ -603,7 +585,7 @@ body {
   margin-top: 12px;
 }
 
-/* Highlighted text written by the administrator */
+/* Admin message highlight */
 .deact-reason {
   margin-top: 12px;
   padding: 12px 16px;
@@ -624,7 +606,7 @@ body {
   color: var(--text-dark);
 }
 
-/* Buttons stacked with the same width and height */
+/* Stacked modal buttons */
 .deact-actions {
   display: flex;
   flex-direction: column;
@@ -639,7 +621,7 @@ body {
   width: 100%;
 }
 
-/* Multi-line message box (same look as .form-input, but not a pill) */
+/* Multiline input */
 .form-input.form-textarea {
   border-radius: 20px;
   padding: 13px 20px;

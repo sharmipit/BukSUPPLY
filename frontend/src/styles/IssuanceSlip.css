@@ -1,7 +1,4 @@
-/* ==========================================================================
-   BukSUPPLY - Issuance Slip Paper Preview
-   (the modal shell, header, body and footer come from Requests.css)
-   ========================================================================== */
+/* Issuance Slip Paper Preview */
 
 .isl-paper-wrap {
   overflow-x: auto;
@@ -121,7 +118,7 @@
   text-align: right;
 }
 
-/* Scrollbar (same as the details modal body) */
+/* Paper wrapper scrollbar */
 .isl-paper-wrap::-webkit-scrollbar {
   width: 14px;
   height: 14px;
@@ -149,7 +146,7 @@
   }
 }
 
-/* ---- RIS form preview ---- */
+/* RIS form preview */
 .isl-paper.ris {
   font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
   font-size: 11px;

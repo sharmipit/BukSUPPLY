@@ -1,8 +1,6 @@
-/* ==========================================================================
-   BukSUPPLY - Landing Page Styles
-   ========================================================================== */
+/* Landing Page */
 
-/* --- 1. Reset & Global Variables --- */
+/* Reset and variables */
 * {
   margin: 0;
   padding: 0;
@@ -46,8 +44,7 @@ svg {
   max-width: 100%;
 }
 
-/* Wraps header + main + footer so the footer always sits at the bottom of the
-   screen (no empty strip under it on very tall or zoomed-out windows) */
+/* Layout container */
 .landing-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -79,7 +76,7 @@ a {
   color: var(--text-light-brown);
 }
 
-/* --- 2. Sticky Header / Navigation --- */
+/* Navigation header */
 .navbar {
   position: sticky;
   top: 0;
@@ -106,7 +103,7 @@ a {
   min-width: 0;
 }
 
-/* The logo scales with the screen instead of having a fixed size */
+/* Logo */
 .logo-img {
   height: clamp(30px, 3vw + 18px, 42px);
   width: auto;
@@ -119,9 +116,8 @@ a {
   gap: clamp(20px, 4vw, 40px);
 }
 
-/* Phone-menu only parts are hidden on desktop */
 .nav-menu-title {
-  display: none; /* only shown in the phone menu */
+  display: none;
 }
 
 .nav-link {
@@ -157,7 +153,7 @@ a {
   transform: scaleX(1);
 }
 
-/* Navbar Actions Container & Button */
+/* Navbar actions */
 .nav-actions {
   display: flex;
   align-items: center;
@@ -215,7 +211,7 @@ a {
   border-color: var(--text-light-brown);
 }
 
-/* --- 3. Hero Section --- */
+/* Hero section */
 .hero-section {
   position: relative;
   padding: clamp(64px, 12vw, 135px) 0 clamp(56px, 10vw, 125px) 0;
@@ -259,7 +255,7 @@ a {
   opacity: 0;
 }
 
-/* --- 3b. HERO CONCENTRIC CIRCLES (SONAR RIPPLE EFFECT) --- */
+/* Concentric circles background effect */
 .hero-bg-circles {
   position: absolute;
   top: 50%;
@@ -273,7 +269,7 @@ a {
   align-items: center;
   justify-content: center;
 
-  /* Smooth blending/fading into the next section at the bottom */
+  /* Gradient fade mask */
   mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 95%);
   -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 95%);
 }
@@ -288,7 +284,7 @@ a {
   border: 1px solid rgba(140, 88, 57, 0.15);
 }
 
-/* 6 Concentric Circles - Size & Opacity Stepping */
+/* Concentric circle sizes */
 .hero-bg-circles .circle-1 {
   width: 25vw;
   min-width: 260px;
@@ -383,7 +379,7 @@ a {
   border: 1px solid #E5E0D8;
 }
 
-/* --- 4. What is BukSUPPLY? --- */
+/* About section */
 .about-section {
   padding: clamp(24px, 5vw, 40px) 0 clamp(56px, 9vw, 100px) 0;
   scroll-margin-top: 100px;
@@ -431,7 +427,7 @@ a {
   margin-bottom: 0;
 }
 
-/* --- 5. Services Section --- */
+/* Services section */
 .services-section {
   padding: clamp(24px, 5vw, 40px) 0 clamp(72px, 10vw, 120px) 0;
   scroll-margin-top: 100px;
@@ -546,7 +542,7 @@ a {
   line-height: 1.7;
 }
 
-/* --- 6. SCROLL REVEAL ANIMATIONS --- */
+/* Scroll reveal animations */
 .reveal-on-scroll {
   opacity: 0;
   transform: translateY(30px);
@@ -570,7 +566,7 @@ a {
   }
 }
 
-/* --- 7. Footer --- */
+/* Footer */
 .footer {
   background-color: var(--footer-bg);
   color: #FFFFFF;
@@ -603,7 +599,7 @@ a {
   opacity: 0.7;
 }
 
-/* --- 8. Responsive Media Queries --- */
+/* Responsive */
 
 @media (max-width: 1000px) {
   .services-grid {
