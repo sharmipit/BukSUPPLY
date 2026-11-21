@@ -635,14 +635,22 @@ const LIVE = {
   // service account, or a mistyped question is caught before it is saved.
   async forms(next, typed) {
     // Turning feedback OFF must always work, even if the form or the key is already gone
-    if (!next.formsEnabled) return;
+    if ('formsEnabled' in typed && !typed.formsEnabled) return;
+
+    // Only re-check when something that affects the form connection actually changed
+    const current = get();
     const watched = [
       'formsEnabled',
       'formsFormId',
       'formsCredentials',
       ...Object.keys(FORMS_QUESTIONS),
     ];
-    if (!watched.some((k) => k in typed)) return;
+    const changed = watched.some(
+      (k) => k in typed && String(typed[k]) !== String(current[k] ?? '')
+    );
+    if (!changed) return;
+
+    // Nothing to check against yet
     if (!next.formsFormId || !next.formsCredentials) return;
 
     const creds = parseServiceAccount(next.formsCredentials);
