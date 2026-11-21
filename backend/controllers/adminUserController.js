@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Deactivation = require('../models/Deactivation');
 const ReactivationRequest = require('../models/ReactivationRequest');
 const ActivityLog = require('../models/ActivityLog');
+const Notification = require('../models/Notification');
 const { logActivity } = require('../services/activityLog');
 const { sendEmail } = require('../utils/sendEmail');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -236,6 +237,21 @@ exports.createModerator = async (req, res) => {
       agreedToTerms: true,
     });
 
+    try {
+      await logActivity(
+        req.user,
+        {
+          category: 'User Management',
+          action: 'MODERATOR_CREATED',
+          description: `Created moderator account for ${fullName(user)}`,
+          reference: user.email,
+        },
+        req
+      );
+    } catch (logErr) {
+      console.error('logActivity error:', logErr);
+    }
+
     res.status(201).json({ user: toDTO(user) });
   } catch (err) {
     if (err.code === 11000) {
@@ -301,16 +317,31 @@ exports.deactivateUser = asyncHandler(async (req, res) => {
     byName: fullName(req.user),
   });
 
-  await logActivity(
-    req.user,
-    {
-      category: 'Account',
-      action: 'USER_DEACTIVATED',
-      description: `Deactivated the account of ${fullName(user)}`,
-      reference: user.idNumber || '',
-    },
-    req
-  );
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'User Management',
+        action: 'USER_DEACTIVATED',
+        description: `Deactivated the account of ${fullName(user)}`,
+        reference: user.idNumber || '',
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
+  try {
+    await Notification.create({
+      user: user._id,
+      title: 'Account Deactivated',
+      message: `Your account has been deactivated by an administrator. Reason: ${reason}`,
+      type: 'warning',
+    });
+  } catch (notifErr) {
+    console.error('Notification error:', notifErr);
+  }
 
   mailUser(user, 'Your BukSUPPLY account was deactivated', [
     `Hello ${user.firstName}, your BukSUPPLY account has been deactivated by an administrator.`,
@@ -379,16 +410,31 @@ exports.reactivateUser = asyncHandler(async (req, res) => {
     { status: 'Approved', resolvedAt: now, resolvedByName: by, adminNote: reason }
   );
 
-  await logActivity(
-    req.user,
-    {
-      category: 'Account',
-      action: 'USER_REACTIVATED',
-      description: `Reactivated the account of ${fullName(user)}`,
-      reference: user.idNumber || '',
-    },
-    req
-  );
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'User Management',
+        action: 'USER_REACTIVATED',
+        description: `Reactivated the account of ${fullName(user)}`,
+        reference: user.idNumber || '',
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
+  try {
+    await Notification.create({
+      user: user._id,
+      title: 'Account Reactivated',
+      message: 'Your account has been reactivated by an administrator.',
+      type: 'success',
+    });
+  } catch (notifErr) {
+    console.error('Notification error:', notifErr);
+  }
 
   mailUser(user, 'Your BukSUPPLY account was reactivated', [
     `Hello ${user.firstName}, your BukSUPPLY account has been reactivated.`,
@@ -423,16 +469,33 @@ exports.declineRequest = asyncHandler(async (req, res) => {
   );
   if (!request) throw new AppError('There is no pending request for this account.', 404);
 
-  await logActivity(
-    req.user,
-    {
-      category: 'Account',
-      action: 'REACTIVATION_DECLINED',
-      description: `Declined the reactivation request of ${fullName(user)}`,
-      reference: user.idNumber || '',
-    },
-    req
-  );
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'User Management',
+        action: 'REACTIVATION_DECLINED',
+        description: `Declined the reactivation request of ${fullName(user)}`,
+        reference: user.idNumber || '',
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
+  try {
+    await Notification.create({
+      user: user._id,
+      title: 'Reactivation Request Declined',
+      message: note
+        ? `Your reactivation request was declined by an administrator. Note: ${note}`
+        : 'Your reactivation request was declined by an administrator.',
+      type: 'warning',
+    });
+  } catch (notifErr) {
+    console.error('Notification error:', notifErr);
+  }
 
   mailUser(user, 'Your BukSUPPLY reactivation request was declined', [
     `Hello ${user.firstName}, the administrator reviewed your reactivation request and could not reactivate your account at this time.`,
@@ -475,16 +538,20 @@ exports.archiveUser = asyncHandler(async (req, res) => {
   );
   if (!user) throw new AppError('The account changed. Please refresh and try again.', 409);
 
-  await logActivity(
-    req.user,
-    {
-      category: 'Account',
-      action: 'USER_ARCHIVED',
-      description: `Archived the account of ${fullName(user)}`,
-      reference: user.idNumber || '',
-    },
-    req
-  );
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'User Management',
+        action: 'USER_ARCHIVED',
+        description: `Archived the account of ${fullName(user)}`,
+        reference: user.idNumber || '',
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
 
   res.json({ user: toDTO(user) });
 });
@@ -506,16 +573,20 @@ exports.unarchiveUser = asyncHandler(async (req, res) => {
     throw new AppError(exists ? 'Account is not archived.' : 'User not found.', exists ? 400 : 404);
   }
 
-  await logActivity(
-    req.user,
-    {
-      category: 'Account',
-      action: 'USER_UNARCHIVED',
-      description: `Unarchived the account of ${fullName(user)}`,
-      reference: user.idNumber || '',
-    },
-    req
-  );
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'User Management',
+        action: 'USER_UNARCHIVED',
+        description: `Unarchived the account of ${fullName(user)}`,
+        reference: user.idNumber || '',
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
 
   res.json({ user: toDTO(user) });
 });
