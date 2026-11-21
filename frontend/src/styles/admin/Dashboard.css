@@ -630,18 +630,21 @@
   width: 160px;
 }
 
-/* User summary table */
+.db-table-wrapper.db-no-scroll {
+  overflow-x: hidden;
+}
+
 .db-table.db-users-table {
-  min-width: 440px;
+  min-width: 0;
 }
 
 .db-users-table .col-user-id {
-  width: 110px;
+  width: 156px;
 }
 
 .db-split-row .db-users-table th:nth-child(2),
 .db-split-row .db-users-table td:nth-child(2) {
-  padding-left: 28px !important;
+  padding-left: 20px !important;
 }
 .db-users-table .col-user-name {
   width: auto;
@@ -653,6 +656,9 @@
 .db-user-id {
   font-weight: 600;
   color: var(--text-body, #594d46) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .db-badge.active {

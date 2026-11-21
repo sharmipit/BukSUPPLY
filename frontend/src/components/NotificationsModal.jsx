@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import api, { errMsg } from '../api/client';
+import NotificationDetailsModal from './NotificationDetailsModal';
 import '../styles/NotificationsModal.css';
 
 const MAX_SHOWN = 8;
@@ -13,11 +14,15 @@ export default function NotificationsModal({ base }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // The notification whose full details are shown (stored by id so it stays current)
+  const [selectedId, setSelectedId] = useState(null);
+
   const wrapRef = useRef(null);
   const panelRef = useRef(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const shown = notifications.slice(0, MAX_SHOWN);
+  const selected = notifications.find((n) => n.id === selectedId) || null;
 
   const load = useCallback(
     (first) =>
@@ -113,6 +118,19 @@ export default function NotificationsModal({ base }) {
     api.patch('/notifications/read-all').catch(() => {});
   };
 
+  // Clicking a notification closes the popup, opens its details, and marks it as read
+  const openDetails = (notif) => {
+    if (!notif.read) handleMarkAsRead(notif.id);
+    setOpen(false);
+    setSelectedId(notif.id);
+  };
+
+  const handleDelete = (notif) => {
+    setSelectedId(null);
+    setNotifications((list) => list.filter((n) => n.id !== notif.id));
+    api.delete(`/notifications/${notif.id}`).catch(() => {});
+  };
+
   const renderBody = () => {
     if (loading) {
       return (
@@ -155,7 +173,8 @@ export default function NotificationsModal({ base }) {
         type="button"
         key={notif.id}
         className={`np-item ${notif.read ? 'read' : 'unread'}`}
-        onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+        onClick={() => openDetails(notif)}
+        aria-label={`View details of ${notif.title}`}
       >
         <span className={`np-item-icon ${notif.type}`}>
           {notif.type === 'success' && <i className="bi bi-check-circle-fill"></i>}
@@ -216,6 +235,13 @@ export default function NotificationsModal({ base }) {
           </div>,
           document.body
         )}
+
+      {/* Notification details modal (renders in document.body, so it works while the popup is closed) */}
+      <NotificationDetailsModal
+        notification={selected}
+        onClose={() => setSelectedId(null)}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

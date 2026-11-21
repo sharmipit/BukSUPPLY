@@ -377,7 +377,7 @@ exports.adjustStock = asyncHandler(async (req, res) => {
       const staff = await User.find({
         role: { $in: STAFF_ROLES },
         accountStatus: 'Active',
-      }).select('_id');
+      }).select('_id role');
 
       if (staff.length) {
         await Notification.insertMany(
@@ -386,7 +386,8 @@ exports.adjustStock = asyncHandler(async (req, res) => {
             title: 'Low Stock Alert',
             message: `Item "${item.name}" is low on stock (${newStock} remaining).`,
             type: 'warning',
-            link: '/staff/inventory',
+            // Administrators have their own route tree (/admin), moderators use /staff
+            link: s.role === 'Administrator' ? '/admin/inventory' : '/staff/inventory',
           }))
         );
       }
