@@ -1,6 +1,9 @@
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { moveStock } = require('../services/stock');
+const { logActivity } = require('../services/activityLog');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
 
@@ -230,6 +233,22 @@ exports.createItem = asyncHandler(async (req, res) => {
       },
     ],
   });
+
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Inventory',
+        action: 'ITEM_CREATED',
+        description: `Created inventory item "${item.name}"`,
+        reference: item.itemCode || item.code,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
   res.status(201).json(item);
 });
 
@@ -268,6 +287,23 @@ exports.updateItem = asyncHandler(async (req, res) => {
   if (!updated) {
     throw new AppError('Stock changed while you were editing. Close this and try again.', 409);
   }
+
+  const item = updated;
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Inventory',
+        action: 'ITEM_UPDATED',
+        description: `Updated inventory item "${item.name}"`,
+        reference: item.itemCode || item.code,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
   res.json(updated);
 });
 
@@ -314,6 +350,51 @@ exports.adjustStock = asyncHandler(async (req, res) => {
       400
     );
   }
+
+  const item = result.item;
+  const adjustment = mode === 'add' ? qty : -qty;
+  const reason = req.body.reason || req.body.remark || note || (adjustment > 0 ? 'Stock received' : 'Stock withdrawn');
+  const newStock = item.quantity;
+  const lowStockThreshold = item.lowStockThreshold !== undefined ? item.lowStockThreshold : item.reorderLevel;
+
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Inventory',
+        action: 'STOCK_ADJUSTED',
+        description: `Adjusted stock for "${item.name}": ${adjustment > 0 ? '+' : ''}${adjustment} (${reason})`,
+        reference: item.itemCode || item.code,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
+  if (typeof lowStockThreshold === 'number' && newStock <= lowStockThreshold) {
+    try {
+      const staff = await User.find({
+        role: { $in: STAFF_ROLES },
+        accountStatus: 'Active',
+      }).select('_id');
+
+      if (staff.length) {
+        await Notification.insertMany(
+          staff.map((s) => ({
+            user: s._id,
+            title: 'Low Stock Alert',
+            message: `Item "${item.name}" is low on stock (${newStock} remaining).`,
+            type: 'warning',
+            link: '/staff/inventory',
+          }))
+        );
+      }
+    } catch (notifErr) {
+      console.error('Low stock notification error:', notifErr);
+    }
+  }
+
   res.json(result.item);
 });
 
@@ -358,6 +439,22 @@ exports.archiveItem = asyncHandler(async (req, res) => {
     { new: true }
   );
   if (!updated) throw new AppError('Item was already archived.', 409);
+
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Inventory',
+        action: 'ITEM_ARCHIVED',
+        description: `Archived inventory item "${updated.name}"`,
+        reference: updated.itemCode || updated.code,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
   res.json(updated);
 });
 
@@ -387,6 +484,22 @@ exports.restoreItem = asyncHandler(async (req, res) => {
     { new: true }
   );
   if (!updated) throw new AppError('Item was already restored.', 409);
+
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Inventory',
+        action: 'ITEM_RESTORED',
+        description: `Restored inventory item "${updated.name}"`,
+        reference: updated.itemCode || updated.code,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
   res.json(updated);
 });
 

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition');
 const ExportHistory = require('../models/ExportHistory');
+const { logActivity } = require('../services/activityLog');
 const {
   buildPdf,
   buildXlsx,
@@ -256,6 +257,24 @@ exports.exportIssuance = asyncHandler(async (req, res) => {
   const safeId = String(slipData.id).replace(/[^\w.-]/g, '_');
   const filename = `issuance-slip-${safeId}.${format}`;
 
+  if (!req.params.id && req.params.slip) {
+    req.params.id = req.params.slip;
+  }
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Report',
+        action: 'ISSUANCE_EXPORTED',
+        description: `Exported issuance slip for request ${req.params.id}`,
+        reference: req.params.id,
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
+
   res.setHeader('Content-Type', MIME[format]);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(file);
@@ -330,6 +349,21 @@ exports.exportReport = asyncHandler(async (req, res) => {
 
   const stamp = new Date().toISOString().slice(0, 10);
   const filename = `${type}-report-${stamp}.${format}`;
+
+  try {
+    await logActivity(
+      req.user,
+      {
+        category: 'Report',
+        action: 'REPORT_EXPORTED',
+        description: `Exported ${type} report as ${format.toUpperCase()}`,
+        reference: format.toUpperCase(),
+      },
+      req
+    );
+  } catch (logErr) {
+    console.error('logActivity error:', logErr);
+  }
 
   res.setHeader('Content-Type', MIME[format]);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

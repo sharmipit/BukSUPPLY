@@ -44,6 +44,14 @@ const itemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+itemSchema.virtual('itemCode').get(function () {
+  return this.code;
+});
+
+itemSchema.virtual('lowStockThreshold').get(function () {
+  return this.reorderLevel;
+});
+
 // Shapes the JSON exactly like the React pages expect:
 // id = "ITM-001" (display + API path), _id = Mongo id (used by requisitions)
 itemSchema.set('toJSON', {
