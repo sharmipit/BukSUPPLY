@@ -1683,7 +1683,7 @@ const Dashboard = ({
             </div>
           </div>
 
-          <div className="db-table-wrapper">
+          <div className="db-table-wrapper db-no-scroll">
             <table className="db-table db-users-table">
               <thead>
                 <tr>
@@ -1728,7 +1728,9 @@ const Dashboard = ({
                         if (e.key === 'Enter' && e.target === e.currentTarget) setUserDetailsTarget(u);
                       }}
                     >
-                      <td className="db-user-id">{u.id}</td>
+                      <td className="db-user-id" title={u.id}>
+                        {u.id}
+                      </td>
                       <td>
                         <div className="db-strong db-cell-clamp" title={u.name}>
                           {shortName(u.name)}

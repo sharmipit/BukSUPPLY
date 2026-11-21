@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import ClearNotificationsModal from '../../components/ClearNotificationsModal';
+import NotificationDetailsModal from '../../components/NotificationDetailsModal';
 import '../../styles/user/Notifications.css';
 
 export default function Notifications() {
@@ -19,6 +20,10 @@ export default function Notifications() {
 
   const [filterTab, setFilterTab] = useState('All');
   const [clearModalOpen, setClearModalOpen] = useState(false);
+
+  // The notification whose full details are shown in the modal (stored by id so it stays current)
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = notifications.find((n) => n.id === selectedId) || null;
 
   // Loads on open, then quietly re-checks every 30 seconds for new alerts
   useEffect(() => {
@@ -59,16 +64,28 @@ export default function Notifications() {
     api.patch('/notifications/read-all').catch(() => {});
   };
 
-  const handleDeleteNotification = (e, id) => {
-    e.stopPropagation();
+  const removeNotification = (id) => {
     setNotifications((list) => list.filter((n) => n.id !== id));
     api.delete(`/notifications/${id}`).catch(() => {});
+  };
+
+  const handleDeleteNotification = (e, id) => {
+    e.stopPropagation();
+    removeNotification(id);
   };
 
   const handleConfirmClearAll = () => {
     setNotifications([]);
     setClearModalOpen(false);
     api.delete('/notifications').catch(() => {});
+  };
+
+  // Open the details modal (skipped when the user is just selecting text) and mark it as read
+  const openDetails = (notif) => {
+    const selection = window.getSelection ? window.getSelection().toString() : '';
+    if (selection) return;
+    if (!notif.read) handleMarkAsRead(notif.id);
+    setSelectedId(notif.id);
   };
 
   return (
@@ -152,8 +169,18 @@ export default function Notifications() {
             filteredNotifications.map((notif) => (
               <div
                 key={notif.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`View details of ${notif.title}`}
                 className={`notification-item-card ${notif.read ? 'read' : 'unread'}`}
-                onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+                onClick={() => openDetails(notif)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openDetails(notif);
+                  }
+                }}
               >
                 <div className={`notif-icon-badge ${notif.type}`}>
                   {notif.type === 'success' && <i className="bi bi-check-circle-fill"></i>}
@@ -203,6 +230,16 @@ export default function Notifications() {
           )}
         </div>
       </div>
+
+      {/* Notification details modal */}
+      <NotificationDetailsModal
+        notification={selected}
+        onClose={() => setSelectedId(null)}
+        onDelete={(notif) => {
+          setSelectedId(null);
+          removeNotification(notif.id);
+        }}
+      />
 
       {/* Clear All Notifications Confirmation Modal */}
       <ClearNotificationsModal
