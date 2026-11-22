@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -30,8 +30,9 @@ jobs:
 
       - name: Install MongoDB Database Tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mongodb-database-tools
+          wget -q https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb
+          sudo apt-get install -y ./mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb
+          mongodump --version
 
       - name: Mask secrets
         run: |
