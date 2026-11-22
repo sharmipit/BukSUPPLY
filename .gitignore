@@ -37,6 +37,8 @@ Thumbs.db
 # ===== Misc =====
 coverage/
 *.tmp
+backups/
+*.gz
 
 # ===== System Settings =====
 data/

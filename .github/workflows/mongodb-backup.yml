@@ -1,0 +1,48 @@
+name: MongoDB Atlas Automated Backup
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Install MongoDB Database Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mongodb-database-tools
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.MONGODB_URI }}"
+          echo "::add-mask::${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}"
+          echo "::add-mask::${{ secrets.GDRIVE_FOLDER_ID }}"
+
+      - name: Run backup and upload to Google Drive
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          GDRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          node backend/scripts/backup.js --upload-drive
