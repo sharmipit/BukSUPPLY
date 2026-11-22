@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import FilterDropdown from "../../components/FilterDropdown";
 import PasswordStrength from "../../components/PasswordStrength";
+import DecisionModal from "../../components/DecisionModal";
 import {
   ID_KIND,
-  LIMITS,
   typeName,
   formatName,
   nameProblem,
@@ -14,8 +14,6 @@ import {
   typePassword,
   passwordProblem,
   confirmProblem,
-  typeReason,
-  reasonProblem,
   typeSearch,
 } from "../../utils/fieldRules";
 import "../../styles/admin/UserManagement.css";
@@ -89,241 +87,10 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-/* Modals */
-
-function ConfirmModal({
-  isOpen,
-  title,
-  message,
-  confirmLabel,
-  onConfirm,
-  onClose,
-}) {
-  if (!isOpen) return null;
-  return (
-    <div className="um-modal-backdrop" onClick={onClose}>
-      <div
-        className="um-modal"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="um-confirm-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="um-modal-header">
-          <h3 id="um-confirm-title">{title}</h3>
-          <button
-            type="button"
-            className="um-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <div className="um-modal-body">
-          <p className="um-confirm-text">{message}</p>
-        </div>
-
-        <div className="um-modal-footer">
-          <button type="button" className="um-btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="um-btn-primary" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Asks for a written reason / note before an action (deactivate, reactivate, decline a request).
- * onConfirm(text) may throw: the message is shown inside the pop-up.
- * `message` can be plain text or JSX (so the user's name can be bold).
- */
-function ReasonModal({
-  isOpen,
-  title,
-  message,
-  label,
-  placeholder,
-  required,
-  minLength = LIMITS.reason.min,
-  maxLength = LIMITS.reason.max,
-  confirmLabel,
-  danger,
-  suggestions = [],
-  onConfirm,
-  onClose,
-}) {
-  const [text, setText] = useState("");
-  const [error, setError] = useState(""); // problem found on blur / submit, or from the server
-  const [notice, setNotice] = useState(""); // rule just broken while typing
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setText("");
-      setError("");
-      setNotice("");
-      setBusy(false);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  // A required reason must be chosen or typed before the button works
-  const reasonMissing = required && text.trim().length < minLength;
-
-  const check = (value) =>
-    reasonProblem(value, { required, min: minLength, max: maxLength, label: label || "This field" });
-
-  const handleChange = (e) => {
-    const { value, notice: typed } = typeReason(e.target.value, maxLength);
-    setText(value);
-    setNotice(typed);
-    setError("");
-  };
-
-  // Leaving the box: check it (only if something was typed)
-  const handleBlur = () => {
-    setNotice("");
-    if (text.trim()) setError(check(text));
-  };
-
-  // Counter only appears when the limit is close
-  const showCount = text.length >= Math.floor(maxLength * 0.8);
-  const fieldMessage = notice || error;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const value = text.trim();
-    const problem = check(value);
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      await onConfirm(value);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="um-modal-backdrop" onClick={onClose}>
-      <div
-        className="um-modal um-modal-reason"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="um-reason-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="um-modal-header">
-          <h3 id="um-reason-title">{title}</h3>
-          <button
-            type="button"
-            className="um-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <form className="um-modal-form" onSubmit={handleSubmit} noValidate>
-          <div className="um-modal-body">
-            <p className="um-confirm-text">{message}</p>
-
-            <div className="um-field">
-              <label htmlFor="um-reason">
-                {label} {!required && <span className="um-optional">(optional)</span>}
-              </label>
-              {suggestions.length > 0 && (
-                <div
-                  className="um-chips"
-                  role="group"
-                  aria-label="Suggested comments"
-                >
-                  {suggestions.map((sug) => (
-                    <button
-                      key={sug}
-                      type="button"
-                      className={`um-chip${text === sug ? " selected" : ""}`}
-                      onClick={() => {
-                        setText(sug);
-                        setError("");
-                      }}
-                    >
-                      {sug}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <textarea
-                id="um-reason"
-                className={`um-input um-textarea${fieldMessage ? " invalid" : ""}`}
-                rows={4}
-                placeholder={placeholder}
-                value={text}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                aria-invalid={Boolean(fieldMessage)}
-              />
-              {(fieldMessage || showCount) && (
-                <div className="um-field-meta">
-                  {fieldMessage ? (
-                    <span className="um-field-error" role="alert">
-                      {fieldMessage}
-                    </span>
-                  ) : (
-                    <span />
-                  )}
-                  {showCount && (
-                    <span
-                      className={`um-char-count${text.length >= maxLength ? " at-limit" : ""}`}
-                    >
-                      {text.length}/{maxLength}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="um-modal-footer">
-            <button
-              type="button"
-              className="um-btn-secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={danger ? "um-btn-danger" : "um-btn-primary"}
-              disabled={busy || reasonMissing}
-              title={
-                reasonMissing
-                  ? "Choose a suggestion or write a reason first"
-                  : undefined
-              }
-            >
-              {busy ? "Please wait..." : confirmLabel}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+/* ------------------------------------------------------------------ */
+/* Modals                                                              */
+/* (confirmations and reasons use the shared DecisionModal)            */
+/* ------------------------------------------------------------------ */
 
 // One label + value pair inside a detail card
 // multiline = long free text that may wrap
@@ -581,7 +348,7 @@ function UserDetailsModal({
   );
 }
 
-// Create moderator: the rules are shared (utils/fieldRules.js)
+/* ---- Create moderator: the rules are shared (utils/fieldRules.js) ---- */
 // Moderators sign in with the staff address, so they use the same ID format as staff (P-0000)
 const MODERATOR_ID_KIND = ID_KIND.staff;
 const MODERATOR_EMAIL = {
@@ -946,7 +713,9 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   );
 }
 
-/* Page */
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
 
 export default function UserManagement() {
   useEffect(() => {
@@ -1003,7 +772,7 @@ export default function UserManagement() {
     },
   ];
 
-  // Three-dots menu: open, place, close
+  /* ---- Three-dots menu: open, place, close ---- */
   const openMenu = (e, u) => {
     e.stopPropagation(); // the row itself opens the details pop-up
     if (menu && menu.user._id === u._id) {
@@ -1042,13 +811,13 @@ export default function UserManagement() {
     };
   }, [menu]);
 
-  // Debounce search so we don't hit the API on every keystroke
+  /* ---- Debounce search so we don't hit the API on every keystroke ---- */
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // Fetch users whenever filter / search / page changes
+  /* ---- Fetch users whenever filter / search / page changes ---- */
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
@@ -1081,7 +850,7 @@ export default function UserManagement() {
     return () => controller.abort();
   }, [activeFilter, debouncedSearch, currentPage, refreshKey]);
 
-  // Pagination (server-side)
+  /* ---- Pagination (server-side) ---- */
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
   const handleFilterChange = (filter) => {
@@ -1094,7 +863,7 @@ export default function UserManagement() {
     setCurrentPage(1);
   };
 
-  // Actions
+  /* ---- Actions ---- */
   const handleCreateModerator = async (data) => {
     // Throws on error; the modal catches it and shows the message
     await apiFetch("/moderators", {
@@ -1113,7 +882,7 @@ export default function UserManagement() {
     });
   };
 
-  // Throws on error; the pop-up shows the message
+  // The handlers below throw on error; the pop-up shows the message
   const handleConfirmDeactivate = async (reason) => {
     const target = deactivateTarget;
     await apiFetch(`/${target._id}/deactivate`, {
@@ -1142,7 +911,6 @@ export default function UserManagement() {
     });
   };
 
-  // Throws on error; the pop-up shows the message
   const handleConfirmReactivate = async (reason) => {
     const target = reactivateTarget;
     await apiFetch(`/${target._id}/reactivate`, {
@@ -1159,35 +927,27 @@ export default function UserManagement() {
 
   // Archive: hides a deactivated account from the normal lists (it is never deleted)
   const handleConfirmArchive = async () => {
-    if (archiveTarget) {
-      try {
-        await apiFetch(`/${archiveTarget._id}/archive`, { method: "PATCH" });
-        setRefreshKey((k) => k + 1);
-        setNotice({
-          type: "success",
-          text: `${archiveTarget.name} (${archiveTarget.id}) was archived.`,
-        });
-      } catch (err) {
-        setLoadError(err.message);
-      }
-    }
+    const target = archiveTarget;
+    if (!target) return;
+    await apiFetch(`/${target._id}/archive`, { method: "PATCH" });
     setArchiveTarget(null);
+    setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `${target.name} (${target.id}) was archived.`,
+    });
   };
 
   const handleConfirmUnarchive = async () => {
-    if (unarchiveTarget) {
-      try {
-        await apiFetch(`/${unarchiveTarget._id}/unarchive`, { method: "PATCH" });
-        setRefreshKey((k) => k + 1);
-        setNotice({
-          type: "success",
-          text: `${unarchiveTarget.name} (${unarchiveTarget.id}) was unarchived.`,
-        });
-      } catch (err) {
-        setLoadError(err.message);
-      }
-    }
+    const target = unarchiveTarget;
+    if (!target) return;
+    await apiFetch(`/${target._id}/unarchive`, { method: "PATCH" });
     setUnarchiveTarget(null);
+    setRefreshKey((k) => k + 1);
+    setNotice({
+      type: "success",
+      text: `${target.name} (${target.id}) was unarchived.`,
+    });
   };
 
   // One helper for the loading / empty rows
@@ -1493,7 +1253,7 @@ export default function UserManagement() {
         }}
       />
 
-      <ReasonModal
+      <DecisionModal
         isOpen={!!deactivateTarget}
         title="Deactivate account?"
         message={
@@ -1511,16 +1271,17 @@ export default function UserManagement() {
         label="Reason for deactivation"
         placeholder="Pick a suggestion above or write your own"
         suggestions={DEACTIVATE_SUGGESTIONS}
+        hint="The user will see this reason."
         required
         minLength={5}
         maxLength={300}
         confirmLabel="Deactivate"
-        danger
+        tone="danger"
         onConfirm={handleConfirmDeactivate}
         onClose={() => setDeactivateTarget(null)}
       />
 
-      <ReasonModal
+      <DecisionModal
         isOpen={!!declineTarget}
         title="Decline request?"
         message={
@@ -1537,13 +1298,14 @@ export default function UserManagement() {
         label="Note to the user"
         placeholder="Pick a suggestion above or write your own"
         suggestions={DECLINE_SUGGESTIONS}
+        hint="The user will see this note."
         maxLength={300}
         confirmLabel="Decline request"
         onConfirm={handleConfirmDecline}
         onClose={() => setDeclineTarget(null)}
       />
 
-      <ReasonModal
+      <DecisionModal
         isOpen={!!reactivateTarget}
         title="Reactivate account?"
         message={
@@ -1560,6 +1322,7 @@ export default function UserManagement() {
         label="Reason for reactivation"
         placeholder="Pick a suggestion above or write your own"
         suggestions={REACTIVATE_SUGGESTIONS}
+        hint="The user will see this reason."
         required
         minLength={5}
         maxLength={300}
@@ -1568,7 +1331,7 @@ export default function UserManagement() {
         onClose={() => setReactivateTarget(null)}
       />
 
-      <ConfirmModal
+      <DecisionModal
         isOpen={!!archiveTarget}
         title="Archive account?"
         message={
@@ -1588,7 +1351,7 @@ export default function UserManagement() {
         onClose={() => setArchiveTarget(null)}
       />
 
-      <ConfirmModal
+      <DecisionModal
         isOpen={!!unarchiveTarget}
         title="Unarchive account?"
         message={

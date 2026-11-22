@@ -7,6 +7,7 @@ import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../api/reports'
 import { shortName } from '../utils/formatName';
 import FilterDropdown from '../components/FilterDropdown';
 import IssuanceSlipPreview from '../components/IssuanceSlipPreview';
+import DecisionModal from '../components/DecisionModal';
 import '../styles/Requests.css';
 
 // Flow: Pending -> Processing -> Approved (ready for release) -> Accepted (claimed)
@@ -26,6 +27,9 @@ const DEFAULT_CATEGORIES = [
 ];
 const NEW_CATEGORY = '__new__';
 
+// Longest remark or reason a moderator can write when approving or denying
+const REMARK_MAX = 300;
+
 // Pre-written remarks (moderators can pick one, then edit it freely)
 const APPROVE_PRESETS = [
   'Approved. You may claim the item(s) at the Supply Office.',
@@ -42,7 +46,7 @@ const DENY_PRESETS = [
   'Please resubmit with a smaller quantity.',
 ];
 
-// Helpers
+// ---------- Helpers ----------
 const isOpen = (req) => OPEN_STATUSES.includes(req.status);
 const hasPurchaseItems = (req) => (req.purchaseItems || []).length > 0;
 
@@ -182,37 +186,6 @@ function Stepper({ req }) {
   );
 }
 
-// Preset chips + editable textarea
-function RemarksField({ id, label, presets, value, onChange, hint }) {
-  return (
-    <div className="rq-field">
-      <label htmlFor={id}>{label}</label>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-        {presets.map((p) => (
-          <button
-            type="button"
-            key={p}
-            className={`rq-btn-action ${value === p ? 'rq-btn-review' : 'rq-btn-view'}`}
-            style={{ textAlign: 'left', whiteSpace: 'normal' }}
-            onClick={() => onChange(p)}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-      <textarea
-        id={id}
-        className="form-control custom-input rq-textarea"
-        rows="3"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Pick a template above or write your own"
-      />
-      {hint && <span className="rq-hint">{hint}</span>}
-    </div>
-  );
-}
-
 export default function Requests() {
   useEffect(() => {
     document.title = 'Requests | BukSUPPLY';
@@ -244,7 +217,6 @@ export default function Requests() {
 
   const [detailsId, setDetailsId] = useState(null);
   const [decision, setDecision] = useState(null); // {type: approve|release|deny|undo, id}
-  const [remarks, setRemarks] = useState('');
   const [slipId, setSlipId] = useState(null);
   const [slipBusy, setSlipBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
@@ -389,12 +361,10 @@ export default function Requests() {
   const openDecision = (type, id) => {
     setActionError('');
     setDecision({ type, id });
-    setRemarks('');
   };
   const closeDecision = () => {
     setActionError('');
     setDecision(null);
-    setRemarks('');
   };
 
   const openReceive = (reqId, line) => {
@@ -464,9 +434,10 @@ export default function Requests() {
     closeDetails();
   };
 
-  const handleConfirmDecision = async () => {
+  // Called by the shared DecisionModal with the remark / reason text (empty for release and undo)
+  const handleConfirmDecision = async (value) => {
     if (!decisionReq || busy) return;
-    const text = remarks.trim();
+    const text = String(value || '').trim();
 
     if (decision.type === 'approve') {
       if (!text) return;
@@ -1060,137 +1031,112 @@ export default function Requests() {
         </div>
       )}
 
-      {/* Approve / Release / Deny / Undo Confirmation Modal */}
+      {/* Approve / Release / Deny / Undo confirmation (shared DecisionModal) */}
       {decisionReq && (
-        <div className="rq-modal-backdrop rq-modal-backdrop-top" onClick={closeDecision}>
-          <div
-            className="rq-modal rq-modal-sm"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="rq-modal-header">
-              <h3>{decisionTitle[decision.type]}</h3>
-              <button className="rq-modal-close" onClick={closeDecision} aria-label="Close">
-                <i className="bi bi-x-lg"></i>
-              </button>
-            </div>
+        <DecisionModal
+          key={`${decision.type}-${decisionReq.id}`}
+          title={decisionTitle[decision.type]}
+          message={
+            <>
+              <strong>{decisionReq.id}</strong> · {decisionReq.title}
+            </>
+          }
+          tone={decision.type === 'deny' ? 'danger' : 'primary'}
+          label={
+            decision.type === 'approve'
+              ? 'Remarks for the requester'
+              : decision.type === 'deny'
+                ? 'Reason for denial'
+                : undefined
+          }
+          placeholder="Pick a template above or write your own"
+          suggestions={
+            decision.type === 'approve'
+              ? APPROVE_PRESETS
+              : decision.type === 'deny'
+                ? DENY_PRESETS
+                : []
+          }
+          required
+          minLength={5}
+          maxLength={REMARK_MAX}
+          hint={
+            decision.type === 'approve'
+              ? 'The requester will see this. Nothing is deducted until the items are claimed.'
+              : decision.type === 'deny'
+                ? 'The requester will see this reason.'
+                : undefined
+          }
+          confirmLabel={decisionButton[decision.type]}
+          note={
+            <>
+              Recorded under <strong>{actorName}</strong>.
+            </>
+          }
+          error={actionError}
+          busy={busy}
+          onConfirm={handleConfirmDecision}
+          onClose={closeDecision}
+        >
+          {decision.type === 'deny' && decisionReq.status === 'Approved' && (
+            <p className="rq-muted-text">
+              The items were never released, so nothing will be deducted from the inventory.
+            </p>
+          )}
 
-            <div className="rq-modal-body">
-              <p className="rq-confirm-text">
-                <strong>{decisionReq.id}</strong> · {decisionReq.title}
-              </p>
-
-              {decision.type === 'approve' && (
-                <RemarksField
-                  id="rq-approve-remarks"
-                  label="Remarks for the requester"
-                  presets={APPROVE_PRESETS}
-                  value={remarks}
-                  onChange={setRemarks}
-                  hint="The requester will see this. Nothing is deducted until the items are claimed."
-                />
-              )}
-
-              {decision.type === 'deny' && (
+          {decision.type === 'release' && (
+            <>
+              {decisionCheck.lines.length > 0 && (
                 <>
-                  {decisionReq.status === 'Approved' && (
-                    <p className="rq-muted-text">
-                      The items were never released, so nothing will be deducted from the inventory.
-                    </p>
-                  )}
-                  <RemarksField
-                    id="rq-deny-reason"
-                    label="Reason for denial"
-                    presets={DENY_PRESETS}
-                    value={remarks}
-                    onChange={setRemarks}
-                    hint="The requester will see this reason."
-                  />
+                  <p className="rq-muted-text">This will deduct from inventory:</p>
+                  <ul className="rq-deduct-list">
+                    {decisionCheck.lines.map((l, idx) => (
+                      <li key={`${l.inventoryItemId}-${idx}`}>
+                        <span>{l.name || l.inv?.name}</span>
+                        <span>
+                          {l.inv
+                            ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
+                            : 'Not in inventory'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
-
-              {decision.type === 'release' && (
+              {hasPurchaseItems(decisionReq) && (
                 <>
-                  {decisionCheck.lines.length > 0 && (
-                    <>
-                      <p className="rq-muted-text">This will deduct from inventory:</p>
-                      <ul className="rq-deduct-list">
-                        {decisionCheck.lines.map((l, idx) => (
-                          <li key={`${l.inventoryItemId}-${idx}`}>
-                            <span>{l.name || l.inv?.name}</span>
-                            <span>
-                              {l.inv
-                                ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
-                                : 'Not in inventory'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {hasPurchaseItems(decisionReq) && (
-                    <>
-                      <p className="rq-muted-text">
-                        Purchased items, handed out from the inventory:
-                      </p>
-                      <ul className="rq-deduct-list">
-                        {decisionCheck.purchaseLines.map((p, idx) => (
-                          <li key={idx}>
-                            <span>{p.name}</span>
-                            <span>
-                              {p.inv
-                                ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
-                                : 'Not in inventory'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {decisionCheck.lines.length === 0 && !hasPurchaseItems(decisionReq) && (
-                    <p className="rq-muted-text">
-                      No stock items on this request, so nothing will be deducted.
-                    </p>
-                  )}
+                  <p className="rq-muted-text">Purchased items, handed out from the inventory:</p>
+                  <ul className="rq-deduct-list">
+                    {decisionCheck.purchaseLines.map((p, idx) => (
+                      <li key={idx}>
+                        <span>{p.name}</span>
+                        <span>
+                          {p.inv
+                            ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
+                            : 'Not in inventory'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
-
-              {decision.type === 'undo' && (
+              {decisionCheck.lines.length === 0 && !hasPurchaseItems(decisionReq) && (
                 <p className="rq-muted-text">
-                  This moves the request from <strong>{decisionReq.status}</strong> back to{' '}
-                  <strong>{getUndoTarget(decisionReq)}</strong>.
-                  {decisionReq.status === 'Accepted' &&
-                    ' The stock that was deducted when it was claimed will be returned to the inventory.'}
+                  No stock items on this request, so nothing will be deducted.
                 </p>
               )}
+            </>
+          )}
 
-              <p className="rq-audit-note">
-                Recorded under <strong>{actorName}</strong>.
-              </p>
-
-              {actionError && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{actionError}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="rq-modal-footer">
-              <button className="rq-btn-secondary" onClick={closeDecision}>
-                Cancel
-              </button>
-              <button
-                className={decision.type === 'deny' ? 'rq-btn-danger' : 'rq-btn-primary'}
-                onClick={handleConfirmDecision}
-                disabled={busy || (['approve', 'deny'].includes(decision.type) && !remarks.trim())}
-              >
-                {busy ? 'Saving...' : decisionButton[decision.type]}
-              </button>
-            </div>
-          </div>
-        </div>
+          {decision.type === 'undo' && (
+            <p className="rq-muted-text">
+              This moves the request from <strong>{decisionReq.status}</strong> back to{' '}
+              <strong>{getUndoTarget(decisionReq)}</strong>.
+              {decisionReq.status === 'Accepted' &&
+                ' The stock that was deducted when it was claimed will be returned to the inventory.'}
+            </p>
+          )}
+        </DecisionModal>
       )}
 
       {/* Issuance slip preview (same look as the System Reports PDF preview) */}

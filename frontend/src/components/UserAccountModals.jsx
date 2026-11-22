@@ -1,5 +1,6 @@
 // Shared user-account modals (Admin)
 import React, { useState, useEffect } from "react";
+import DecisionModal from "./DecisionModal";
 
 // Predefined reason suggestions for admin actions
 export const DEACTIVATE_SUGGESTIONS = [
@@ -68,7 +69,9 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
-// Modals
+// Modals (both are thin wrappers around the shared DecisionModal)
+
+// Plain confirmation (archive, unarchive)
 export function ConfirmModal({
   isOpen,
   title,
@@ -77,42 +80,15 @@ export function ConfirmModal({
   onConfirm,
   onClose,
 }) {
-  if (!isOpen) return null;
   return (
-    <div className="um-modal-backdrop" onClick={onClose}>
-      <div
-        className="um-modal"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="um-confirm-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="um-modal-header">
-          <h3 id="um-confirm-title">{title}</h3>
-          <button
-            type="button"
-            className="um-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <div className="um-modal-body">
-          <p className="um-confirm-text">{message}</p>
-        </div>
-
-        <div className="um-modal-footer">
-          <button type="button" className="um-btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="um-btn-primary" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <DecisionModal
+      isOpen={isOpen}
+      title={title}
+      message={message}
+      confirmLabel={confirmLabel}
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
   );
 }
 
@@ -124,7 +100,7 @@ export function ReasonModal({
   label,
   placeholder,
   required,
-  minLength = 5,
+  minLength,
   maxLength = 300,
   confirmLabel,
   danger,
@@ -133,137 +109,23 @@ export function ReasonModal({
   onConfirm,
   onClose,
 }) {
-  const [text, setText] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setText("");
-      setError("");
-      setBusy(false);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  // A required reason must be chosen or typed before the button works
-  const reasonMissing = required && text.trim().length < minLength;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const value = text.trim();
-    if (required && value.length < minLength) {
-      setError(`Please enter at least ${minLength} characters.`);
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      await onConfirm(value);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className="um-modal-backdrop" onClick={onClose}>
-      <div
-        className="um-modal um-modal-reason"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="um-reason-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="um-modal-header">
-          <h3 id="um-reason-title">{title}</h3>
-          <button
-            type="button"
-            className="um-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <form className="um-modal-form" onSubmit={handleSubmit} noValidate>
-          <div className="um-modal-body">
-            <p className="um-confirm-text">{message}</p>
-
-            <div className="um-field">
-              <label htmlFor="um-reason">
-                {label} {!required && <span className="um-optional">(optional)</span>}
-              </label>
-              {suggestions.length > 0 && (
-                <div
-                  className="um-chips"
-                  role="group"
-                  aria-label="Suggested comments"
-                >
-                  {suggestions.map((sug) => (
-                    <button
-                      key={sug}
-                      type="button"
-                      className={`um-chip${text === sug ? " selected" : ""}`}
-                      onClick={() => {
-                        setText(sug);
-                        setError("");
-                      }}
-                    >
-                      {sug}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <textarea
-                id="um-reason"
-                className="um-input um-textarea"
-                rows={4}
-                maxLength={maxLength}
-                placeholder={placeholder}
-                value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  setError("");
-                }}
-              />
-              <div className="um-field-meta">
-                {hint ? <span className="um-hint">{hint}</span> : <span />}
-                <span className="um-char-count">
-                  {text.length}/{maxLength}
-                </span>
-              </div>
-              {error && <span className="um-field-error">{error}</span>}
-            </div>
-          </div>
-
-          <div className="um-modal-footer">
-            <button
-              type="button"
-              className="um-btn-secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={danger ? "um-btn-danger" : "um-btn-primary"}
-              disabled={busy || reasonMissing}
-              title={
-                reasonMissing
-                  ? "Choose a suggestion or write a reason first"
-                  : undefined
-              }
-            >
-              {busy ? "Please wait..." : confirmLabel}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <DecisionModal
+      isOpen={isOpen}
+      title={title}
+      message={message}
+      tone={danger ? "danger" : "primary"}
+      label={label}
+      placeholder={placeholder}
+      suggestions={suggestions}
+      required={required}
+      minLength={minLength}
+      maxLength={maxLength}
+      hint={hint}
+      confirmLabel={confirmLabel}
+      onConfirm={onConfirm}
+      onClose={onClose}
+    />
   );
 }
 

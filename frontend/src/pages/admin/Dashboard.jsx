@@ -8,6 +8,7 @@ import api, { errMsg } from '../../api/client';
 import { downloadIssuanceSlip, downloadIssuanceSlipExcel } from '../../api/reports';
 import { shortName } from '../../utils/formatName';
 import IssuanceSlipPreview from '../../components/IssuanceSlipPreview';
+import DecisionModal from '../../components/DecisionModal';
 import {
   ConfirmModal,
   ReasonModal,
@@ -22,6 +23,9 @@ import '../../styles/admin/Dashboard.css';
 import '../../styles/Requests.css';
 import '../../styles/Inventory.css';
 import '../../styles/admin/UserManagement.css';
+
+// Longest remark or reason a moderator can write when approving or denying
+const REMARK_MAX = 300;
 
 // Flow: Pending -> Processing -> Approved (ready for release) -> Accepted (claimed)
 const OPEN_STATUSES = ['Pending', 'Processing', 'Approved'];
@@ -93,7 +97,7 @@ const EMPTY_FORM = {
   maxNormal: '',
 };
 
-// Field rules
+// ---------- Field rules ----------
 // Same rules as the Inventory page and the top of routes/inventory.js (the server has the final say).
 const LIMITS = {
   name: 80,
@@ -308,7 +312,9 @@ function FormSelect({
   );
 }
 
-/* Helpers (shared with the Requests and Inventory pages) */
+/* ------------------------------------------------------------------ */
+/* Helpers (shared with the Requests and Inventory pages)              */
+/* ------------------------------------------------------------------ */
 
 const getStockStatus = (item) => {
   if (item.quantity <= 0) return 'Out of Stock';
@@ -474,38 +480,9 @@ function Stepper({ req }) {
   );
 }
 
-// Preset chips + editable textarea
-function RemarksField({ id, label, presets, value, onChange, hint }) {
-  return (
-    <div className="rq-field">
-      <label htmlFor={id}>{label}</label>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-        {presets.map((p) => (
-          <button
-            type="button"
-            key={p}
-            className={`rq-btn-action ${value === p ? 'rq-btn-review' : 'rq-btn-view'}`}
-            style={{ textAlign: 'left', whiteSpace: 'normal' }}
-            onClick={() => onChange(p)}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-      <textarea
-        id={id}
-        className="form-control custom-input rq-textarea"
-        rows="3"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Pick a template above or write your own"
-      />
-      {hint && <span className="rq-hint">{hint}</span>}
-    </div>
-  );
-}
-
-/* Page */
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
 
 const Dashboard = ({
   inventory: inventoryProp, // optional: falls back to the live inventory hook
@@ -648,11 +625,12 @@ const Dashboard = ({
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /* Requisition slips: review, acknowledge, approve, release, deny */
+  /* ================================================================ */
+  /* Requisition slips: review, acknowledge, approve, release, deny    */
+  /* ================================================================ */
 
   const [detailsId, setDetailsId] = useState(null);
   const [decision, setDecision] = useState(null); // {type: approve|release|deny|undo, id}
-  const [remarks, setRemarks] = useState('');
   const [slipId, setSlipId] = useState(null);
   const [slipBusy, setSlipBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
@@ -731,13 +709,11 @@ const Dashboard = ({
   const openDecision = (type, id) => {
     setActionError('');
     setDecision({ type, id });
-    setRemarks('');
   };
 
   const closeDecision = () => {
     setActionError('');
     setDecision(null);
-    setRemarks('');
   };
 
   const openReceive = (reqId, line) => {
@@ -863,9 +839,10 @@ const Dashboard = ({
     closeDetails();
   };
 
-  const handleConfirmDecision = async () => {
+  // Called by the shared DecisionModal with the remark / reason text (empty for release and undo)
+  const handleConfirmDecision = async (value) => {
     if (!decisionReq || busy) return;
-    const text = remarks.trim();
+    const text = String(value || '').trim();
 
     if (decision.type === 'approve') {
       if (!text) return;
@@ -984,7 +961,9 @@ const Dashboard = ({
     </tr>
   );
 
-  /* Inventory: add, edit, adjust, history, archive */
+  /* ================================================================ */
+  /* Inventory: add, edit, adjust, history, archive                     */
+  /* ================================================================ */
 
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -1019,7 +998,7 @@ const Dashboard = ({
   const [archiveCheck, setArchiveCheck] = useState({ loading: false, list: [] });
   const archiveTargetRef = useRef(null);
 
-  // Disallowed-character messages
+  // ---------- Disallowed-character messages ----------
   // Sets a message only while the last keystroke / paste contained a disallowed character.
   const flagBlocked = (field, raw, kind) => {
     const msg =
@@ -1027,7 +1006,7 @@ const Dashboard = ({
     setBlocked((b) => ((b[field] || '') === msg ? b : { ...b, [field]: msg }));
   };
 
-  // Add / edit
+  // ---------- Add / edit ----------
   const resetFormState = () => {
     setCustomCategory('');
     setCustomUnit('');
@@ -1146,7 +1125,7 @@ const Dashboard = ({
     }
   };
 
-  // Adjust stock
+  // ---------- Adjust stock ----------
   const openAdjustModal = (item) => {
     setAdjustTarget(item);
     setAdjustAmount('');
@@ -1192,7 +1171,7 @@ const Dashboard = ({
     }
   };
 
-  // Archive. Nothing is deleted from the database.
+  // ---------- Archive. Nothing is deleted from the database. ----------
   const archiveBlocked = archiveCheck.list.length > 0;
   archiveTargetRef.current = archiveTarget ? archiveTarget.id : null;
 
@@ -1246,7 +1225,10 @@ const Dashboard = ({
     }
   };
 
-  // Users: details, deactivate, reactivate, decline, archive (same actions and pop-ups as User Management)
+  /* ================================================================ */
+  /* Users: details, deactivate, reactivate, decline, archive          */
+  /* (same actions and pop-ups as the User Management page)            */
+  /* ================================================================ */
 
   const [userDetailsTarget, setUserDetailsTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
@@ -1290,40 +1272,35 @@ const Dashboard = ({
     setNotice({ type: 'success', text: `${target.name} (${target.id}) was reactivated.` });
   };
 
-  // Archive hides a deactivated account from the normal lists (it is never deleted)
+  // Archive hides a deactivated account from the normal lists (it is never deleted).
+  // Errors are thrown so the pop-up shows the message.
   const handleConfirmUserArchive = async () => {
-    if (userArchiveTarget) {
-      try {
-        await apiFetch(`/${userArchiveTarget._id}/archive`, { method: 'PATCH' });
-        setUsersRefreshKey((k) => k + 1);
-        setNotice({
-          type: 'success',
-          text: `${userArchiveTarget.name} (${userArchiveTarget.id}) was archived.`,
-        });
-      } catch (err) {
-        setUsersError(err.message);
-      }
-    }
+    const target = userArchiveTarget;
+    if (!target) return;
+    await apiFetch(`/${target._id}/archive`, { method: 'PATCH' });
     setUserArchiveTarget(null);
+    setUsersRefreshKey((k) => k + 1);
+    setNotice({
+      type: 'success',
+      text: `${target.name} (${target.id}) was archived.`,
+    });
   };
 
   const handleConfirmUserUnarchive = async () => {
-    if (userUnarchiveTarget) {
-      try {
-        await apiFetch(`/${userUnarchiveTarget._id}/unarchive`, { method: 'PATCH' });
-        setUsersRefreshKey((k) => k + 1);
-        setNotice({
-          type: 'success',
-          text: `${userUnarchiveTarget.name} (${userUnarchiveTarget.id}) was unarchived.`,
-        });
-      } catch (err) {
-        setUsersError(err.message);
-      }
-    }
+    const target = userUnarchiveTarget;
+    if (!target) return;
+    await apiFetch(`/${target._id}/unarchive`, { method: 'PATCH' });
     setUserUnarchiveTarget(null);
+    setUsersRefreshKey((k) => k + 1);
+    setNotice({
+      type: 'success',
+      text: `${target.name} (${target.id}) was unarchived.`,
+    });
   };
 
-  /* Stats, shortcuts, preview rows */
+  /* ================================================================ */
+  /* Stats, shortcuts, preview rows                                    */
+  /* ================================================================ */
 
   // Calculate current month's requests to match Requests.jsx precisely
   const monthlyRequestsCount = useMemo(() => {
@@ -1786,7 +1763,9 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Requisition: details / review modal */}
+      {/* ============================================================ */}
+      {/* Requisition: details / review modal                           */}
+      {/* ============================================================ */}
       {detailsReq && (
         <div className="rq-modal-backdrop" onClick={closeDetails}>
           <div
@@ -2095,143 +2074,112 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Approve / Release / Deny / Undo confirmation */}
+      {/* Approve / Release / Deny / Undo confirmation (shared DecisionModal) */}
       {decisionReq && (
-        <div className="rq-modal-backdrop rq-modal-backdrop-top" onClick={closeDecision}>
-          <div
-            className="rq-modal rq-modal-sm"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="rq-modal-header">
-              <h3>{decisionTitle[decision.type]}</h3>
-              <button
-                type="button"
-                className="rq-modal-close"
-                onClick={closeDecision}
-                aria-label="Close"
-              >
-                <i className="bi bi-x-lg"></i>
-              </button>
-            </div>
+        <DecisionModal
+          key={`${decision.type}-${decisionReq.id}`}
+          title={decisionTitle[decision.type]}
+          message={
+            <>
+              <strong>{decisionReq.id}</strong> · {decisionReq.title}
+            </>
+          }
+          tone={decision.type === 'deny' ? 'danger' : 'primary'}
+          label={
+            decision.type === 'approve'
+              ? 'Remarks for the requester'
+              : decision.type === 'deny'
+                ? 'Reason for denial'
+                : undefined
+          }
+          placeholder="Pick a template above or write your own"
+          suggestions={
+            decision.type === 'approve'
+              ? APPROVE_PRESETS
+              : decision.type === 'deny'
+                ? DENY_PRESETS
+                : []
+          }
+          required
+          minLength={5}
+          maxLength={REMARK_MAX}
+          hint={
+            decision.type === 'approve'
+              ? 'The requester will see this. Nothing is deducted until the items are claimed.'
+              : decision.type === 'deny'
+                ? 'The requester will see this reason.'
+                : undefined
+          }
+          confirmLabel={decisionButton[decision.type]}
+          note={
+            <>
+              Recorded under <strong>{actorName}</strong>.
+            </>
+          }
+          error={actionError}
+          busy={busy}
+          onConfirm={handleConfirmDecision}
+          onClose={closeDecision}
+        >
+          {decision.type === 'deny' && decisionReq.status === 'Approved' && (
+            <p className="rq-muted-text">
+              The items were never released, so nothing will be deducted from the inventory.
+            </p>
+          )}
 
-            <div className="rq-modal-body">
-              <p className="rq-confirm-text">
-                <strong>{decisionReq.id}</strong> · {decisionReq.title}
-              </p>
-
-              {decision.type === 'approve' && (
-                <RemarksField
-                  id="db-approve-remarks"
-                  label="Remarks for the requester"
-                  presets={APPROVE_PRESETS}
-                  value={remarks}
-                  onChange={setRemarks}
-                  hint="The requester will see this. Nothing is deducted until the items are claimed."
-                />
-              )}
-
-              {decision.type === 'deny' && (
+          {decision.type === 'release' && (
+            <>
+              {decisionCheck.lines.length > 0 && (
                 <>
-                  {decisionReq.status === 'Approved' && (
-                    <p className="rq-muted-text">
-                      The items were never released, so nothing will be deducted from the inventory.
-                    </p>
-                  )}
-                  <RemarksField
-                    id="db-deny-reason"
-                    label="Reason for denial"
-                    presets={DENY_PRESETS}
-                    value={remarks}
-                    onChange={setRemarks}
-                    hint="The requester will see this reason."
-                  />
+                  <p className="rq-muted-text">This will deduct from inventory:</p>
+                  <ul className="rq-deduct-list">
+                    {decisionCheck.lines.map((l, idx) => (
+                      <li key={`${l.inventoryItemId}-${idx}`}>
+                        <span>{l.name || l.inv?.name}</span>
+                        <span>
+                          {l.inv
+                            ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
+                            : 'Not in inventory'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
-
-              {decision.type === 'release' && (
+              {hasPurchaseItems(decisionReq) && (
                 <>
-                  {decisionCheck.lines.length > 0 && (
-                    <>
-                      <p className="rq-muted-text">This will deduct from inventory:</p>
-                      <ul className="rq-deduct-list">
-                        {decisionCheck.lines.map((l, idx) => (
-                          <li key={`${l.inventoryItemId}-${idx}`}>
-                            <span>{l.name || l.inv?.name}</span>
-                            <span>
-                              {l.inv
-                                ? `${l.inv.quantity} → ${l.inv.quantity - l.qty} ${l.inv.unit}`
-                                : 'Not in inventory'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {hasPurchaseItems(decisionReq) && (
-                    <>
-                      <p className="rq-muted-text">
-                        Purchased items, handed out from the inventory:
-                      </p>
-                      <ul className="rq-deduct-list">
-                        {decisionCheck.purchaseLines.map((p, idx) => (
-                          <li key={idx}>
-                            <span>{p.name}</span>
-                            <span>
-                              {p.inv
-                                ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
-                                : 'Not in inventory'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {decisionCheck.lines.length === 0 && !hasPurchaseItems(decisionReq) && (
-                    <p className="rq-muted-text">
-                      No stock items on this request, so nothing will be deducted.
-                    </p>
-                  )}
+                  <p className="rq-muted-text">Purchased items, handed out from the inventory:</p>
+                  <ul className="rq-deduct-list">
+                    {decisionCheck.purchaseLines.map((p, idx) => (
+                      <li key={idx}>
+                        <span>{p.name}</span>
+                        <span>
+                          {p.inv
+                            ? `${p.inv.quantity} → ${p.inv.quantity - p.qty} ${p.inv.unit}`
+                            : 'Not in inventory'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
-
-              {decision.type === 'undo' && (
+              {decisionCheck.lines.length === 0 && !hasPurchaseItems(decisionReq) && (
                 <p className="rq-muted-text">
-                  This moves the request from <strong>{decisionReq.status}</strong> back to{' '}
-                  <strong>{getUndoTarget(decisionReq)}</strong>.
-                  {decisionReq.status === 'Accepted' &&
-                    ' The stock that was deducted when it was claimed will be returned to the inventory.'}
+                  No stock items on this request, so nothing will be deducted.
                 </p>
               )}
+            </>
+          )}
 
-              <p className="rq-audit-note">
-                Recorded under <strong>{actorName}</strong>.
-              </p>
-
-              {actionError && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{actionError}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="rq-modal-footer">
-              <button type="button" className="rq-btn-secondary" onClick={closeDecision}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={decision.type === 'deny' ? 'rq-btn-danger' : 'rq-btn-primary'}
-                onClick={handleConfirmDecision}
-                disabled={busy || (['approve', 'deny'].includes(decision.type) && !remarks.trim())}
-              >
-                {busy ? 'Saving...' : decisionButton[decision.type]}
-              </button>
-            </div>
-          </div>
-        </div>
+          {decision.type === 'undo' && (
+            <p className="rq-muted-text">
+              This moves the request from <strong>{decisionReq.status}</strong> back to{' '}
+              <strong>{getUndoTarget(decisionReq)}</strong>.
+              {decisionReq.status === 'Accepted' &&
+                ' The stock that was deducted when it was claimed will be returned to the inventory.'}
+            </p>
+          )}
+        </DecisionModal>
       )}
 
       {/* Issuance slip preview */}
@@ -3050,7 +2998,9 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Users: pop-ups (same as User Management) */}
+      {/* ============================================================ */}
+      {/* Users: pop-ups (same as User Management)                     */}
+      {/* ============================================================ */}
       <UserDetailsModal
         user={userDetailsTarget}
         onClose={() => setUserDetailsTarget(null)}
