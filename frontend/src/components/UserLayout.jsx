@@ -6,6 +6,7 @@ import usePage from '../hooks/usePage';
 import menuCss from '../styles/menu.css?raw';
 import LogoutModal from '../components/LogoutModal';
 import NotificationsModal from '../components/NotificationsModal';
+import PasswordSetupPrompt from '../components/PasswordSetupPrompt';
 
 import { DEFAULT_AVATAR, getAvatar } from '../utils/avatar';
 
@@ -458,6 +459,10 @@ export default function UserLayout() {
 
       {/* LOGOUT CONFIRMATION MODAL */}
       <LogoutModal isOpen={logoutOpen} onClose={() => setLogoutOpen(false)} />
+
+      {/* "Set an account password" reminder for accounts created with Google.
+          It renders nothing unless user.hasPassword === false and it was not snoozed. */}
+      <PasswordSetupPrompt />
     </div>
   );
 }

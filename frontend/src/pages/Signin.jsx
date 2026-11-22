@@ -6,9 +6,9 @@ import { useAuth, ROLE_HOME, homeFor } from '../context/AuthContext';
 import usePage from '../hooks/usePage';
 import usePublicConfig from '../hooks/usePublicConfig';
 import GoogleAuthButton from '../components/GoogleAuthButton';
+import PasswordStrength from '../components/PasswordStrength';
 import css from '../styles/signin.css?raw';
 
-// Matches institutional BukSU emails (@student.buksu.edu.ph or @buksu.edu.ph) and allowed test accounts.
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const EMAIL_MESSAGE =
   'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
@@ -199,7 +199,7 @@ export default function Signin() {
   const location = useLocation();
   const config = usePublicConfig(); // keys and on/off switches from System Settings
 
-  // Sign in form
+  // ---------- Sign in form ----------
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -223,6 +223,8 @@ export default function Signin() {
   const [welcomeBack, setWelcomeBack] = useState(null);
 
   const finishSignIn = ({ token, user }) => {
+    // A new sign-in shows the "set a password" reminder again (see PasswordSetupPrompt)
+    sessionStorage.removeItem('buksupply.pwPromptSnoozed');
     login(token, user);
     setBanner({ message: 'Signed in! Redirecting...', type: 'success' });
     navigate(homeFor(user.role), { replace: true });
@@ -320,7 +322,7 @@ export default function Signin() {
     return () => document.removeEventListener('keydown', onKey);
   }, [captchaOpen]);
 
-  // Google sign in
+  // ---------- Google sign in ----------
   const handleGoogle = async (credential) => {
     if (googleBusyRef.current) return;
     googleBusyRef.current = true;
@@ -349,7 +351,7 @@ export default function Signin() {
     }
   };
 
-  // Request reactivation modal
+  // ---------- Request reactivation modal ----------
   const [reactOpen, setReactOpen] = useState(false);
   const [reactMessage, setReactMessage] = useState('');
   const [reactAlert, setReactAlert] = useState(NO_BANNER);
@@ -425,7 +427,7 @@ export default function Signin() {
     }
   };
 
-  // Forgot / reset password modal
+  // ---------- Forgot / reset password modal ----------
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [resetEmail, setResetEmail] = useState('');
@@ -856,7 +858,7 @@ export default function Signin() {
                   </label>
                   <PasswordInput
                     id="newPassword"
-                    placeholder="At least 8 characters, with a letter and a number"
+                    placeholder="8+ characters, letter & number"
                     autoComplete="new-password"
                     value={newPass}
                     onChange={(e) => {
@@ -866,6 +868,7 @@ export default function Signin() {
                     visible={showNewPass}
                     onToggle={() => setShowNewPass((v) => !v)}
                   />
+                  <PasswordStrength password={newPass} />
                 </div>
 
                 <div className="form-group">

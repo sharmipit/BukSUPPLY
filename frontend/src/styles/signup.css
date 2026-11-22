@@ -781,11 +781,13 @@ body {
   flex-shrink: 0;
 }
 
+/* No bottom margin: the scrolling text must run right up to the underline,
+   so the line itself is what cuts the text off (no white gap below it) */
 .legal-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 10px 0 8px;
+  margin: 10px 0 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -864,8 +866,12 @@ body {
   color: var(--text-body);
 }
 
+/* ID number field (Google sign-up only).
+   The top border is a full-width divider that separates it from the scrolling text,
+   so the text no longer seems to disappear without an indicator. */
 .lgl-id-field {
-  padding: 4px 28px 12px;
+  padding: 14px 28px 12px;
+  border-top: 1px solid var(--card-border);
   flex-shrink: 0;
 }
 
@@ -955,7 +961,7 @@ body {
     padding: 14px 20px;
   }
   .lgl-id-field {
-    padding: 4px 20px 12px;
+    padding: 12px 20px 12px;
   }
   .lgl-footer {
     padding: 12px 20px 18px;

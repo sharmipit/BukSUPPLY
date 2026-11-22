@@ -17,6 +17,7 @@ const ACTION_META = {
   SIGN_OUT: { label: 'Signed out', tone: 'neutral' },
   SIGN_UP: { label: 'Account created', tone: 'success' },
   PROFILE_UPDATED: { label: 'Profile updated', tone: 'info' },
+  PASSWORD_SET: { label: 'Password set', tone: 'success' },
   ACCOUNT_DEACTIVATED: { label: 'Account deactivated', tone: 'danger' },
   REQUISITION_FILED: { label: 'Slip filed', tone: 'success' },
   REQUISITION_EDITED: { label: 'Slip edited', tone: 'info' },
