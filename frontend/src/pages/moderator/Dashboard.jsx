@@ -82,7 +82,7 @@ const EMPTY_FORM = {
   maxNormal: '',
 };
 
-// ---------- Field rules ----------
+// Field rules
 // Same rules as the Inventory page and the top of routes/inventory.js (the server has the final say).
 const LIMITS = {
   name: 80,
@@ -297,9 +297,7 @@ function FormSelect({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
+/* Helpers */
 
 const getStockStatus = (item) => {
   if (item.quantity <= 0) return 'Out of Stock';
@@ -482,9 +480,7 @@ function RemarksField({ id, label, presets, value, onChange, hint }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Main Component                                                     */
-/* ------------------------------------------------------------------ */
+/* Main Component */
 
 const Dashboard = ({
   inventory: inventoryProp,
@@ -576,9 +572,7 @@ const Dashboard = ({
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /* ================================================================ */
-  /* Requisition Slips State and Actions                              */
-  /* ================================================================ */
+  /* Requisition Slips State and Actions */
 
   const [detailsId, setDetailsId] = useState(null);
   const [decision, setDecision] = useState(null); // { type: 'approve' | 'release' | 'deny', id }
@@ -898,9 +892,7 @@ const Dashboard = ({
     </tr>
   );
 
-  /* ================================================================ */
-  /* Inventory Management State and Actions                           */
-  /* ================================================================ */
+  /* Inventory Management State and Actions */
 
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -935,7 +927,7 @@ const Dashboard = ({
   const [archiveCheck, setArchiveCheck] = useState({ loading: false, list: [] });
   const archiveTargetRef = useRef(null);
 
-  // ---------- Disallowed-character messages ----------
+  // Disallowed-character messages
   // Sets a message only while the last keystroke / paste contained a disallowed character.
   const flagBlocked = (field, raw, kind) => {
     const msg =
@@ -943,7 +935,7 @@ const Dashboard = ({
     setBlocked((b) => ((b[field] || '') === msg ? b : { ...b, [field]: msg }));
   };
 
-  // ---------- Add / edit ----------
+  // Add / edit
   const resetFormState = () => {
     setCustomCategory('');
     setCustomUnit('');
@@ -1062,7 +1054,7 @@ const Dashboard = ({
     }
   };
 
-  // ---------- Adjust stock ----------
+  // Adjust stock
   const openAdjustModal = (item) => {
     setAdjustTarget(item);
     setAdjustAmount('');
@@ -1108,7 +1100,7 @@ const Dashboard = ({
     }
   };
 
-  // ---------- Archive. Nothing is deleted from the database. ----------
+  // Archive. Nothing is deleted from the database.
   const archiveBlocked = archiveCheck.list.length > 0;
   archiveTargetRef.current = archiveTarget ? archiveTarget.id : null;
 
@@ -1162,9 +1154,7 @@ const Dashboard = ({
     }
   };
 
-  /* ================================================================ */
-  /* Stats and Quick Actions                                         */
-  /* ================================================================ */
+  /* Stats and Quick Actions */
 
   const monthlyRequestsCount = useMemo(() => {
     const now = new Date();

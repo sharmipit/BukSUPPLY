@@ -18,6 +18,7 @@ const {
   passwordProblem,
 } = require('../utils/validators');
 
+// Matches institutional BukSU emails (@student.buksu.edu.ph or @buksu.edu.ph) and allowed test accounts.
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const STUDENT_DOMAIN = '@student.buksu.edu.ph';
 const OTP_EXPIRES_MINUTES = Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 15;
@@ -25,7 +26,7 @@ const OTP_MAX_ATTEMPTS = 5;
 
 const googleClient = new OAuth2Client();
 
-// --- Helpers -----------------------------------------------------------
+// Helpers
 
 const isString = (v) => typeof v === 'string';
 const normalizeEmail = (email) => email.trim().toLowerCase();
@@ -159,7 +160,7 @@ const reactivationPayload = (user) =>
       }
     : null;
 
-// --- Controllers ---------------------------------------------------------
+// Controllers
 
 // Runs every sign-up check once, so "send code" and "create account" can't disagree.
 // Returns { status, error, field } or the cleaned values.

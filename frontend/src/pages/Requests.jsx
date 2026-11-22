@@ -42,7 +42,7 @@ const DENY_PRESETS = [
   'Please resubmit with a smaller quantity.',
 ];
 
-// ---------- Helpers ----------
+// Helpers
 const isOpen = (req) => OPEN_STATUSES.includes(req.status);
 const hasPurchaseItems = (req) => (req.purchaseItems || []).length > 0;
 

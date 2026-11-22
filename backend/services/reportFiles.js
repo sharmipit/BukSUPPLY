@@ -119,7 +119,7 @@ const closingLines = (meta) => [
   '*** End of report ***',
 ];
 
-// ---------- PDF: running header and footer (shown on every page) ----------
+// PDF: running header and footer (shown on every page)
 // The issuance slip has NO running header: its title is printed inside each page.
 const headerHtml = (type) =>
   type === 'issuance'
@@ -188,7 +188,7 @@ function buildHtml(type, rows, summary, meta) {
   </body></html>`;
 }
 
-// ---------- Issuance slip (Requisition and Issue Slip form) ----------
+// Issuance slip (Requisition and Issue Slip form)
 // The form itself lives in issuanceSlip.js (PDF) and templates/RIS-TEMPLATE.xlsx (Excel).
 const slipContext = (meta) => ({
   fmtDate,
@@ -200,7 +200,7 @@ const slipContext = (meta) => ({
   systemLine: `${SYSTEM_NAME} – ${SYSTEM_SUBTITLE}`,
 });
 
-// ---- External API call. Confirm header/footer/margin options in PDFShift's docs. ----
+// External API call. Confirm header/footer/margin options in PDFShift's docs.
 async function buildPdfExternal(type, html, meta, landscape = true) {
   const s = settings.get();
   if (!s.pdfshiftApiKey) throw new Error('PDF service is not configured.');
@@ -232,7 +232,7 @@ async function buildPdfExternal(type, html, meta, landscape = true) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// ---------- Excel (external): plain HTML table with title rows on top and notes at the bottom ----------
+// Excel (external): plain HTML table with title rows on top and notes at the bottom
 function buildXlsxHtml(type, rows, summary, meta) {
   const cols = COLUMNS[type];
   const span = cols.length;
@@ -258,7 +258,7 @@ function buildXlsxHtml(type, rows, summary, meta) {
   </table></body></html>`;
 }
 
-// ---- External API call (reports). Confirm endpoint/options in Nutrient's docs. ----
+// External API call (reports). Confirm endpoint/options in Nutrient's docs.
 async function nutrientHtmlToXlsx(html, filename) {
   const s = settings.get();
   if (!s.nutrientApiKey) throw new Error('Excel service is not configured.');
@@ -287,7 +287,7 @@ async function nutrientHtmlToXlsx(html, filename) {
 const buildXlsxExternal = (type, rows, summary, meta) =>
   nutrientHtmlToXlsx(buildXlsxHtml(type, rows, summary, meta), 'report.html');
 
-// ---- External first, self-hosted as the fallback ----
+// External first, self-hosted as the fallback
 const tableData = (type, rows) => ({
   headers: COLUMNS[type].map((c) => c.header),
   body: rows.map((r) => COLUMNS[type].map((c) => cell(r, c))),

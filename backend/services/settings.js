@@ -121,7 +121,7 @@ const ENV_KEYS = {
   formsCodeSecret: 'GFORMS_CODE_SECRET',
 };
 
-// ---- encryption helpers ----
+// Encryption helpers
 const enc = (text) => {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv('aes-256-gcm', KEY, iv);
@@ -136,7 +136,7 @@ const dec = (str) => {
   return Buffer.concat([c.update(data), c.final()]).toString('utf8');
 };
 
-// ---- load / cache ----
+// Load / cache
 let cache = null;
 
 function readRaw() {
@@ -230,7 +230,7 @@ function publicView() {
   return out;
 }
 
-// ---- validation (format only) ----
+// Validation (format only)
 const RE = {
   googleClientId: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/i,
   recaptchaKey: /^6L[A-Za-z0-9_-]{38}$/,
@@ -432,7 +432,7 @@ const VALIDATORS = {
   },
 };
 
-// ---- live checks: ask the real provider whether the value exists ----
+// Live checks: ask the real provider whether the value exists
 
 // Network call that turns "service unreachable" into a clear error
 async function call(url, opts = {}) {
@@ -706,7 +706,7 @@ const LIVE = {
   },
 };
 
-// ---- update / reset ----
+// Update / reset
 async function update(section, patch = {}) {
   const fields = SECTIONS[section];
   if (!fields) fail('Unknown settings section.');

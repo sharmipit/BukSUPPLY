@@ -7,11 +7,11 @@ const router = express.Router();
 
 router.use(protect, restrictTo('Administrator'));
 
-// ---- Unlock (no token needed yet) ----
+// Unlock (no token needed yet)
 router.post('/unlock/start', ctrl.unlockStart);
 router.post('/unlock/verify', ctrl.unlockVerify);
 
-// ---- Everything below needs the unlock token ----
+// Everything below needs the unlock token
 router.use(su.requireUnlock);
 
 router.get('/', ctrl.getSettings);

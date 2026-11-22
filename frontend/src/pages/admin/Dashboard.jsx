@@ -93,7 +93,7 @@ const EMPTY_FORM = {
   maxNormal: '',
 };
 
-// ---------- Field rules ----------
+// Field rules
 // Same rules as the Inventory page and the top of routes/inventory.js (the server has the final say).
 const LIMITS = {
   name: 80,
@@ -308,9 +308,7 @@ function FormSelect({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Helpers (shared with the Requests and Inventory pages)              */
-/* ------------------------------------------------------------------ */
+/* Helpers (shared with the Requests and Inventory pages) */
 
 const getStockStatus = (item) => {
   if (item.quantity <= 0) return 'Out of Stock';
@@ -507,9 +505,7 @@ function RemarksField({ id, label, presets, value, onChange, hint }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
+/* Page */
 
 const Dashboard = ({
   inventory: inventoryProp, // optional: falls back to the live inventory hook
@@ -652,9 +648,7 @@ const Dashboard = ({
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /* ================================================================ */
-  /* Requisition slips: review, acknowledge, approve, release, deny    */
-  /* ================================================================ */
+  /* Requisition slips: review, acknowledge, approve, release, deny */
 
   const [detailsId, setDetailsId] = useState(null);
   const [decision, setDecision] = useState(null); // {type: approve|release|deny|undo, id}
@@ -990,9 +984,7 @@ const Dashboard = ({
     </tr>
   );
 
-  /* ================================================================ */
-  /* Inventory: add, edit, adjust, history, archive                     */
-  /* ================================================================ */
+  /* Inventory: add, edit, adjust, history, archive */
 
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -1027,7 +1019,7 @@ const Dashboard = ({
   const [archiveCheck, setArchiveCheck] = useState({ loading: false, list: [] });
   const archiveTargetRef = useRef(null);
 
-  // ---------- Disallowed-character messages ----------
+  // Disallowed-character messages
   // Sets a message only while the last keystroke / paste contained a disallowed character.
   const flagBlocked = (field, raw, kind) => {
     const msg =
@@ -1035,7 +1027,7 @@ const Dashboard = ({
     setBlocked((b) => ((b[field] || '') === msg ? b : { ...b, [field]: msg }));
   };
 
-  // ---------- Add / edit ----------
+  // Add / edit
   const resetFormState = () => {
     setCustomCategory('');
     setCustomUnit('');
@@ -1154,7 +1146,7 @@ const Dashboard = ({
     }
   };
 
-  // ---------- Adjust stock ----------
+  // Adjust stock
   const openAdjustModal = (item) => {
     setAdjustTarget(item);
     setAdjustAmount('');
@@ -1200,7 +1192,7 @@ const Dashboard = ({
     }
   };
 
-  // ---------- Archive. Nothing is deleted from the database. ----------
+  // Archive. Nothing is deleted from the database.
   const archiveBlocked = archiveCheck.list.length > 0;
   archiveTargetRef.current = archiveTarget ? archiveTarget.id : null;
 
@@ -1254,10 +1246,7 @@ const Dashboard = ({
     }
   };
 
-  /* ================================================================ */
-  /* Users: details, deactivate, reactivate, decline, archive          */
-  /* (same actions and pop-ups as the User Management page)            */
-  /* ================================================================ */
+  // Users: details, deactivate, reactivate, decline, archive (same actions and pop-ups as User Management)
 
   const [userDetailsTarget, setUserDetailsTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
@@ -1334,9 +1323,7 @@ const Dashboard = ({
     setUserUnarchiveTarget(null);
   };
 
-  /* ================================================================ */
-  /* Stats, shortcuts, preview rows                                    */
-  /* ================================================================ */
+  /* Stats, shortcuts, preview rows */
 
   // Calculate current month's requests to match Requests.jsx precisely
   const monthlyRequestsCount = useMemo(() => {
@@ -1799,9 +1786,7 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* Requisition: details / review modal                           */}
-      {/* ============================================================ */}
+      {/* Requisition: details / review modal */}
       {detailsReq && (
         <div className="rq-modal-backdrop" onClick={closeDetails}>
           <div
@@ -3065,9 +3050,7 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* Users: pop-ups (same as User Management)                     */}
-      {/* ============================================================ */}
+      {/* Users: pop-ups (same as User Management) */}
       <UserDetailsModal
         user={userDetailsTarget}
         onClose={() => setUserDetailsTarget(null)}
