@@ -8,6 +8,7 @@ import usePublicConfig from '../hooks/usePublicConfig';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 import css from '../styles/signin.css?raw';
 
+// Matches institutional BukSU emails (@student.buksu.edu.ph or @buksu.edu.ph) and allowed test accounts.
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const EMAIL_MESSAGE =
   'Please use a valid BukSU institutional email address (@student.buksu.edu.ph or @buksu.edu.ph).';
@@ -198,7 +199,7 @@ export default function Signin() {
   const location = useLocation();
   const config = usePublicConfig(); // keys and on/off switches from System Settings
 
-  // ---------- Sign in form ----------
+  // Sign in form
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -319,7 +320,7 @@ export default function Signin() {
     return () => document.removeEventListener('keydown', onKey);
   }, [captchaOpen]);
 
-  // ---------- Google sign in ----------
+  // Google sign in
   const handleGoogle = async (credential) => {
     if (googleBusyRef.current) return;
     googleBusyRef.current = true;
@@ -348,7 +349,7 @@ export default function Signin() {
     }
   };
 
-  // ---------- Request reactivation modal ----------
+  // Request reactivation modal
   const [reactOpen, setReactOpen] = useState(false);
   const [reactMessage, setReactMessage] = useState('');
   const [reactAlert, setReactAlert] = useState(NO_BANNER);
@@ -424,7 +425,7 @@ export default function Signin() {
     }
   };
 
-  // ---------- Forgot / reset password modal ----------
+  // Forgot / reset password modal
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [resetEmail, setResetEmail] = useState('');

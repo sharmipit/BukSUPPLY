@@ -31,7 +31,7 @@ const esc = (s) =>
 // meta  = { code, generatedAt, generatedBy }
 // fmtDate / fmtStamp are passed in from reports.js so dates look the same everywhere.
 
-// ===================== PDF (HTML) =====================
+// PDF (HTML)
 // The PDF service already prints the running header (university / system / title) and the
 // running footer (verification code, generated stamp, "Page x of y") on EVERY page, using
 // margins of 25mm top and 22mm bottom, so the usable height is about 250mm.
@@ -270,7 +270,7 @@ function buildIssuanceHtml(
   </body></html>`;
 }
 
-// ===================== Excel (fills the RIS template) =====================
+// Excel (fills the RIS template)
 // Keeps the exact look of the official form by loading it and writing values into its cells.
 async function buildIssuanceXlsxFromTemplate(
   slip,
@@ -311,13 +311,13 @@ async function buildIssuanceXlsxFromTemplate(
     // Continuation sheets: hide the title and slip-fields block (rows 1-9); the column headings stay
     if (p > 0) for (let r = 1; r <= 9; r++) ws.getRow(r).hidden = true;
 
-    // ----- header block -----
+    // Header block
     set(ws, 'B6', slip.department || ''); // Division / Office (merged B6:H7)
     set(ws, 'J7', String(slip.id)); // RIS No.  (merged J7:M7)
     ws.getCell('J7').alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getCell('B6').alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
 
-    // ----- item rows -----
+    // Item rows
     const chunk = lines.slice(p * ITEMS_PER_PAGE, (p + 1) * ITEMS_PER_PAGE);
     chunk.forEach((l, i) => {
       const r = FIRST_ITEM_ROW + i;
@@ -336,11 +336,11 @@ async function buildIssuanceXlsxFromTemplate(
 
     const isLast = p === pageCount - 1;
     if (isLast) {
-      // ----- purpose (merged B35:M36) -----
+      // Purpose (merged B35:M36)
       set(ws, 'B35', slip.purpose || '');
       ws.getCell('B35').alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
 
-      // ----- requested by: name and date only; approver / issuer / receiver stay blank -----
+      // Requested by: name and date only; approver / issuer / receiver stay blank
       set(ws, 'B40', slip.requestedBy || ''); // merged B40:D40
       set(ws, 'B42', filed); // merged B42:D42
       ws.getCell('B40').alignment = { horizontal: 'center', vertical: 'middle' };
@@ -361,7 +361,7 @@ async function buildIssuanceXlsxFromTemplate(
       ws.getCell('B35').alignment = { horizontal: 'center', vertical: 'middle' };
     }
 
-    // ----- report verification (required) -----
+    // Report verification (required)
     const lineAt = (row, text, bold) => {
       ws.mergeCells(`A${row}:M${row}`);
       const c = ws.getCell(`A${row}`);
@@ -378,7 +378,7 @@ async function buildIssuanceXlsxFromTemplate(
     );
     ws.getRow(45).height = 26;
 
-    // ----- print setup: A4 portrait, one sheet per page, proper header and footer -----
+    // Print setup: A4 portrait, one sheet per page, proper header and footer
     const hf = (t) => String(t).replace(/&/g, '&&'); // "&" is a control character in Excel headers
     ws.pageSetup.paperSize = 9;
     ws.pageSetup.orientation = 'portrait';

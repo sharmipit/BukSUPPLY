@@ -112,7 +112,7 @@ async function buildLocalXlsx({ org, subtitle, title, info, code, footerLines, h
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-// ---------- Issuance slip as an editable sheet ----------
+// Issuance slip as an editable sheet
 const FILL_EDIT = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9DB' } }; // editable cells
 const FILL_HEAD = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6E6' } };
 const THIN_LINE = { style: 'thin', color: { argb: 'FF000000' } };

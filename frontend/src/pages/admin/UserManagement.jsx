@@ -89,9 +89,7 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-/* ------------------------------------------------------------------ */
-/* Modals                                                              */
-/* ------------------------------------------------------------------ */
+/* Modals */
 
 function ConfirmModal({
   isOpen,
@@ -583,7 +581,7 @@ function UserDetailsModal({
   );
 }
 
-/* ---- Create moderator: the rules are shared (utils/fieldRules.js) ---- */
+// Create moderator: the rules are shared (utils/fieldRules.js)
 // Moderators sign in with the staff address, so they use the same ID format as staff (P-0000)
 const MODERATOR_ID_KIND = ID_KIND.staff;
 const MODERATOR_EMAIL = {
@@ -948,9 +946,7 @@ function CreateModeratorModal({ isOpen, onClose, onCreate }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
+/* Page */
 
 export default function UserManagement() {
   useEffect(() => {
@@ -1007,7 +1003,7 @@ export default function UserManagement() {
     },
   ];
 
-  /* ---- Three-dots menu: open, place, close ---- */
+  // Three-dots menu: open, place, close
   const openMenu = (e, u) => {
     e.stopPropagation(); // the row itself opens the details pop-up
     if (menu && menu.user._id === u._id) {
@@ -1046,13 +1042,13 @@ export default function UserManagement() {
     };
   }, [menu]);
 
-  /* ---- Debounce search so we don't hit the API on every keystroke ---- */
+  // Debounce search so we don't hit the API on every keystroke
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  /* ---- Fetch users whenever filter / search / page changes ---- */
+  // Fetch users whenever filter / search / page changes
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
@@ -1085,7 +1081,7 @@ export default function UserManagement() {
     return () => controller.abort();
   }, [activeFilter, debouncedSearch, currentPage, refreshKey]);
 
-  /* ---- Pagination (server-side) ---- */
+  // Pagination (server-side)
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
   const handleFilterChange = (filter) => {
@@ -1098,7 +1094,7 @@ export default function UserManagement() {
     setCurrentPage(1);
   };
 
-  /* ---- Actions ---- */
+  // Actions
   const handleCreateModerator = async (data) => {
     // Throws on error; the modal catches it and shows the message
     await apiFetch("/moderators", {

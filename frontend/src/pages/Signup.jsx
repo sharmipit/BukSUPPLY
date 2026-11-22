@@ -21,6 +21,7 @@ import {
 } from '../utils/fieldRules';
 import css from '../styles/signup.css?raw';
 
+// Matches institutional BukSU emails (@student.buksu.edu.ph or @buksu.edu.ph) and allowed test accounts.
 const EMAIL_PATTERN = /^([^@\s]+@(student\.)?buksu\.edu\.ph|sharmagnegamboa11@gmail\.com)$/i;
 const TEMP_ADMIN_EMAIL = 'sharmagnegamboa11@gmail.com';
 

@@ -452,14 +452,14 @@ export default function Inventory() {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentItems = filteredItems.slice(indexOfFirst, indexOfLast);
 
-  // ---------- Disallowed-character messages ----------
+  // Disallowed-character messages
   // Sets a message only while the last keystroke / paste contained a disallowed character.
   const flagBlocked = (field, raw, kind) => {
     const msg = String(raw ?? '').replace(STRIP[kind], '') !== String(raw ?? '') ? BLOCK_MSG[kind] : '';
     setBlocked((b) => ((b[field] || '') === msg ? b : { ...b, [field]: msg }));
   };
 
-  // ---------- Add / edit ----------
+  // Add / edit
   const resetFormState = () => {
     setCustomCategory('');
     setCustomUnit('');
@@ -594,7 +594,7 @@ export default function Inventory() {
     }
   };
 
-  // ---------- Adjust stock ----------
+  // Adjust stock
   const openAdjustModal = (item) => {
     setAdjustTarget(item);
     setAdjustAmount('');
@@ -640,7 +640,7 @@ export default function Inventory() {
     }
   };
 
-  // ---------- Archive (admin and moderator). Nothing is deleted from the database. ----------
+  // Archive (admin and moderator). Nothing is deleted from the database.
   const archiveBlocked = archiveCheck.list.length > 0;
   archiveTargetRef.current = archiveTarget ? archiveTarget.id : null;
 
@@ -691,7 +691,7 @@ export default function Inventory() {
     }
   };
 
-  // ---------- Restore ----------
+  // Restore
   const openRestoreModal = (item) => {
     setRestoreError('');
     setRestoreTarget(item);

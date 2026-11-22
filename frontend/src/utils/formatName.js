@@ -1,6 +1,7 @@
 // Shows the first word and the last word of a full name.
 // Emails and short names (1-2 words) are returned unchanged.
 
+// Matches standard name suffixes like Jr., Sr., and Roman numerals.
 const SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i;
 
 export function shortName(full) {

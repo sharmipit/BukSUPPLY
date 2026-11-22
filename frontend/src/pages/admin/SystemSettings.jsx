@@ -113,7 +113,7 @@ const SECTION_TITLE = {
 // Includes the server's "xxxSet" / "xxxMasked" helper keys
 const keysFor = (section) => SECTION_FIELDS[section].flatMap((f) => [f, `${f}Set`, `${f}Masked`]);
 
-// ---- validation ----
+// Validation
 // The server checks everything again, and also asks Google whether the values really work.
 // Every check below returns a message, or '' when the value is fine. The page shows the
 // message right under the field, after the user leaves the field or tries to save.
@@ -385,7 +385,7 @@ const tidyForm = (form) => {
   return next;
 };
 
-// ---- Google reCAPTCHA script (loaded once, only when the admin confirms new keys) ----
+// Google reCAPTCHA script (loaded once, only when the admin confirms new keys)
 let recaptchaLoader = null;
 const loadRecaptcha = () => {
   if (window.grecaptcha && window.grecaptcha.render) return Promise.resolve(window.grecaptcha);
@@ -405,7 +405,7 @@ const loadRecaptcha = () => {
   return recaptchaLoader;
 };
 
-// ---- small components ----
+// Small components
 // Plain text box. Field passes `invalid` and `describedBy` to it, so it turns red and is
 // linked to its message for screen readers.
 const TextInput = ({ invalid, describedBy, className = '', ...rest }) => (

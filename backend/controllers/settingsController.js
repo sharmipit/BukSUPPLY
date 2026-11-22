@@ -24,7 +24,7 @@ const log = (req, action, description, reference = '') =>
 // They are kept as-is rather than converted to AppError, because any error
 // message from these services must reach the page unchanged.
 
-// ---- Unlock (no token needed yet) ----
+// Unlock (no token needed yet)
 exports.unlockStart = asyncHandler(async (req, res) => {
   try {
     const result = await su.start(userId(req), req.body.email, req.body.pin);
@@ -48,7 +48,7 @@ exports.unlockVerify = asyncHandler(async (req, res) => {
   }
 });
 
-// ---- Everything below needs the unlock token (su.requireUnlock is applied in the route file) ----
+// Everything below needs the unlock token (su.requireUnlock is applied in the route file)
 exports.getSettings = asyncHandler(async (req, res) => {
   res.json(settings.publicView());
 });

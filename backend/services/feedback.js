@@ -32,7 +32,7 @@ const client = () => {
 
 const normSlip = (s) => String(s || '').trim().toUpperCase();
 
-// ---------- Verification code ----------
+// Verification code
 // A short code derived from the slip number and a server secret. It is pre-filled in the
 // form, so a response whose slip number was edited (or invented) no longer matches its code.
 // Changing the secret makes codes of earlier responses stop matching.
@@ -46,7 +46,7 @@ const codeFor = (slip) =>
     .slice(0, 10)
     .toUpperCase();
 
-// ---------- Pre-filled link ----------
+// Pre-filled link
 const fullName = (u) =>
   [u.firstName, u.lastName].filter((n) => n && n !== '-').join(' ') || u.email || '';
 
@@ -71,7 +71,7 @@ exports.linkFor = (slip, { user = {}, department = '' } = {}) => {
 
 exports.enabled = enabled;
 
-// ---------- Question IDs ----------
+// Question IDs
 // The responses API names every answer by its "questionId". That is NOT always the same number
 // as the item ID, so a wrong ID in the settings means every answer is read as empty and no
 // feedback is ever detected. To avoid that, each question value may be ANY of:
@@ -137,7 +137,7 @@ const resolveQid = (value, lookup) => {
   return (lookup && lookup.get(keyOf(v))) || v;
 };
 
-// ---------- Reading the responses ----------
+// Reading the responses
 const answer = (resp, qid) =>
   (qid && resp.answers?.[qid]?.textAnswers?.answers?.[0]?.value) || '';
 

@@ -733,7 +733,7 @@ export default function ReportsLogs() {
     [items]
   );
 
-  // ---------- Export ----------
+  // Export
   const [busyKey, setBusyKey] = useState('');
   const [notice, setNotice] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -744,7 +744,7 @@ export default function ReportsLogs() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  // ---------- Recent exports ----------
+  // Recent exports
   const [history, setHistory] = useState([]);
   const [histLoading, setHistLoading] = useState(true);
   const [histError, setHistError] = useState('');

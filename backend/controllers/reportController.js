@@ -72,7 +72,7 @@ function deliverQuietly(args) {
   }
 }
 
-// ---------- Data loaders (shared by JSON and file export) ----------
+// Data loaders (shared by JSON and file export)
 async function stocksRows(q) {
   const filter = {};
   if (str(q.category) && str(q.category) !== 'All') filter.category = str(q.category);
@@ -125,6 +125,7 @@ async function transactionsRows(q) {
   const range = dateRange(q);
   if (range) match['movements.date'] = range;
 
+  // Unwinds inventory movements to project transaction records with filter and date range.
   return InventoryItem.aggregate([
     { $unwind: '$movements' },
     { $match: match },
@@ -148,11 +149,9 @@ async function transactionsRows(q) {
 
 const loaders = { stocks: stocksRows, requests: requestsRows, transactions: transactionsRows };
 
-// ---------------------------------------------------------------------------
 // Handlers
-// ---------------------------------------------------------------------------
 
-// ---------- History ----------
+// History
 exports.getHistory = asyncHandler(async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 100);
   res.json(await ExportHistory.find().sort({ createdAt: -1 }).limit(limit));
@@ -169,7 +168,7 @@ exports.createHistory = asyncHandler(async (req, res) => {
   res.status(201).json(historyItem);
 });
 
-// ---------- Verify a report by the code printed in its footer ----------
+// Verify a report by the code printed in its footer
 exports.verifyReport = asyncHandler(async (req, res) => {
   const code = str(req.params.code).toUpperCase();
   const record = await ExportHistory.findOne({ code });
@@ -179,7 +178,7 @@ exports.verifyReport = asyncHandler(async (req, res) => {
   res.json(record);
 });
 
-// ---------- Issuance slip (PDF or editable Excel for one requisition) ----------
+// Issuance slip (PDF or editable Excel for one requisition)
 // ?format=pdf (default) or ?format=xlsx
 exports.exportIssuance = asyncHandler(async (req, res) => {
   const format = str(req.query.format) || 'pdf';
@@ -290,7 +289,7 @@ exports.exportIssuance = asyncHandler(async (req, res) => {
   });
 });
 
-// ---------- Raw JSON endpoint (also used by the preview) ----------
+// Raw JSON endpoint (also used by the preview)
 exports.getReport = asyncHandler(async (req, res) => {
   const { type } = req.params;
   if (!TYPES.includes(type)) {
@@ -300,7 +299,7 @@ exports.getReport = asyncHandler(async (req, res) => {
   res.json(await loaders[type](req.query));
 });
 
-// ---------- File export ----------
+// File export
 exports.exportReport = asyncHandler(async (req, res) => {
   const { type } = req.params;
   const format = str(req.query.format);

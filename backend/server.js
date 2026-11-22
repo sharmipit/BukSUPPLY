@@ -76,10 +76,10 @@ app.use('/api', (req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
-// --- Global Error Handler ---
+// Global Error Handler
 app.use(require('./middleware/errorHandler'));
 
-// --- Start Server ---
+// Start Server
 const PORT = process.env.PORT || 5001;
 
 connectDB().then(() => {

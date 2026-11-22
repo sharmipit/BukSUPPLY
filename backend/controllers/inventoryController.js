@@ -21,10 +21,8 @@ const actorOf = (req) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Field rules. Keep these in sync with the top of src/pages/Inventory.jsx.
 // The page blocks bad input while typing, but the server is the one that decides.
-// ---------------------------------------------------------------------------
 const LIMITS = {
   name: 80,
   supplier: 120,
@@ -160,10 +158,8 @@ function clean(b = {}, { keepUnit = '' } = {}) {
   return { value };
 }
 
-// ---------------------------------------------------------------------------
 // Open requests. An item cannot be archived while a request that is still being
 // handled (Pending, Processing or Approved) asks for it.
-// ---------------------------------------------------------------------------
 const OPEN_STATUSES = ['Pending', 'Processing', 'Approved'];
 const keyOf = (s) =>
   String(s || '')
@@ -199,9 +195,7 @@ function blockedMessage(item, open) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Handlers
-// ---------------------------------------------------------------------------
 
 // Everyone logged in can read (the request form needs it). Regular users only get the fields
 // they need, and never see archived items.
