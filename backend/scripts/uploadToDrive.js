@@ -21,6 +21,16 @@ function getCredentials() {
 }
 
 function getDriveClient() {
+  const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID || process.env.GDRIVE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET || process.env.GDRIVE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || process.env.GDRIVE_REFRESH_TOKEN;
+
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    return google.drive({ version: 'v3', auth: oauth2Client });
+  }
+
   const creds = getCredentials();
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -82,21 +92,48 @@ async function pruneRemoteBackups(drive, folderId, keepCount = 14) {
   }
 }
 
-async function uploadBackup(filePath) {
-  const folderId = process.env.GDRIVE_FOLDER_ID;
-  if (!folderId) {
-    throw new Error('GDRIVE_FOLDER_ID environment variable is missing.');
+async function ensureFolder(drive) {
+  if (process.env.GDRIVE_FOLDER_ID) {
+    return process.env.GDRIVE_FOLDER_ID;
   }
+  const folderName = 'BukSUPPLY-Backups';
+  try {
+    const q = `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const res = await drive.files.list({
+      q,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    if (res.data.files && res.data.files.length > 0) {
+      return res.data.files[0].id;
+    }
+    const created = await drive.files.create({
+      requestBody: {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+      },
+      fields: 'id',
+      supportsAllDrives: true,
+    });
+    return created.data.id;
+  } catch (err) {
+    throw new Error(`Failed to locate or create Google Drive folder '${folderName}': ${err.message}`);
+  }
+}
 
+async function uploadBackup(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File to upload does not exist: ${filePath}`);
   }
 
+  const drive = getDriveClient();
+  const folderId = await ensureFolder(drive);
+
   const fileName = path.basename(filePath);
   const fileSizeMb = (fs.statSync(filePath).size / (1024 * 1024)).toFixed(2);
   console.log(`Uploading ${fileName} (${fileSizeMb} MB) to Google Drive folder: ${folderId}...`);
-
-  const drive = getDriveClient();
 
   try {
     const fileMetadata = {
