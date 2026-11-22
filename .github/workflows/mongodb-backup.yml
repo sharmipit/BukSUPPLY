@@ -34,12 +34,6 @@ jobs:
           sudo apt-get install -y ./mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb
           mongodump --version
 
-      - name: Mask secrets
-        run: |
-          echo "::add-mask::${{ secrets.MONGODB_URI }}"
-          echo "::add-mask::${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}"
-          echo "::add-mask::${{ secrets.GDRIVE_FOLDER_ID }}"
-
       - name: Run backup and upload to Google Drive
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
