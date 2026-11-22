@@ -1,8 +1,6 @@
-// Evaluates password strength (weak, medium, strong) and suggests improvements.
+// Gives a weak / medium / strong rating plus one short hint. The format rules
 
-// Common passwords, keyboard patterns, and repeated character sequences.
-const COMMON =
-  /(password|passw0rd|qwerty|asdf|letmein|welcome|iloveyou|admin|buksu|123456|abc123)/i;
+const COMMON = /(password|passw0rd|qwerty|asdf|letmein|welcome|iloveyou|admin|buksu|123456|abc123)/i;
 const SEQUENCE = /(0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|qwer|wert|asdf|sdfg)/i;
 const REPEAT = /(.)\1{2,}/;
 
