@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Deactivation = require('../models/Deactivation');
 
 exports.protect = async (req, res, next) => {
   try {
@@ -12,7 +13,25 @@ exports.protect = async (req, res, next) => {
     if (!user) return res.status(401).json({ message: 'Not authorized.' });
 
     if (user.accountStatus === 'Deactivated') {
-      return res.status(403).json({ message: 'This account has been deactivated.' });
+
+      let current = null;
+      try {
+        current = await Deactivation.findOne({ user: user._id, active: true })
+          .sort({ createdAt: -1 })
+          .lean();
+      } catch {
+        current = null;
+      }
+
+      return res.status(403).json({
+        message: 'This account has been deactivated.',
+        code: 'ACCOUNT_DEACTIVATED',
+        deactivation: {
+          reason: current ? current.reason : '',
+          source: current ? current.source : '',
+          date: current ? current.createdAt : null,
+        },
+      });
     }
 
     req.user = user;
