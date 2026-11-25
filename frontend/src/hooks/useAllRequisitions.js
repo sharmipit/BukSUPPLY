@@ -38,7 +38,11 @@ export default function useAllRequisitions() {
       return data;
     } catch (err) {
       if (err.response?.status === 409) {
-        await refresh();
+        try {
+          await refresh();
+        } catch {
+          // Ignore refresh errors so the original 409 is always rethrown
+        }
       }
       throw err;
     }

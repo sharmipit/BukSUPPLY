@@ -755,7 +755,7 @@ const Dashboard = ({
   };
 
   const handleAcknowledge = async (req) => {
-    const ok = await run(() => setStatus(req.id, 'Processing'));
+    const ok = await run(() => setStatus(req.id, 'Processing', '', req.status));
     if (!ok) return;
     setNotice({
       type: 'success',
@@ -771,14 +771,14 @@ const Dashboard = ({
 
     if (decision.type === 'approve') {
       if (!text) return;
-      const ok = await run(() => setStatus(decisionReq.id, 'Approved', text));
+      const ok = await run(() => setStatus(decisionReq.id, 'Approved', text, decisionReq.status));
       if (!ok) return;
       setNotice({
         type: 'success',
         text: `${decisionReq.id} approved. It's ready for release. Nothing is deducted until it's claimed.`,
       });
     } else if (decision.type === 'release') {
-      const result = await run(() => setStatus(decisionReq.id, 'Accepted'));
+      const result = await run(() => setStatus(decisionReq.id, 'Accepted', '', decisionReq.status));
       if (!result) return;
       await refreshInventory();
       const moved = result.stock?.deducted || [];
@@ -794,7 +794,7 @@ const Dashboard = ({
       });
     } else if (decision.type === 'deny') {
       if (!text) return;
-      const ok = await run(() => setStatus(decisionReq.id, 'Denied', text));
+      const ok = await run(() => setStatus(decisionReq.id, 'Denied', text, decisionReq.status));
       if (!ok) return;
       setNotice({ type: 'success', text: `${decisionReq.id} was denied. No stock was deducted.` });
     }

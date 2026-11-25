@@ -315,15 +315,6 @@ const TRANSITIONS = {
   Approved: ['Accepted', 'Denied'], // Accepted = requester received the items; Denied = e.g. never claimed
 };
 
-// Source statuses allowed to transition to each target status
-const ALLOWED_FROM = Object.entries(TRANSITIONS).reduce((acc, [from, tos]) => {
-  for (const to of tos) {
-    if (!acc[to]) acc[to] = [];
-    acc[to].push(from);
-  }
-  return acc;
-}, {});
-
 /** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
 exports.setStatus = asyncHandler(async (req, res) => {
   const { status, expectedStatus } = req.body;
@@ -349,11 +340,10 @@ exports.setStatus = asyncHandler(async (req, res) => {
     );
   }
 
-  const fromStatus = hasExpectedStatus ? expectedStatus : doc.status;
-  if (!(TRANSITIONS[fromStatus] || []).includes(status)) {
+  if (!(TRANSITIONS[doc.status] || []).includes(status)) {
     return res
       .status(409)
-      .json({ message: `A ${fromStatus.toLowerCase()} request can't be moved to ${status}.` });
+      .json({ message: `A ${doc.status.toLowerCase()} request can't be moved to ${status}.` });
   }
   if (status === 'Denied' && !remarks) {
     return res.status(400).json({ message: 'Please give a reason for the denial.' });
@@ -382,7 +372,7 @@ exports.setStatus = asyncHandler(async (req, res) => {
 
   // Remember where a denied slip came from, so an administrator's Undo can restore it
   if (status === 'Denied') {
-    setFields.previousStatus = hasExpectedStatus ? expectedStatus : doc.status; // Pending, Processing or Approved
+    setFields.previousStatus = doc.status; // Pending, Processing or Approved
     setFields.previousRemarks = doc.remarks || '';
   }
 
@@ -390,7 +380,7 @@ exports.setStatus = asyncHandler(async (req, res) => {
   const updated = await Requisition.findOneAndUpdate(
     {
       slipNumber: req.params.slip,
-      status: hasExpectedStatus ? expectedStatus : { $in: ALLOWED_FROM[status] },
+      status: doc.status,
     },
     { $set: setFields },
     { new: true }
@@ -424,10 +414,17 @@ exports.setStatus = asyncHandler(async (req, res) => {
         ? { $set: revertSet, $unset: revertUnset }
         : { $set: revertSet };
 
-      await Requisition.findOneAndUpdate(
-        { _id: updated._id, status: 'Accepted' },
-        revertUpdate
-      );
+      try {
+        await Requisition.findOneAndUpdate(
+          { _id: updated._id, status: 'Accepted' },
+          revertUpdate
+        );
+      } catch (revertErr) {
+        console.error(
+          `Failed to revert status for ${updated.slipNumber} after deduction failure (stock was NOT deducted):`,
+          revertErr
+        );
+      }
       throw new AppError(err.message, 409);
     }
   }
