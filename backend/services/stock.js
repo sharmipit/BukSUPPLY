@@ -141,34 +141,42 @@ async function restoreForRequisition(requisitionId, by) {
   if (!reqDoc) return { skipped: true, restored: [], missing: [] };
 
   const reference = reqDoc.slipNumber || String(reqDoc._id);
+  const done = [];
   const restored = [];
   const missing = [];
 
-  const lines = [...(reqDoc.itemsList || []), ...(reqDoc.purchaseItems || [])];
-  for (const line of lines) {
-    const qty = Math.floor(Number(line.qty));
-    if (!(qty >= 1)) continue;
+  try {
+    const lines = [...(reqDoc.itemsList || []), ...(reqDoc.purchaseItems || [])];
+    for (const line of lines) {
+      const qty = Math.floor(Number(line.qty));
+      if (!(qty >= 1)) continue;
 
-    const itemId = await resolveItemId(line);
-    const res = itemId
-      ? await moveStock({ _id: itemId }, qty, {
-          by,
-          reference,
-          remark: `Returned to stock: undo of ${reference}`,
-        })
-      : null;
+      const itemId = await resolveItemId(line);
+      const res = itemId
+        ? await moveStock({ _id: itemId }, qty, {
+            by,
+            reference,
+            remark: `Returned to stock: undo of ${reference}`,
+          })
+        : null;
 
-    if (!res) {
-      missing.push(line.name);
-      continue;
+      if (!res) {
+        missing.push(line.name);
+        continue;
+      }
+      done.push({ itemId, delta: qty, movementId: res.movementId });
+      restored.push({
+        name: res.item.name,
+        unit: res.item.unit,
+        qty,
+        before: res.before,
+        after: res.after,
+      });
     }
-    restored.push({
-      name: res.item.name,
-      unit: res.item.unit,
-      qty,
-      before: res.before,
-      after: res.after,
-    });
+  } catch (err) {
+    for (const d of done.reverse()) await undoMove(d.itemId, d.delta, d.movementId);
+    await Requisition.updateOne({ _id: requisitionId }, { $set: { stockDeducted: true } });
+    throw err;
   }
   return { skipped: false, restored, missing };
 }
