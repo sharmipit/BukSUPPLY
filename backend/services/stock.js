@@ -1,40 +1,48 @@
 const mongoose = require('mongoose');
 const InventoryItem = require('../models/InventoryItem');
 const Requisition = require('../models/Requisition'); // adjust to your model path
+const AppError = require('../utils/AppError');
 
-// Atomically adjust stock and record movement history (prevents negative quantity and race conditions)
+const MAX_MOVE_ATTEMPTS = 5;
+
+// Atomically adjust stock and record movement history in one write (prevents negative quantity and lost history)
 async function moveStock(match, delta, { by, reference = '', remark = '' }) {
-  const filter = { ...match };
-  if (delta < 0) filter.quantity = { $gte: -delta };
+  for (let attempt = 0; attempt < MAX_MOVE_ATTEMPTS; attempt++) {
+    const current = await InventoryItem.findOne(match).select('quantity');
+    if (!current) return null;
 
-  const before = await InventoryItem.findOneAndUpdate(
-    filter,
-    { $inc: { quantity: delta }, $set: { updatedBy: by } },
-    { new: false } // returns the document as it was BEFORE the change
-  );
-  if (!before) return null;
+    const before = current.quantity;
+    const after = before + delta;
+    if (after < 0) return null;
 
-  const movementId = new mongoose.Types.ObjectId();
-  const item = await InventoryItem.findByIdAndUpdate(
-    before._id,
-    {
-      $push: {
-        movements: {
-          _id: movementId,
-          type: delta > 0 ? 'Received' : 'Withdrawn',
-          qty: Math.abs(delta),
-          before: before.quantity,
-          after: before.quantity + delta,
-          by,
-          reference,
-          remark,
-          date: new Date(),
+    const movementId = new mongoose.Types.ObjectId();
+    const item = await InventoryItem.findOneAndUpdate(
+      { ...match, _id: current._id, quantity: before },
+      {
+        $set: { quantity: after, updatedBy: by },
+        $push: {
+          movements: {
+            _id: movementId,
+            type: delta > 0 ? 'Received' : 'Withdrawn',
+            qty: Math.abs(delta),
+            before,
+            after,
+            by,
+            reference,
+            remark,
+            date: new Date(),
+          },
         },
       },
-    },
-    { new: true }
-  );
-  return { item, movementId, before: before.quantity, after: before.quantity + delta };
+      { new: true }
+    );
+
+    if (item) {
+      return { item, movementId, before, after };
+    }
+  }
+
+  throw new AppError('Stock was updated concurrently. Please try again.', 409);
 }
 
 async function undoMove(itemId, delta, movementId) {
