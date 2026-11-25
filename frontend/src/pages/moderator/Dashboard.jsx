@@ -876,6 +876,7 @@ const Dashboard = ({
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingUpdatedAt, setEditingUpdatedAt] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [customCategory, setCustomCategory] = useState('');
   const [customUnit, setCustomUnit] = useState('');
@@ -925,6 +926,7 @@ const Dashboard = ({
 
   const openAddModal = () => {
     setEditingId(null);
+    setEditingUpdatedAt(null);
     setForm(EMPTY_FORM);
     resetFormState();
     setFormModalOpen(true);
@@ -932,6 +934,7 @@ const Dashboard = ({
 
   const openEditModal = (item) => {
     setEditingId(item.id);
+    setEditingUpdatedAt(item.updated ?? null);
     setForm({
       name: item.name,
       supplier: item.supplier || '',
@@ -1016,8 +1019,12 @@ const Dashboard = ({
     setFormError('');
     try {
       // The server records who did it and writes the history entry
-      if (editingId) await updateInventoryItem(editingId, cleaned);
-      else await createInventoryItem(cleaned);
+      if (editingId) {
+        await updateInventoryItem(
+          editingId,
+          editingUpdatedAt ? { ...cleaned, updatedAt: editingUpdatedAt } : cleaned
+        );
+      } else await createInventoryItem(cleaned);
       setFormModalOpen(false);
       setNotice({
         type: 'success',

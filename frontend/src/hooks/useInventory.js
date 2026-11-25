@@ -31,9 +31,20 @@ export default function useInventory() {
   };
 
   const update = async (id, payload) => {
-    const { data } = await api.put(`/inventory/${id}`, payload);
-    replace(data);
-    return data;
+    try {
+      const { data } = await api.put(`/inventory/${id}`, payload);
+      replace(data);
+      return data;
+    } catch (err) {
+      if (err.response?.status === 409) {
+        try {
+          await refresh();
+        } catch {
+          // Ignore refresh errors so the original 409 is always rethrown
+        }
+      }
+      throw err;
+    }
   };
 
   const adjust = async (id, payload) => {
