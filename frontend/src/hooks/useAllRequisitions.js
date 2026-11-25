@@ -24,16 +24,24 @@ export default function useAllRequisitions() {
   }, [refresh]);
 
   // Update requisition status
-  const setStatus = async (id, status, remarks = '') => {
-    const { data } = await api.patch(`/requisitions/${id}/status`, { status, remarks });
-    setRequisitions((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, ...data.requisition, requestedBy: r.requestedBy, requester: r.requester }
-          : r
-      )
-    );
-    return data;
+  const setStatus = async (id, status, remarks = '', expectedStatus) => {
+    try {
+      const body = expectedStatus ? { status, remarks, expectedStatus } : { status, remarks };
+      const { data } = await api.patch(`/requisitions/${id}/status`, body);
+      setRequisitions((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, ...data.requisition, requestedBy: r.requestedBy, requester: r.requester }
+            : r
+        )
+      );
+      return data;
+    } catch (err) {
+      if (err.response?.status === 409) {
+        await refresh();
+      }
+      throw err;
+    }
   };
 
   // Administrator only: reverts requisition status to the previous state
