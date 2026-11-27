@@ -254,15 +254,37 @@ exports.updateItem = asyncHandler(async (req, res) => {
     throw new AppError('This item is archived. Restore it before editing.', 400);
   }
 
+  const rawUpdatedAt = req.body?.updatedAt;
+  const hasUpdatedAt = rawUpdatedAt !== undefined && rawUpdatedAt !== null && rawUpdatedAt !== '';
+  let clientDate = null;
+  if (hasUpdatedAt) {
+    if (
+      typeof rawUpdatedAt !== 'string' &&
+      !(typeof rawUpdatedAt === 'number' && Number.isFinite(rawUpdatedAt)) &&
+      !(rawUpdatedAt instanceof Date)
+    ) {
+      throw new AppError('Invalid updatedAt.', 400);
+    }
+    clientDate = new Date(rawUpdatedAt);
+    if (Number.isNaN(clientDate.getTime())) {
+      throw new AppError('Invalid updatedAt.', 400);
+    }
+  }
+
   const { value, error } = clean(req.body, { keepUnit: squash(current.unit) });
   if (error) throw new AppError(error, 400);
 
   const by = actorOf(req);
   const changedQty = value.quantity !== current.quantity;
 
-  // The quantity in the filter makes sure nobody changed the stock while this form was open
+  // Enforce optimistic concurrency using the client's updatedAt when provided;
+  // fall back to the legacy quantity check when callers omit updatedAt.
+  const filter = hasUpdatedAt
+    ? { _id: current._id, updatedAt: clientDate }
+    : { _id: current._id, quantity: current.quantity };
+
   const updated = await InventoryItem.findOneAndUpdate(
-    { _id: current._id, quantity: current.quantity },
+    filter,
     {
       $set: { ...value, updatedBy: by },
       $push: {
@@ -279,7 +301,12 @@ exports.updateItem = asyncHandler(async (req, res) => {
     { new: true }
   );
   if (!updated) {
-    throw new AppError('Stock changed while you were editing. Close this and try again.', 409);
+    throw new AppError(
+      hasUpdatedAt
+        ? 'This item was changed by someone else. Please refresh and try again.'
+        : 'Stock changed while you were editing. Close this and try again.',
+      409
+    );
   }
 
   const item = updated;

@@ -317,15 +317,28 @@ const TRANSITIONS = {
 
 /** PATCH /api/requisitions/:slip/status (Moderator / Administrator only) */
 exports.setStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, expectedStatus } = req.body;
   const remarks = String(req.body.remarks || '').trim();
 
   if (!STATUS_NOTIF[status]) {
     return res.status(400).json({ message: 'Invalid status.' });
   }
 
+  const hasExpectedStatus =
+    expectedStatus !== undefined && expectedStatus !== null && expectedStatus !== '';
+  if (hasExpectedStatus && typeof expectedStatus !== 'string') {
+    return res.status(400).json({ message: 'Invalid expectedStatus.' });
+  }
+
   const doc = await Requisition.findOne({ slipNumber: req.params.slip });
   if (!doc) throw new AppError('Requisition not found.', 404);
+
+  if (hasExpectedStatus && doc.status !== expectedStatus) {
+    throw new AppError(
+      'This requisition was already updated by someone else. Please refresh.',
+      409
+    );
+  }
 
   if (!(TRANSITIONS[doc.status] || []).includes(status)) {
     return res
@@ -346,36 +359,81 @@ exports.setStatus = asyncHandler(async (req, res) => {
     if (shortage) return res.status(409).json({ message: shortage });
   }
 
-  // Accepted = the requester received the items. Only now is the inventory reduced.
-  // If anything is short, nothing changes.
-  let stock = null;
-  if (status === 'Accepted') {
-    try {
-      stock = await deductForRequisition(doc._id, personName(req.user));
-    } catch (err) {
-      return res.status(409).json({ message: err.message });
-    }
-  }
+  const now = new Date();
+  const actor = personName(req.user);
+  const setFields = {
+    status,
+    reviewedBy: actor,
+    reviewedAt: now,
+  };
+  if (remarks) setFields.remarks = remarks; // Approved: the pick-up note. Denied: the reason the requester sees.
+  if (status === 'Approved') setFields.approvedAt = now;
+  if (status === 'Accepted' || status === 'Denied') setFields.processedAt = now;
 
   // Remember where a denied slip came from, so an administrator's Undo can restore it
   if (status === 'Denied') {
-    doc.previousStatus = doc.status; // Pending, Processing or Approved
-    doc.previousRemarks = doc.remarks || '';
+    setFields.previousStatus = doc.status; // Pending, Processing or Approved
+    setFields.previousRemarks = doc.remarks || '';
   }
 
-  doc.status = status;
-  if (remarks) doc.remarks = remarks; // Approved: the pick-up note. Denied: the reason the requester sees.
-  doc.reviewedBy = personName(req.user);
-  doc.reviewedAt = new Date();
-  if (status === 'Approved') doc.approvedAt = new Date();
-  if (status === 'Accepted' || status === 'Denied') doc.processedAt = new Date();
-  await doc.save();
+  // Claim the transition atomically before deducting stock
+  const updated = await Requisition.findOneAndUpdate(
+    {
+      slipNumber: req.params.slip,
+      status: doc.status,
+    },
+    { $set: setFields },
+    { new: true }
+  );
+  if (!updated) {
+    throw new AppError(
+      'This requisition was already updated by someone else. Please refresh.',
+      409
+    );
+  }
+
+  // Accepted = the requester received the items. Only now is the inventory reduced.
+  // If anything is short, revert the status and rethrow the error.
+  let stock = null;
+  if (status === 'Accepted') {
+    try {
+      stock = await deductForRequisition(updated._id, actor);
+    } catch (err) {
+      const revertSet = {
+        status: doc.status,
+        reviewedBy: doc.reviewedBy || '',
+        remarks: doc.remarks || '',
+      };
+      const revertUnset = {};
+      if (doc.reviewedAt) revertSet.reviewedAt = doc.reviewedAt;
+      else revertUnset.reviewedAt = '';
+      if (doc.processedAt) revertSet.processedAt = doc.processedAt;
+      else revertUnset.processedAt = '';
+
+      const revertUpdate = Object.keys(revertUnset).length
+        ? { $set: revertSet, $unset: revertUnset }
+        : { $set: revertSet };
+
+      try {
+        await Requisition.findOneAndUpdate(
+          { _id: updated._id, status: 'Accepted' },
+          revertUpdate
+        );
+      } catch (revertErr) {
+        console.error(
+          `Failed to revert status for ${updated.slipNumber} after deduction failure (stock was NOT deducted):`,
+          revertErr
+        );
+      }
+      throw new AppError(err.message, 409);
+    }
+  }
 
   const n = STATUS_NOTIF[status];
   await Notification.create({
-    user: doc.requester,
+    user: updated.requester,
     title: `Requisition ${status}`,
-    message: `Your requisition slip ${doc.slipNumber} ${n.text}${remarks ? ` Remarks: ${remarks}` : ''}`,
+    message: `Your requisition slip ${updated.slipNumber} ${n.text}${remarks ? ` Remarks: ${remarks}` : ''}`,
     type: n.type,
     link: '/user/requests',
   });
@@ -385,13 +443,13 @@ exports.setStatus = asyncHandler(async (req, res) => {
     {
       category: 'Requisition',
       action: 'REQUISITION_STATUS',
-      description: `Changed requisition slip "${doc.title}" to ${status}`,
-      reference: doc.slipNumber,
+      description: `Changed requisition slip "${updated.title}" to ${status}`,
+      reference: updated.slipNumber,
     },
     req
   );
 
-  res.json({ requisition: toClient(doc), stock });
+  res.json({ requisition: toClient(updated), stock });
 });
 
 // Where Undo sends a slip back to (Denied goes back to where it was before the denial)

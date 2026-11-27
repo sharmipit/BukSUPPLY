@@ -367,6 +367,7 @@ export default function Inventory() {
   // Add / edit modal
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingUpdatedAt, setEditingUpdatedAt] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [customCategory, setCustomCategory] = useState('');
   const [customUnit, setCustomUnit] = useState('');
@@ -470,6 +471,7 @@ export default function Inventory() {
 
   const openAddModal = () => {
     setEditingId(null);
+    setEditingUpdatedAt(null);
     setForm(EMPTY_FORM);
     resetFormState();
     setFormModalOpen(true);
@@ -477,6 +479,7 @@ export default function Inventory() {
 
   const openEditModal = (item) => {
     setEditingId(item.id);
+    setEditingUpdatedAt(item.updated ?? null);
     setForm({
       name: item.name,
       supplier: item.supplier || '',
@@ -578,8 +581,12 @@ export default function Inventory() {
     setFormError('');
     try {
       // The server records who did it and writes the history entry
-      if (editingId) await update(editingId, cleaned);
-      else await create(cleaned);
+      if (editingId) {
+        await update(
+          editingId,
+          editingUpdatedAt ? { ...cleaned, updatedAt: editingUpdatedAt } : cleaned
+        );
+      } else await create(cleaned);
       setFormModalOpen(false);
       setNotice({
         type: 'success',
