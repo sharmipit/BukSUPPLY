@@ -136,6 +136,13 @@ export default function DecisionModal({
         </div>
 
         <form className="dm-form" onSubmit={handleSubmit} noValidate>
+          {shownError && (
+            <div className="dm-error-box dm-error-top" role="alert">
+              <strong>Could not save</strong>
+              <p>{shownError}</p>
+            </div>
+          )}
+
           <div className="dm-body">
             {message && <p className="dm-message">{message}</p>}
 
@@ -197,13 +204,6 @@ export default function DecisionModal({
             )}
 
             {note && <p className="dm-note">{note}</p>}
-
-            {shownError && (
-              <div className="dm-error-box" role="alert">
-                <strong>Could not save</strong>
-                <p>{shownError}</p>
-              </div>
-            )}
           </div>
 
           <div className="dm-footer">

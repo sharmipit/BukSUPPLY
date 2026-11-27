@@ -1801,14 +1801,14 @@ const Dashboard = ({
               </div>
             </div>
 
-            <div className="rq-modal-body">
-              {actionError && !decision && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{actionError}</p>
-                </div>
-              )}
+            {actionError && !decision && (
+              <div className="rq-deny-box rq-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{actionError}</p>
+              </div>
+            )}
 
+            <div className="rq-modal-body">
               <Stepper req={detailsReq} />
 
               {isOpen(detailsReq) && (
@@ -2224,6 +2224,13 @@ const Dashboard = ({
               </button>
             </div>
 
+            {recvError && (
+              <div className="rq-deny-box rq-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{recvError}</p>
+              </div>
+            )}
+
             <div className="rq-modal-body">
               <p className="rq-confirm-text">
                 <strong>{receive.line.name}</strong> · {receive.reqId}
@@ -2350,13 +2357,6 @@ const Dashboard = ({
                 Recorded under <strong>{actorName}</strong> for slip{' '}
                 <strong>{receive.reqId}</strong>.
               </p>
-
-              {recvError && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{recvError}</p>
-                </div>
-              )}
             </div>
 
             <div className="rq-modal-footer">
@@ -2396,6 +2396,13 @@ const Dashboard = ({
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
+
+            {formError && (
+              <div className="db-error-box db-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{formError}</p>
+              </div>
+            )}
 
             <div className="db-modal-body">
               <div className="db-field">
@@ -2546,13 +2553,6 @@ const Dashboard = ({
                 {editingId ? 'This edit will be recorded' : 'This item will be recorded as added'}{' '}
                 by <strong>{actorName}</strong>.
               </p>
-
-              {formError && (
-                <div className="db-error-box">
-                  <strong>Could not save</strong>
-                  <p>{formError}</p>
-                </div>
-              )}
             </div>
 
             <div className="db-modal-footer">
@@ -2596,6 +2596,13 @@ const Dashboard = ({
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
+
+            {adjustError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{adjustError}</p>
+              </div>
+            )}
 
             <div className="inv-modal-body">
               <p className="inv-adjust-item">
@@ -2699,13 +2706,6 @@ const Dashboard = ({
                 </strong>{' '}
                 · recorded by <strong>{actorName}</strong>
               </p>
-
-              {adjustError && (
-                <div className="inv-error-box">
-                  <strong>Could not save</strong>
-                  <p>{adjustError}</p>
-                </div>
-              )}
             </div>
 
             <div className="inv-modal-footer">
@@ -2928,6 +2928,13 @@ const Dashboard = ({
               </button>
             </div>
 
+            {archiveError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not archive</strong>
+                <p>{archiveError}</p>
+              </div>
+            )}
+
             <div className="inv-modal-body">
               <p className="inv-confirm-text">
                 <strong>{archiveTarget.name}</strong> · {archiveTarget.id}
@@ -2968,13 +2975,6 @@ const Dashboard = ({
                     {archiveTarget.quantity > 0 &&
                       ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
                   </p>
-                </div>
-              )}
-
-              {archiveError && (
-                <div className="inv-error-box">
-                  <strong>Could not archive</strong>
-                  <p>{archiveError}</p>
                 </div>
               )}
             </div>

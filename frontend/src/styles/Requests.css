@@ -1049,6 +1049,10 @@
   border-color: #fecaca;
   color: #7f1d1d;
 }
+.rq-deny-box.rq-error-top {
+  flex-shrink: 0;
+  margin: 16px 28px 0;
+}
 
 .rq-lines-wrap {
   border: 1px solid var(--card-border, #dfd8cc);

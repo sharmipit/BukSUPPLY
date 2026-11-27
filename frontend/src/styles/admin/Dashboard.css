@@ -1045,6 +1045,11 @@
   font-size: 0.9rem;
 }
 
+.db-error-box.db-error-top {
+  flex-shrink: 0;
+  margin: 16px 28px 0;
+}
+
 .db-error-box p {
   margin: 4px 0 0;
 }
@@ -1071,6 +1076,10 @@
 
   .db-modal-body {
     padding: 16px 20px;
+  }
+
+  .db-error-box.db-error-top {
+    margin: 14px 20px 0;
   }
 
   .db-modal-footer {

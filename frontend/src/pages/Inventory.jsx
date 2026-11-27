@@ -1015,6 +1015,13 @@ export default function Inventory() {
               </button>
             </div>
 
+            {formError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{formError}</p>
+              </div>
+            )}
+
             <div className="inv-modal-body">
               <div className="inv-field">
                 <label htmlFor="inv-name">Item name</label>
@@ -1159,13 +1166,6 @@ export default function Inventory() {
                 {editingId ? 'This edit will be recorded' : 'This item will be recorded as added'}{' '}
                 by <strong>{actorName}</strong>.
               </p>
-
-              {formError && (
-                <div className="inv-error-box">
-                  <strong>Could not save</strong>
-                  <p>{formError}</p>
-                </div>
-              )}
             </div>
 
             <div className="inv-modal-footer">
@@ -1203,6 +1203,13 @@ export default function Inventory() {
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
+
+            {adjustError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{adjustError}</p>
+              </div>
+            )}
 
             <div className="inv-modal-body">
               <p className="inv-adjust-item">
@@ -1304,13 +1311,6 @@ export default function Inventory() {
                 </strong>{' '}
                 · recorded by <strong>{actorName}</strong>
               </p>
-
-              {adjustError && (
-                <div className="inv-error-box">
-                  <strong>Could not save</strong>
-                  <p>{adjustError}</p>
-                </div>
-              )}
             </div>
 
             <div className="inv-modal-footer">
@@ -1518,6 +1518,13 @@ export default function Inventory() {
               </button>
             </div>
 
+            {archiveError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not archive</strong>
+                <p>{archiveError}</p>
+              </div>
+            )}
+
             <div className="inv-modal-body">
               <p className="inv-confirm-text">
                 <strong>{archiveTarget.name}</strong> · {archiveTarget.id}
@@ -1558,13 +1565,6 @@ export default function Inventory() {
                     ` It still has ${archiveTarget.quantity} ${archiveTarget.unit} on hand.`}
                 </p>
               </div>
-              )}
-
-              {archiveError && (
-                <div className="inv-error-box">
-                  <strong>Could not archive</strong>
-                  <p>{archiveError}</p>
-                </div>
               )}
             </div>
 
@@ -1610,6 +1610,13 @@ export default function Inventory() {
               </button>
             </div>
 
+            {restoreError && (
+              <div className="inv-error-box inv-error-top" role="alert">
+                <strong>Could not restore</strong>
+                <p>{restoreError}</p>
+              </div>
+            )}
+
             <div className="inv-modal-body">
               <p className="inv-confirm-text">
                 <strong>{restoreTarget.name}</strong> · {restoreTarget.id}
@@ -1624,13 +1631,6 @@ export default function Inventory() {
                     ` It has ${restoreTarget.quantity} ${restoreTarget.unit} on hand.`}
                 </p>
               </div>
-
-              {restoreError && (
-                <div className="inv-error-box">
-                  <strong>Could not restore</strong>
-                  <p>{restoreError}</p>
-                </div>
-              )}
             </div>
 
             <div className="inv-modal-footer">

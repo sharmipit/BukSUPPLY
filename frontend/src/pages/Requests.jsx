@@ -762,14 +762,14 @@ export default function Requests() {
               </div>
             </div>
 
-            <div className="rq-modal-body">
-              {actionError && !decision && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{actionError}</p>
-                </div>
-              )}
+            {actionError && !decision && (
+              <div className="rq-deny-box rq-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{actionError}</p>
+              </div>
+            )}
 
+            <div className="rq-modal-body">
               <Stepper req={detailsReq} />
 
               {isOpen(detailsReq) && (
@@ -1173,6 +1173,13 @@ export default function Requests() {
               </button>
             </div>
 
+            {recvError && (
+              <div className="rq-deny-box rq-error-top" role="alert">
+                <strong>Could not save</strong>
+                <p>{recvError}</p>
+              </div>
+            )}
+
             <div className="rq-modal-body">
               <p className="rq-confirm-text">
                 <strong>{receive.line.name}</strong> · {receive.reqId}
@@ -1259,13 +1266,6 @@ export default function Requests() {
                 Recorded under <strong>{actorName}</strong> for slip{' '}
                 <strong>{receive.reqId}</strong>.
               </p>
-
-              {recvError && (
-                <div className="rq-deny-box">
-                  <strong>Could not save</strong>
-                  <p>{recvError}</p>
-                </div>
-              )}
             </div>
 
             <div className="rq-modal-footer">

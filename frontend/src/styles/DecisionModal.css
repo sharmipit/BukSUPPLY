@@ -346,6 +346,11 @@
   font-size: 0.9rem;
 }
 
+.dm-error-box.dm-error-top {
+  flex-shrink: 0;
+  margin: 16px 28px 0;
+}
+
 .dm-error-box p {
   margin: 4px 0 0;
   overflow-wrap: anywhere;
@@ -466,6 +471,9 @@
   }
   .dm-body {
     padding: 16px 20px;
+  }
+  .dm-error-box.dm-error-top {
+    margin: 14px 20px 0;
   }
   .dm-footer {
     padding: 14px 20px 20px;

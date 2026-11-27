@@ -978,6 +978,10 @@
   color: #991b1b;
   font-size: 0.9rem;
 }
+.inv-error-box.inv-error-top {
+  flex-shrink: 0;
+  margin: 16px 28px 0;
+}
 .inv-error-box p {
   margin: 4px 0 0;
 }
@@ -1312,6 +1316,10 @@
 
   .inv-modal-body {
     padding: 16px 20px;
+  }
+
+  .inv-error-box.inv-error-top {
+    margin: 14px 20px 0;
   }
 
   .inv-modal-footer {
